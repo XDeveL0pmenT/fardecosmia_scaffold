@@ -1,0 +1,61 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#080916">
+    <title>{% block title %}Фардекосмия{% endblock %}</title>
+    <link rel="icon" type="image/png" sizes="117x117" href="{% static 'images/fardecosmia-favicon.png' %}">
+    <link rel="shortcut icon" type="image/png" href="{% static 'images/fardecosmia-favicon.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'images/fardecosmia-favicon.png' %}">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+<div class="cosmos" aria-hidden="true">
+    <div class="cosmos__nebula cosmos__nebula--violet"></div>
+    <div class="cosmos__nebula cosmos__nebula--blue"></div>
+    <div class="cosmos__stars cosmos__stars--near"></div>
+</div>
+<header class="topbar">
+    <div class="topbar__inner">
+        <a class="brand" href="/" aria-label="Фардекосмия — главная">
+            <span class="brand__mark" aria-hidden="true">
+                <img src="{% static 'images/fardecosmia-logo.png' %}" alt="">
+            </span>
+            <span class="brand__text">Фардекосмия</span>
+        </a>
+        <nav class="account-nav" aria-label="Пользовательское меню">
+            {% if user.is_authenticated %}
+                {% if can_view_global_atlas %}<a class="account-nav__atlas" href="{% url 'world:global_world_map' %}">Атлас мира</a>{% endif %}
+                <span class="account-nav__user">
+                    <span class="account-nav__signal" aria-hidden="true"></span>
+                    {{ user.display_name|default:user.username }}
+                </span>
+                <form method="post" action="{% url 'logout' %}" class="inline-form">
+                    {% csrf_token %}
+                    <button type="submit" class="link-button">Выйти</button>
+                </form>
+            {% endif %}
+        </nav>
+    </div>
+</header>
+{% if campaign and can_advance_time %}
+    {% include "campaigns/_campaign_quickbar.html" %}
+{% endif %}
+<main class="container">
+    {% if messages %}
+        <div class="site-messages" aria-live="polite">
+            {% for message in messages %}<div class="site-message site-message--{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
+        </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+</main>
+<footer class="site-footer">
+    <span class="site-footer__line"></span>
+    <span>Fardecosmia</span>
+</footer>
+<script src="{% static 'js/time-control.js' %}"></script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

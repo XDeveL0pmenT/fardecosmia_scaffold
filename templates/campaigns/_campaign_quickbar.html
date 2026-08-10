@@ -1,0 +1,28 @@
+<nav class="campaign-quickbar" aria-label="Быстрый доступ кампании">
+    <div class="campaign-quickbar__inner">
+        <div class="campaign-quickbar__links">
+            <span class="campaign-quickbar__name">{{ campaign.name }}</span>
+            <a href="{% url 'campaigns:gm_dashboard' campaign.id %}">Панель</a>
+            <a href="{% url 'world:world_map' campaign.id %}">Регионы кампании</a>
+        </div>
+        <form class="quick-time-control" method="post" action="{% url 'campaigns:advance_time' campaign.id %}" data-time-control>
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <label>
+                <span class="sr-only">Единица времени</span>
+                <select name="unit" data-time-unit>
+                    {% for unit in time_advance_units %}
+                        <option value="{{ unit.value }}" data-max="{{ unit.max }}" data-default="{{ unit.default }}">{{ unit.label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="quick-time-control__range">
+                <span class="sr-only">Количество</span>
+                <input name="amount" type="range" min="1" max="180" value="10" data-time-amount>
+            </label>
+            <output data-time-output>10 минут</output>
+            <span class="quick-time-control__canon">1 Виток = 168 часов</span>
+            <button type="submit">Продвинуть</button>
+        </form>
+    </div>
+</nav>

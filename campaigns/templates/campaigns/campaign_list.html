@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Кампании — Фардекосмия{% endblock %}
+{% block content %}
+<header class="page-intro">
+    <div>
+        <p class="eyebrow">Навигация</p>
+        <h1>Ваши кампании</h1>
+        <p class="lead">Выберите пространство, с которым хотите продолжить работу.</p>
+    </div>
+    <div class="page-intro__ornament" aria-hidden="true">
+        <span></span><span></span><span></span>
+    </div>
+</header>
+<div class="grid campaign-grid">
+    {% for membership in memberships %}
+        <article class="panel campaign-card">
+            <div class="panel__glow" aria-hidden="true"></div>
+            <div class="campaign-card__header">
+                <span class="campaign-card__index" aria-hidden="true">0{{ forloop.counter }}</span>
+                <span class="status-badge status-badge--{{ membership.role }}">{{ membership.get_role_display }}</span>
+            </div>
+            <h2>{{ membership.campaign.name }}</h2>
+            <p class="campaign-card__description">{{ membership.campaign.description|default:"Описание пока не добавлено." }}</p>
+            {% if membership.role == "gm" %}
+                <a class="button" href="{% url 'campaigns:gm_dashboard' membership.campaign.id %}">
+                    Открыть панель <span aria-hidden="true">→</span>
+                </a>
+            {% else %}
+                <span class="campaign-card__pending">Страница игрока готовится</span>
+            {% endif %}
+        </article>
+    {% empty %}
+        <section class="panel empty-state">
+            <span class="empty-state__icon" aria-hidden="true">✦</span>
+            <h2>Пока здесь тихо</h2>
+            <p>Вы ещё не добавлены ни в одну кампанию.</p>
+        </section>
+    {% endfor %}
+</div>
+{% endblock %}

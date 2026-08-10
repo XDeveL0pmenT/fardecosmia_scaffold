@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ region.name }} — регион{% endblock %}
+{% block content %}
+<div class="region-atmosphere region-atmosphere--{{ sky.star_phase_code }} weather--{{ weather_code }} season--{{ season_code }} turn--{{ sky.turn_type_code }} season-light--{{ sky.season_light_code }}" style="{{ atmosphere_style }}" aria-hidden="true">
+    <div class="region-atmosphere__light"></div>
+    <div class="region-atmosphere__ympha"></div>
+    <div class="region-atmosphere__clouds"></div>
+    <div class="region-atmosphere__precipitation"></div>
+    <div class="region-atmosphere__season"></div>
+</div>
+
+<div class="region-page">
+    <div class="page-heading region-heading">
+        <div class="page-heading__title">
+            <a class="back-link" href="{% url 'world:world_map' campaign.id %}"><span aria-hidden="true">←</span> Карта мира</a>
+            <p class="eyebrow">Регион · объективное состояние GM</p>
+            <h1>{{ region.name }}</h1>
+            <p class="lead">{{ region.get_biome_display }} · {{ sky.phase_state }} · {{ sky.season_label }}</p>
+        </div>
+        <div class="local-time-orb panel local-time-orb--{{ sky.turn_type_code }}">
+            <span>Местное время Витка</span>
+            <strong>{{ calendar.turn_clock }}</strong>
+            <small>{{ sky.timezone_label }}</small>
+        </div>
+    </div>
+
+    {% if not sky.location_known %}
+        <div class="form-message">Регион ещё не нанесён на карту. Расчёт временно использует нулевой меридиан кампании.</div>
+    {% endif %}
+
+    <section class="panel region-hero-card">
+        <div class="region-hero-card__sky">
+            <p class="panel-kicker">Небо над регионом</p>
+            <h2>{{ sky.star_phase }}</h2>
+            <p>{{ sky.face_phase }} · {{ sky.face_phase_name }}</p>
+        </div>
+        <div class="region-light-meters">
+            <div>
+                <span>Свет Звезды</span>
+                <strong>{{ sky.star_intensity_percent }}%</strong>
+                <i><b style="width: {{ sky.star_intensity_percent }}%"></b></i>
+            </div>
+            <div>
+                <span>Видимость Ympha ночью</span>
+                <strong>{{ sky.ympha_visibility_percent }}%</strong>
+                <i class="meter--ympha"><b style="width: {{ sky.ympha_visibility_percent }}%"></b></i>
+            </div>
+            <div>
+                <span>Текущий видимый вклад Ympha</span>
+                <strong>{{ sky.effective_night_visibility_percent }}%</strong>
+                <i class="meter--night"><b style="width: {{ sky.effective_night_visibility_percent }}%"></b></i>
+            </div>
+        </div>
+    </section>
+
+    <div class="region-info-grid">
+        <section class="panel region-info-card">
+            <p class="panel-kicker">Погода</p>
+            {% if weather %}
+                <h2>{{ weather.temperature|floatformat:1 }}°C</h2>
+                <p class="region-condition">{{ weather.get_condition_display }}</p>
+                <dl class="region-stats">
+                    <div><dt>Влажность</dt><dd>{{ weather.humidity|floatformat:0 }}%</dd></div>
+                    <div class="region-stat--wide"><dt>Ветер</dt><dd>{{ weather_summary.wind }}</dd></div>
+                    {% if weather_summary.pressure %}<div><dt>Давление</dt><dd>{{ weather_summary.pressure }}</dd></div>{% endif %}
+                    {% if weather_summary.clouds %}<div><dt>Облачность</dt><dd>{{ weather_summary.clouds }}</dd></div>{% endif %}
+                    <div class="region-stat--wide"><dt>Осадки</dt><dd>{{ weather_summary.precipitation }}</dd></div>
+                    <div><dt>Снимок мира</dt><dd>{{ weather.world_minutes }} мин.</dd></div>
+                    <div><dt>Источник</dt><dd>{{ weather.get_source_display }}</dd></div>
+                </dl>
+                <p class="weather-reading-note">Скорость ветра показана в м/с и км/ч; направление означает, откуда он дует. Индекс осадков — относительная величина модели за погодный шаг, не канонические миллиметры. Словесные оценки нужны только для удобства чтения и не меняют расчёт.</p>
+            {% else %}<p class="empty-copy">Погода ещё не рассчитана. Продвиньте время мира.</p>{% endif %}
+        </section>
+
+        <section class="panel region-info-card">
+            <p class="panel-kicker">Календарь региона</p>
+            <h2>{{ sky.season_label }}</h2>
+            <dl class="region-stats">
+                <div><dt>Год</dt><dd>{{ calendar.year }}</dd></div>
+                <div><dt>Виток года</dt><dd>{{ calendar.turn_of_year }} / 52</dd></div>
+                <div><dt>Виток сезона</dt><dd>{{ calendar.turn_of_season }} / 13</dd></div>
+                <div><dt>Фаза Витка</dt><dd>{{ calendar.phase_of_turn }} / 7</dd></div>
+                <div><dt>Круг Лика</dt><dd>{{ sky.face_circle_turn }} / 16</dd></div>
+                <div><dt>Тип Витка</dt><dd>{{ sky.turn_type }}</dd></div>
+                <div><dt>Тип сезона</dt><dd>{{ sky.season_light_label }}</dd></div>
+                <div><dt>Красных Витков в сезоне</dt><dd>{{ sky.season_red_turns }} / 13</dd></div>
+            </dl>
+        </section>
+
+        <section class="panel region-info-card region-location-card">
+            <p class="panel-kicker">Положение</p>
+            <h2>{% if sky.location_known %}{{ sky.longitude_label }}{% else %}Не задано{% endif %}</h2>
+            <dl class="region-stats">
+                <div><dt>Широта</dt><dd>{% if sky.location_known %}{{ sky.latitude_label }}{% else %}—{% endif %}</dd></div>
+                <div><dt>От нулевого меридиана</dt><dd>{{ sky.equatorial_offset_km|floatformat:1 }} км</dd></div>
+                <div><dt>Высота</dt><dd>{{ region.elevation|floatformat:0 }}</dd></div>
+                <div><dt>Часовой пояс</dt><dd>{{ sky.timezone_label }}</dd></div>
+                <div><dt>Средняя по карте</dt><dd>{{ map_defaults.base_temperature|floatformat:1 }}°C</dd></div>
+                <div><dt>Средняя видимость Ympha в сезоне</dt><dd>{{ sky.season_ympha_visibility_percent }}%</dd></div>
+            </dl>
+        </section>
+
+        <section class="panel region-map-preview">
+            <a href="{% url 'world:world_map' campaign.id %}" aria-label="Открыть карту мира">
+                <svg viewBox="0 0 1000 500" role="img" aria-label="Положение региона {{ region.name }}">
+                    <image href="{% static 'images/fardecosmia-world-map.webp' %}" x="0" y="0" width="1000" height="500" preserveAspectRatio="none"></image>
+                    {% if region_points %}<polygon points="{{ region_points }}"></polygon>{% endif %}
+                </svg>
+                <span>Открыть на карте мира →</span>
+            </a>
+        </section>
+    </div>
+</div>
+{% endblock %}

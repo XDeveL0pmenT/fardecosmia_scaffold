@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Атлас мира — Фардекосмия{% endblock %}
+{% block content %}
+<div class="page-heading world-map-heading">
+    <div class="page-heading__title">
+        <a class="back-link" href="{% url 'campaigns:list' %}"><span aria-hidden="true">←</span> Кампании</a>
+        <p class="eyebrow">Общий атлас Фардекосмии</p>
+        <h1>Глобальная карта мира</h1>
+        <p class="lead">Физическая карта одна для всех кампаний. Регионы и ход времени остаются состоянием конкретной кампании.</p>
+    </div>
+</div>
+
+<section class="panel world-map-panel world-map-panel--global" data-map-panel>
+    <div class="world-map-toolbar">
+        <div>
+            <p class="panel-kicker">Планетарная проекция</p>
+            <h2 data-mode-title>Поверхность</h2>
+        </div>
+        <div class="map-view-actions" aria-label="Управление картой">
+            <button type="button" class="map-tool-button" data-zoom-out title="Отдалить">−</button>
+            <button type="button" class="map-tool-button" data-zoom-reset>100%</button>
+            <button type="button" class="map-tool-button" data-zoom-in title="Приблизить">+</button>
+            <button type="button" class="map-tool-button" data-pan-toggle>Рука</button>
+            <button type="button" class="map-tool-button" data-fullscreen>На весь экран</button>
+        </div>
+    </div>
+
+    <div class="map-mode-switcher" role="tablist" aria-label="Режим карты">
+        <button type="button" role="tab" data-map-mode="base">Поверхность</button>
+        {% if can_view_objective_layers %}
+            <button type="button" role="tab" data-map-mode="temperature">Средняя температура</button>
+            <button type="button" role="tab" data-map-mode="elevation">Высота</button>
+            <button type="button" role="tab" data-map-mode="biome">Биомы</button>
+        {% endif %}
+    </div>
+
+    <div class="world-map-stage global-world-map" data-map-stage data-map-mode-active="base">
+        <svg viewBox="0 0 1000 500" role="img" aria-label="Общий атлас Фардекосмии" data-world-map>
+            <image class="map-base-layer" href="{% static 'images/fardecosmia-world-map.webp' %}" x="0" y="0" width="1000" height="500" preserveAspectRatio="none"></image>
+            {% if can_view_objective_layers %}
+                <image class="map-data-layer map-data-layer--temperature" href="{% static 'images/fardecosmia-temperature-map.webp' %}" x="0" y="0" width="1000" height="500" preserveAspectRatio="none"></image>
+                <image class="map-data-layer map-data-layer--elevation" href="{% static 'images/fardecosmia-elevation-map.webp' %}" x="0" y="0" width="1000" height="500" preserveAspectRatio="none"></image>
+                <image class="map-data-layer map-data-layer--biome" data-grid-image="biome" x="0" y="0" width="1000" height="500" preserveAspectRatio="none"></image>
+            {% endif %}
+            <rect class="map-interaction-surface" x="0" y="0" width="1000" height="500" data-interaction-surface></rect>
+        </svg>
+        <div class="map-hover-tooltip" data-map-tooltip hidden></div>
+        <div class="map-draw-status" role="status" tabindex="0" aria-label="Подсказка карты">Наведите указатель на карту для координат{% if can_view_objective_layers %} и значения выбранного слоя{% endif %}.</div>
+    </div>
+
+    <div class="map-legend" aria-label="Условные обозначения">
+        <span data-legend-mode="base"><i class="legend-swatch legend-swatch--base"></i>Физическая поверхность</span>
+        {% if can_view_objective_layers %}
+            <span data-legend-mode="temperature" hidden><i class="legend-swatch legend-swatch--temperature"></i>−97.2°C … +74.6°C</span>
+            <span data-legend-mode="elevation" hidden><i class="legend-swatch legend-swatch--elevation"></i>−29 м … 6365 м по карте GM</span>
+            <span data-legend-mode="biome" hidden><i class="legend-swatch legend-swatch--biome"></i>Общий слой биомов</span>
+        {% endif %}
+    </div>
+    <p class="map-model-note" data-mode-note>Общая географическая основа мира без состояния отдельной кампании.</p>
+    {% if not can_view_objective_layers %}
+        <p class="map-visibility-note">Температура, высоты и GM-разметка биомов относятся к объективному слою мира и не раскрываются игроку автоматически.</p>
+    {% endif %}
+</section>
+
+{{ biome_cells|json_script:"global-biome-layer-data" }}
+{{ biome_palette|json_script:"global-biome-palette-data" }}
+<script>
+(() => {
+    const svg = document.querySelector("[data-world-map]");
+    if (!svg) return;
+    const panel = document.querySelector("[data-map-panel]");
+    const stage = document.querySelector("[data-map-stage]");
+    const surface = svg.querySelector("[data-interaction-surface]");
+    const tooltip = document.querySelector("[data-map-tooltip]");
+    const biomeCells = JSON.parse(document.getElementById("global-biome-layer-data").textContent);
+    const biomePalette = JSON.parse(document.getElementById("global-biome-palette-data").textContent);
+    const biomeLabels = Object.fromEntries(biomePalette.map(item => [item.value, item.label]));
+    const biomeColors = Object.fromEntries(biomePalette.map(item => [item.value, item.color]));
+    const gridWidth = {{ map_grid_width }};
+    const gridHeight = {{ map_grid_height }};
+    const modes = {
+        base: ["Поверхность", "Общая географическая основа мира без состояния отдельной кампании."],
+        temperature: ["Средняя температура", "Значения считываются из шкалы предоставленной GM карты температуры."],
+        elevation: ["Высота", "Значения считываются из дискретной шкалы предоставленной GM карты высот."],
+        biome: ["Биомы", "Единая базовая карта общего атласа. Кампании наследуют её, а их локальные замены не изменяют этот слой."],
+    };
+    let currentMode = "base";
+    let temperatureData = null;
+    let elevationData = null;
+    let landMask = null;
+    let panning = false;
+    let panDown = false;
+    let lastPanPoint = null;
+    let viewBox = {x: 0, y: 0, width: 1000, height: 500};
+
+    const biomeCanvas = document.createElement("canvas");
+    biomeCanvas.width = gridWidth;
+    biomeCanvas.height = gridHeight;
+    const biomeContext = biomeCanvas.getContext("2d");
+    Object.entries(biomeCells).forEach(([rawIndex, biome]) => {
+        const index = Number(rawIndex);
+        biomeContext.fillStyle = biomeColors[biome] || "transparent";
+        biomeContext.fillRect(index % gridWidth, Math.floor(index / gridWidth), 1, 1);
+    });
+    svg.querySelector("[data-grid-image='biome']")?.setAttribute("href", biomeCanvas.toDataURL("image/png"));
+
+    const pointerInMap = event => {
+        const matrix = svg.getScreenCTM();
+        return matrix ? new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse()) : null;
+    };
+    const cellIndex = (point, width, height) => {
+        const x = Math.max(0, Math.min(width - 1, Math.floor(point.x / 1000 * width)));
+        const y = Math.max(0, Math.min(height - 1, Math.floor(point.y / 500 * height)));
+        return y * width + x;
+    };
+    const coordinateText = point => {
+        const longitude = point.x / 1000 * 360 - 180;
+        const latitude = 90 - point.y / 500 * 180;
+        const lon = `${Math.abs(longitude).toFixed(1)}°${longitude < 0 ? "W" : "E"}`;
+        const lat = `${Math.abs(latitude).toFixed(1)}°${latitude < 0 ? "S" : "N"}`;
+        return `${lat} · ${lon}`;
+    };
+    const updateTooltip = event => {
+        const point = pointerInMap(event);
+        if (!point || point.x < 0 || point.x > 1000 || point.y < 0 || point.y > 500 || panDown) {
+            tooltip.hidden = true;
+            return;
+        }
+        let value = "Поверхность мира";
+        if (currentMode === "temperature") {
+            const sample = temperatureData?.values[cellIndex(point, temperatureData.width, temperatureData.height)];
+            value = sample === undefined ? "Температура загружается…" : `${Number(sample).toFixed(1)}°C`;
+        } else if (currentMode === "elevation") {
+            const index = elevationData ? cellIndex(point, elevationData.width, elevationData.height) : null;
+            const sample = index === null ? undefined : elevationData.values[index];
+            value = sample === undefined
+                ? "Высота загружается…"
+                : (sample === null
+                    ? (landMask?.[index] ? "Высота не читается: участок закрыт легендой источника" : "Океан · высота суши не применяется")
+                    : `${sample} м`);
+        } else if (currentMode === "biome") {
+            const biome = biomeCells[String(cellIndex(point, gridWidth, gridHeight))];
+            value = biomeLabels[biome] || "Биом не задан";
+        }
+        tooltip.innerHTML = `<strong>${value}</strong><span>${coordinateText(point)}</span>`;
+        const bounds = stage.getBoundingClientRect();
+        tooltip.style.left = `${Math.min(bounds.width - 225, Math.max(8, event.clientX - bounds.left + 14))}px`;
+        tooltip.style.top = `${Math.min(bounds.height - 64, Math.max(8, event.clientY - bounds.top + 14))}px`;
+        tooltip.hidden = false;
+    };
+
+    const applyViewBox = () => {
+        svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+        document.querySelector("[data-zoom-reset]").textContent = `${Math.round(1000 / viewBox.width * 100)}%`;
+    };
+    const zoom = (factor, centerX = viewBox.x + viewBox.width / 2, centerY = viewBox.y + viewBox.height / 2) => {
+        const width = Math.max(125, Math.min(1000, viewBox.width * factor));
+        const height = width / 2;
+        const ratioX = (centerX - viewBox.x) / viewBox.width;
+        const ratioY = (centerY - viewBox.y) / viewBox.height;
+        viewBox.x = Math.max(0, Math.min(1000 - width, centerX - width * ratioX));
+        viewBox.y = Math.max(0, Math.min(500 - height, centerY - height * ratioY));
+        viewBox.width = width;
+        viewBox.height = height;
+        applyViewBox();
+    };
+    const setMode = mode => {
+        if (!modes[mode] || !document.querySelector(`[data-map-mode='${mode}']`)) mode = "base";
+        currentMode = mode;
+        stage.dataset.mapModeActive = mode;
+        document.querySelector("[data-mode-title]").textContent = modes[mode][0];
+        document.querySelector("[data-mode-note]").textContent = modes[mode][1];
+        document.querySelectorAll("[data-map-mode]").forEach(button => {
+            const active = button.dataset.mapMode === mode;
+            button.classList.toggle("is-active", active);
+            button.setAttribute("aria-selected", String(active));
+        });
+        document.querySelectorAll("[data-legend-mode]").forEach(item => {
+            item.hidden = item.dataset.legendMode !== mode;
+        });
+        tooltip.hidden = true;
+    };
+    document.querySelectorAll("[data-map-mode]").forEach(button => button.addEventListener("click", () => setMode(button.dataset.mapMode)));
+    document.querySelector("[data-pan-toggle]").addEventListener("click", event => {
+        panning = !panning;
+        svg.classList.toggle("is-panning", panning);
+        event.currentTarget.classList.toggle("is-active", panning);
+    });
+    surface.addEventListener("pointerdown", event => {
+        if (!panning) return;
+        panDown = true;
+        lastPanPoint = {x: event.clientX, y: event.clientY};
+        surface.setPointerCapture(event.pointerId);
+    });
+    surface.addEventListener("pointermove", event => {
+        updateTooltip(event);
+        if (!panning || !panDown) return;
+        const box = svg.getBoundingClientRect();
+        viewBox.x = Math.max(0, Math.min(1000 - viewBox.width, viewBox.x - (event.clientX - lastPanPoint.x) * viewBox.width / box.width));
+        viewBox.y = Math.max(0, Math.min(500 - viewBox.height, viewBox.y - (event.clientY - lastPanPoint.y) * viewBox.height / box.height));
+        lastPanPoint = {x: event.clientX, y: event.clientY};
+        applyViewBox();
+    });
+    surface.addEventListener("pointerleave", () => { tooltip.hidden = true; });
+    const releasePointer = () => { panDown = false; };
+    surface.addEventListener("pointerup", releasePointer);
+    surface.addEventListener("pointercancel", releasePointer);
+    document.querySelector("[data-zoom-in]").addEventListener("click", () => zoom(0.72));
+    document.querySelector("[data-zoom-out]").addEventListener("click", () => zoom(1.38));
+    document.querySelector("[data-zoom-reset]").addEventListener("click", () => { viewBox = {x: 0, y: 0, width: 1000, height: 500}; applyViewBox(); });
+    stage.addEventListener("wheel", event => {
+        event.preventDefault();
+        const point = pointerInMap(event);
+        if (point) zoom(event.deltaY < 0 ? 0.86 : 1.16, point.x, point.y);
+    }, {passive: false});
+    const fullscreenButton = document.querySelector("[data-fullscreen]");
+    fullscreenButton.addEventListener("click", async () => {
+        if (!document.fullscreenElement) await panel.requestFullscreen();
+        else await document.exitFullscreen();
+    });
+    document.addEventListener("fullscreenchange", () => {
+        fullscreenButton.textContent = document.fullscreenElement ? "Выйти из полного экрана" : "На весь экран";
+    });
+
+    Promise.all([
+        fetch("{% static 'data/fardecosmia-average-temperature-grid.json' %}").then(response => response.json()),
+        fetch("{% static 'data/fardecosmia-elevation-grid.json' %}").then(response => response.json()),
+        fetch("{% static 'data/fardecosmia-land-mask.json' %}").then(response => response.json()),
+    ]).then(([temperature, elevation, mask]) => {
+        temperatureData = temperature;
+        elevationData = elevation;
+        landMask = mask.values;
+    });
+    const requestedMode = new URLSearchParams(window.location.search).get("mode");
+    setMode(requestedMode || "base");
+    applyViewBox();
+})();
+</script>
+{% endblock %}

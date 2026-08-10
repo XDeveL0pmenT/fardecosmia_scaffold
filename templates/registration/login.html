@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Вход — Фардекосмия{% endblock %}
+{% block content %}
+<div class="auth-layout">
+    <section class="auth-intro" aria-labelledby="login-title">
+        <p class="eyebrow">Система кампании</p>
+        <h1 id="login-title">Вернитесь в<br><span>Фардекосмию</span></h1>
+        <p class="lead">Войдите, чтобы открыть доступные кампании и продолжить работу с их состоянием.</p>
+        <div class="orbit-emblem" aria-hidden="true">
+            <span class="orbit-emblem__core"></span>
+            <span class="orbit-emblem__ring orbit-emblem__ring--one"></span>
+            <span class="orbit-emblem__ring orbit-emblem__ring--two"></span>
+            <span class="orbit-emblem__ring orbit-emblem__ring--three"></span>
+        </div>
+    </section>
+    <section class="panel auth-card" aria-label="Форма входа">
+        <div class="panel__glow" aria-hidden="true"></div>
+        <p class="panel-kicker">Авторизация</p>
+        <h2>Вход в систему</h2>
+        {% if form.errors %}
+            <div class="form-message form-message--error">Проверьте имя пользователя и пароль.</div>
+        {% endif %}
+        <form method="post" class="stacked-form">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="button button--wide">Войти</button>
+        </form>
+    </section>
+</div>
+{% endblock %}

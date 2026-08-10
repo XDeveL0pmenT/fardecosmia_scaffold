@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}{{ campaign.name }} — мастер{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div class="page-heading__title">
+        <a class="back-link" href="{% url 'campaigns:list' %}"><span aria-hidden="true">←</span> Все кампании</a>
+        <p class="eyebrow">Мастерская панель</p>
+        <h1>{{ campaign.name }}</h1>
+        <div class="world-time">
+            <span class="world-time__pulse" aria-hidden="true"></span>
+            <span class="world-time__label">Год {{ calendar.year }} · {{ reference_sky.season_label }}</span>
+            <strong>{{ calendar.turn_clock }}</strong>
+            <span>час Витка</span>
+            <span class="world-time__raw">{{ campaign.world_minutes }} мин. от эпохи</span>
+        </div>
+    </div>
+</div>
+
+<section class="panel calendar-panel" aria-labelledby="calendar-title">
+    <div class="panel__glow" aria-hidden="true"></div>
+    <header class="calendar-panel__header">
+        <div>
+            <p class="panel-kicker">Календарь Фардекосмии</p>
+            <h2 id="calendar-title">{{ reference_sky.phase_state }}</h2>
+        </div>
+        <div class="calendar-panel__actions">
+            <span class="turn-badge turn-badge--{{ reference_sky.turn_type_code }}">{{ reference_sky.turn_type }}</span>
+            <a class="button map-link-button" href="{% url 'world:world_map' campaign.id %}">Регионы кампании</a>
+        </div>
+    </header>
+    <div class="calendar-facts">
+        <div class="calendar-fact">
+            <span>Великий Круг</span>
+            <strong>Год {{ calendar.year }}</strong>
+            <small>Виток {{ calendar.turn_of_year }} из 52</small>
+        </div>
+        <div class="calendar-fact">
+            <span>Сезон</span>
+            <strong>{{ reference_sky.season_label }}</strong>
+            <small>Виток {{ calendar.turn_of_season }} из 13 · центр мира</small>
+        </div>
+        <div class="calendar-fact">
+            <span>Текущий Виток</span>
+            <strong>{{ calendar.turn_clock }} / 168 ч</strong>
+            <small>фаза {{ calendar.phase_of_turn }} из 7 · {{ calendar.light_phase }}</small>
+        </div>
+        <div class="calendar-fact">
+            <span>Фаза света в центре</span>
+            <strong>{{ reference_sky.phase_state }}</strong>
+            <small>нулевая долгота; Лик и видимость смотрите в регионах</small>
+        </div>
+    </div>
+</section>
+
+<section class="panel atmosphere-control" aria-labelledby="atmosphere-title">
+    <div class="panel__glow" aria-hidden="true"></div>
+    <header class="atmosphere-control__header">
+        <div>
+            <p class="panel-kicker">Погодная система Phase B</p>
+            <h2 id="atmosphere-title">Глобальная атмосфера</h2>
+            <p class="atmosphere-control__copy">
+                Давление, направленный ветер, перенос тепла и влаги, горячий океан,
+                облачность и орографические осадки на общей сетке мира.
+            </p>
+        </div>
+        {% if atmospheric_config and atmospheric_config.enabled %}
+            <span class="atmosphere-status atmosphere-status--enabled">Активна</span>
+        {% else %}
+            <span class="atmosphere-status">Выключена</span>
+        {% endif %}
+    </header>
+
+    <form method="post" action="{% url 'campaigns:configure_atmosphere' campaign.id %}" class="atmosphere-form">
+        {% csrf_token %}
+        {{ atmosphere_form.non_field_errors }}
+        <label class="atmosphere-toggle" for="{{ atmosphere_form.enabled.id_for_label }}">
+            {{ atmosphere_form.enabled }}
+            <span>
+                <strong>{{ atmosphere_form.enabled.label }}</strong>
+                <small>{{ atmosphere_form.enabled.help_text }}</small>
+            </span>
+        </label>
+        {{ atmosphere_form.enabled.errors }}
+
+        <div class="atmosphere-form__primary">
+            <label for="{{ atmosphere_form.ocean_temperature_c.id_for_label }}">
+                <span>{{ atmosphere_form.ocean_temperature_c.label }}</span>
+                {{ atmosphere_form.ocean_temperature_c }}
+                <small>{{ atmosphere_form.ocean_temperature_c.help_text }}</small>
+                {{ atmosphere_form.ocean_temperature_c.errors }}
+            </label>
+            <div class="atmosphere-state-facts">
+                <span>Снимков <strong>{{ atmospheric_snapshot_count }}</strong></span>
+                <span>Сетка <strong>{{ atmosphere_form.instance.grid_width }}×{{ atmosphere_form.instance.grid_height }}</strong></span>
+                <span>Последний снимок <strong>{% if latest_atmospheric_snapshot %}{{ latest_atmospheric_snapshot.world_minutes }} мин.{% else %}ещё не создан{% endif %}</strong></span>
+            </div>
+        </div>
+
+        <details class="atmosphere-advanced" {% if atmosphere_form.errors %}open{% endif %}>
+            <summary>Технические настройки</summary>
+            <div class="atmosphere-form__grid">
+                {% for field in atmosphere_form %}
+                    {% if field.name != "enabled" and field.name != "ocean_temperature_c" %}
+                        <label for="{{ field.id_for_label }}">
+                            <span>{{ field.label }}</span>
+                            {{ field }}
+                            <small>{{ field.help_text }}</small>
+                            {{ field.errors }}
+                        </label>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </details>
+        <div class="atmosphere-form__actions">
+            <p>Новые значения начнут влиять при следующей прокрутке времени.</p>
+            <button type="submit">Сохранить атмосферу</button>
+        </div>
+    </form>
+</section>
+
+<div class="dashboard-grid">
+    <section class="panel dashboard-card dashboard-card--weather">
+        <div class="panel__glow" aria-hidden="true"></div>
+        <header class="dashboard-card__header">
+            <span class="dashboard-card__symbol" aria-hidden="true">◌</span>
+            <div><p class="panel-kicker">Состояние регионов</p><h2>Погода</h2></div>
+        </header>
+        {% for row in weather_rows %}
+            <div class="row weather-row">
+                <div>
+                <div>
+                    <strong><a class="region-row-link" href="{% url 'world:region_detail' campaign.id row.region.id %}">{{ row.region.name }}</a></strong>
+                </div>
+                    <small>{{ row.region.get_biome_display }} · {{ row.sky.local_moment.turn_clock }} · {{ row.sky.face_phase }}</small>
+                </div>
+                {% if row.weather %}
+                    <span class="row__meta">
+                        {{ row.weather.temperature|floatformat:1 }}°C · {{ row.weather.get_condition_display }}
+                        <small>{{ row.sky.season_label }} · видимость Ympha {{ row.sky.ympha_visibility_percent }}%</small>
+                    </span>
+                {% else %}
+                    <span class="row__meta row__meta--muted">
+                        погода ещё не рассчитана
+                        <small>{{ row.sky.season_label }} · видимость Ympha {{ row.sky.ympha_visibility_percent }}%</small>
+                    </span>
+                {% endif %}
+            </div>
+        {% empty %}
+            <p class="empty-copy">Создайте регионы через Django Admin.</p>
+        {% endfor %}
+    </section>
+
+    <section class="panel dashboard-card dashboard-card--events">
+        <div class="panel__glow" aria-hidden="true"></div>
+        <header class="dashboard-card__header">
+            <span class="dashboard-card__symbol" aria-hidden="true">◇</span>
+            <div><p class="panel-kicker">Временная линия</p><h2>Ближайшие события</h2></div>
+        </header>
+        {% for event in upcoming_events %}
+            <div class="row"><strong>{{ event.title }}</strong><span class="row__meta">{{ event.trigger_at }} мин.</span></div>
+        {% empty %}<p class="empty-copy">Нет запланированных событий.</p>{% endfor %}
+    </section>
+
+    <section class="panel dashboard-card dashboard-card--characters">
+        <div class="panel__glow" aria-hidden="true"></div>
+        <header class="dashboard-card__header">
+            <span class="dashboard-card__symbol" aria-hidden="true">✦</span>
+            <div><p class="panel-kicker">Участники</p><h2>Персонажи</h2></div>
+        </header>
+        {% for character in characters %}
+            <div class="row">
+                <strong>{{ character.name }}</strong>
+                {% if character.roll20_binding %}
+                    <span class="sync-status sync-status--ok">Roll20 <span aria-hidden="true">✓</span></span>
+                {% else %}
+                    <span class="sync-status">без Roll20</span>
+                {% endif %}
+            </div>
+        {% empty %}<p class="empty-copy">Персонажей пока нет.</p>{% endfor %}
+    </section>
+
+    <section class="panel dashboard-card dashboard-card--roll20">
+        <div class="panel__glow" aria-hidden="true"></div>
+        <header class="dashboard-card__header">
+            <span class="dashboard-card__symbol" aria-hidden="true">⌁</span>
+            <div><p class="panel-kicker">Интеграция</p><h2>Roll20</h2></div>
+        </header>
+        <p class="integration-copy">API подготовлен для будущего extension bridge.</p>
+        <div class="endpoint-list">
+            <code>/api/v1/roll20/ping/</code>
+            <code>/api/v1/roll20/sync/</code>
+        </div>
+    </section>
+</div>
+
+{% endblock %}
