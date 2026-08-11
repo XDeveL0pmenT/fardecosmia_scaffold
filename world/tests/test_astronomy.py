@@ -73,3 +73,7 @@ class RegionalAstronomyTests(SimpleTestCase):
         self.assertNotEqual(first.season_light_code, opposite.season_light_code)
         self.assertIn(first.season_light_code, {"light", "dark", "mixed"})
         self.assertTrue(first.season_label.endswith("Лето"))
+        self.assertGreater(first.season_turns, 9)
+        self.assertLessEqual(first.season_turns, 11)
+        self.assertGreaterEqual(first.season_red_fraction, 0)
+        self.assertLessEqual(first.season_red_fraction, 1)

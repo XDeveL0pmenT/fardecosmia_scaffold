@@ -9,6 +9,7 @@ from world.atmosphere_defaults import (
     ATMOSPHERIC_DEFAULT_STEP_MINUTES,
     ATMOSPHERIC_DEFAULT_WIDTH,
     ATMOSPHERIC_FORMAT_VERSION,
+    ATMOSPHERIC_SOLVER_VERSION,
     default_atmospheric_parameters,
 )
 from world.biomes import Biome as RegionBiome
@@ -228,12 +229,39 @@ class AtmosphericConfig(models.Model):
         validators=[MinValueValidator(1)],
     )
     world_seed = models.BigIntegerField(default=0)
+    checkpoint_interval_minutes = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text=(
+            "Интервал постоянных глобальных checkpoints. Пустое значение означает "
+            "один Виток текущего календаря кампании."
+        ),
+    )
+    checkpoint_retention_count = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text=(
+            "Максимальное число checkpoints текущей совместимой ветки. "
+            "Пустое значение хранит их без ограничения; latest всегда защищён."
+        ),
+    )
     ocean_temperature_c = models.FloatField(
         null=True,
         blank=True,
         help_text=(
-            "Настраиваемая температура горячего океана. Точное каноническое "
-            "значение пока неизвестно, поэтому автоматического default нет."
+            "Fallback температуры океана только для пикселей без значения на "
+            "карте средней температуры. Не заменяет динамическую SST."
+        ),
+    )
+    oxygen_fraction = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(1)],
+        help_text=(
+            "Необязательная доля кислорода 0..1 для будущей оценки парциального давления. "
+            "Пустое значение означает, что состав атмосферы канонически неизвестен."
         ),
     )
     parameters = models.JSONField(
@@ -246,9 +274,17 @@ class AtmosphericConfig(models.Model):
 
     def clean(self):
         super().clean()
-        if self.enabled and self.ocean_temperature_c is None:
+        if (
+            self.checkpoint_interval_minutes is not None
+            and self.step_minutes
+            and self.checkpoint_interval_minutes % self.step_minutes != 0
+        ):
             raise ValidationError(
-                {"ocean_temperature_c": "Задайте температуру океана перед включением сетки."}
+                {
+                    "checkpoint_interval_minutes": (
+                        "Интервал checkpoint должен быть кратен атмосферному шагу."
+                    )
+                }
             )
         if not isinstance(self.parameters, dict):
             raise ValidationError({"parameters": "Параметры должны быть JSON-объектом."})
@@ -277,15 +313,18 @@ class AtmosphericSnapshot(models.Model):
     grid_width = models.PositiveSmallIntegerField()
     grid_height = models.PositiveSmallIntegerField()
     format_version = models.PositiveSmallIntegerField(default=ATMOSPHERIC_FORMAT_VERSION)
+    solver_version = models.PositiveSmallIntegerField(default=ATMOSPHERIC_SOLVER_VERSION)
+    input_fingerprint = models.CharField(max_length=64, default="", db_index=True)
+    is_checkpoint = models.BooleanField(default=True)
     payload = models.BinaryField()
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-world_minutes"]
+        ordering = ["-world_minutes", "-created_at"]
         constraints = [
             models.UniqueConstraint(
-                fields=["campaign", "world_minutes"],
-                name="unique_atmospheric_snapshot_per_campaign_time",
+                fields=["campaign", "world_minutes", "input_fingerprint"],
+                name="unique_atmospheric_snapshot_per_campaign_time_and_input",
             )
         ]
 
@@ -297,12 +336,13 @@ class WeatherState(models.Model):
     class Source(models.TextChoices):
         LEGACY_V2 = "legacy_v2", "Региональная weather-v2"
         ATMOSPHERIC_GRID_V1 = "atmospheric_grid_v1", "Глобальная атмосферная сетка v1"
+        ATMOSPHERIC_GRID_V2 = "atmospheric_grid_v2", "Глобальная атмосферная сетка C3"
 
     class Condition(models.TextChoices):
         CLEAR = "clear", "Ясно"
         CLOUDY = "cloudy", "Облачно"
         RAIN = "rain", "Дождь"
-        STORM = "storm", "Гроза"
+        STORM = "storm", "Шторм"
         SNOW = "snow", "Снег"
         FOG = "fog", "Туман"
 
@@ -323,6 +363,28 @@ class WeatherState(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(1)],
     )
     precipitation = models.FloatField(default=0)
+    precipitation_rate_mm_h = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        help_text="Физическая интенсивность осадков C3, мм водного эквивалента в час.",
+    )
+    precipitation_amount_mm = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        help_text="Осадки за атмосферный timestep C3, мм водного эквивалента.",
+    )
+    rain_fraction = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(1)],
+    )
+    snow_fraction = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(1)],
+    )
     condition = models.CharField(max_length=20, choices=Condition.choices)
     source = models.CharField(
         max_length=30,

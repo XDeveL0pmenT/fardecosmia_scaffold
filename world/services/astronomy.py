@@ -9,7 +9,6 @@ from world.services.calendar import (
     RED_TURN_PHASE_STATES,
     TURNS_PER_FACE_CIRCLE,
     TURNS_PER_HALF_FACE_CIRCLE,
-    TURNS_PER_SEASON,
     describe_time,
 )
 
@@ -53,6 +52,10 @@ class RegionalSky:
     season_ympha_visibility: float
     season_ympha_visibility_percent: int
     season_red_turns: int
+    season_red_equivalent_turns: float
+    season_turns: int
+    season_red_fraction: float
+    season_red_fraction_percent: int
     season_light_code: str
     season_light_label: str
     season_label: str
@@ -114,26 +117,39 @@ def _describe_local_season_light(
     timezone_offset,
 ):
     minutes_per_turn = campaign.calendar_minutes_per_turn
-    # CalendarMoment intentionally contains no real-world datetime.  Rebuild the
-    # local season boundary from its integer Turn counters.
-    local_season_start = (
-        (moment.absolute_turn - (moment.turn_of_season - 1)) * minutes_per_turn
-    )
-    global_season_start = local_season_start - timezone_offset
-    visibilities = []
-    for turn_index in range(TURNS_PER_SEASON):
-        sample_time = global_season_start + round((turn_index + 0.5) * minutes_per_turn)
+    season_start = moment.season_start_world_minutes
+    season_end = moment.season_end_world_minutes
+    first_local_turn = math.floor((season_start + timezone_offset) / minutes_per_turn)
+    last_local_turn = math.ceil((season_end + timezone_offset) / minutes_per_turn) - 1
+    weighted_visibility = 0.0
+    red_duration = 0.0
+    total_duration = 0.0
+    red_turns = 0
+    season_turns = 0
+    for local_turn in range(first_local_turn, last_local_turn + 1):
+        turn_start = local_turn * minutes_per_turn - timezone_offset
+        turn_end = turn_start + minutes_per_turn
+        overlap_start = max(season_start, turn_start)
+        overlap_end = min(season_end, turn_end)
+        overlap = max(0.0, overlap_end - overlap_start)
+        if overlap <= 0:
+            continue
+        season_turns += 1
+        sample_time = round((turn_start + turn_end) / 2.0)
         _, visibility = _ympha_visibility_at(campaign, sample_time, longitude)
-        visibilities.append(visibility)
+        weighted_visibility += visibility * overlap
+        total_duration += overlap
+        if visibility >= campaign.red_turn_visibility_threshold:
+            red_turns += 1
+            red_duration += overlap
 
-    red_turns = sum(
-        visibility >= campaign.red_turn_visibility_threshold
-        for visibility in visibilities
-    )
-    if red_turns >= campaign.light_season_min_red_turns:
+    red_fraction = red_duration / total_duration if total_duration else 0.0
+    light_threshold = campaign.light_season_min_red_fraction
+    dark_threshold = campaign.dark_season_max_red_fraction
+    if red_fraction >= light_threshold:
         code = "light"
         label = "Светлый сезон"
-    elif red_turns <= campaign.dark_season_max_red_turns:
+    elif red_fraction <= dark_threshold:
         code = "dark"
         label = "Тёмный сезон"
     else:
@@ -141,8 +157,11 @@ def _describe_local_season_light(
         label = "Смешанный сезон"
     adjective = SEASON_ADJECTIVES[moment.season][code]
     return {
-        "visibility": sum(visibilities) / len(visibilities),
+        "visibility": weighted_visibility / total_duration if total_duration else 0.0,
         "red_turns": red_turns,
+        "red_equivalent_turns": red_duration / minutes_per_turn,
+        "turns": season_turns,
+        "red_fraction": red_fraction,
         "code": code,
         "label": label,
         "season_label": f"{adjective} {moment.season}",
@@ -169,6 +188,7 @@ def calculate_local_sky(
         hours_per_turn=campaign.calendar_hours_per_turn,
         minutes_per_hour=campaign.calendar_minutes_per_hour,
         red_turn_visibility_threshold=campaign.red_turn_visibility_threshold,
+        season_world_minutes=world_minutes,
     )
 
     star_progress = (
@@ -247,6 +267,12 @@ def calculate_local_sky(
         season_ympha_visibility=round(season_light["visibility"], 4),
         season_ympha_visibility_percent=round(season_light["visibility"] * 100),
         season_red_turns=season_light["red_turns"],
+        season_red_equivalent_turns=round(
+            season_light["red_equivalent_turns"], 2
+        ),
+        season_turns=season_light["turns"],
+        season_red_fraction=round(season_light["red_fraction"], 4),
+        season_red_fraction_percent=round(season_light["red_fraction"] * 100),
         season_light_code=season_light["code"],
         season_light_label=season_light["label"],
         season_label=season_light["season_label"],

@@ -25,7 +25,7 @@ class RegionMapForm(forms.ModelForm):
             "name": "Название",
             "biome": "Биом",
             "base_temperature": "Базовая температура, °C",
-            "seasonal_amplitude": "Сезонная амплитуда, °C",
+            "seasonal_amplitude": "Отклик на орбитальную аномалию, °C",
             "humidity": "Средняя влажность, %",
             "elevation": "Высота",
             "weather_volatility": "Изменчивость погоды",
@@ -41,8 +41,8 @@ class RegionMapForm(forms.ModelForm):
                 "считывается с предоставленной карты температур."
             ),
             "seasonal_amplitude": (
-                "Насколько температура отклоняется от средней между серединой Лета и Зимы. "
-                "Точная величина не задана каноном и остаётся настройкой."
+                "Техническая сила отклика legacy-погоды на физическое изменение потока "
+                "Звезды между перицентром и апоцентром. Это не фиксированный бонус сезона."
             ),
             "humidity": (
                 "Климатическая влажность: низкое значение означает сухой регион, высокое — "
@@ -115,18 +115,24 @@ class AtmosphericConfigForm(forms.ModelForm):
         fields = (
             "enabled",
             "ocean_temperature_c",
+            "oxygen_fraction",
             "grid_width",
             "grid_height",
             "step_minutes",
             "world_seed",
+            "checkpoint_interval_minutes",
+            "checkpoint_retention_count",
         )
         labels = {
             "enabled": "Использовать глобальную атмосферу",
-            "ocean_temperature_c": "Температура горячего океана, °C",
+            "ocean_temperature_c": "Fallback температуры океана, °C",
+            "oxygen_fraction": "Доля кислорода (если канонически известна)",
             "grid_width": "Ширина сетки",
             "grid_height": "Высота сетки",
             "step_minutes": "Шаг расчёта, игровых минут",
             "world_seed": "Seed мира",
+            "checkpoint_interval_minutes": "Интервал checkpoint, минут",
+            "checkpoint_retention_count": "Хранить checkpoints",
         }
         help_texts = {
             "enabled": (
@@ -134,13 +140,25 @@ class AtmosphericConfigForm(forms.ModelForm):
                 "Неразмещённые регионы останутся на weather-v2."
             ),
             "ocean_temperature_c": (
-                "Обязательная настройка при включении: точное каноническое "
-                "значение пока неизвестно и не подставляется автоматически."
+                "Используется только если карта средней температуры не содержит "
+                "значения океана. Обычно оставьте пустым: SST берёт baseline с карты."
+            ),
+            "oxygen_fraction": (
+                "Оставьте пустым, пока состав атмосферы не закреплён каноном. "
+                "Без этого значения интерфейс не делает выводов о гипоксии."
             ),
             "grid_width": "По умолчанию 180; после первого снимка размер фиксируется.",
             "grid_height": "По умолчанию 90; после первого снимка размер фиксируется.",
             "step_minutes": "По умолчанию 360 минут — один последовательный шаг атмосферы.",
             "world_seed": "Обеспечивает повторяемость симуляции при одинаковом состоянии.",
+            "checkpoint_interval_minutes": (
+                "Оставьте пустым для одного checkpoint на Виток. Промежуточные "
+                "360-минутные состояния рассчитываются в памяти."
+            ),
+            "checkpoint_retention_count": (
+                "Оставьте пустым, чтобы не удалять исторические checkpoints автоматически. "
+                "Региональная история погоды от pruning не зависит."
+            ),
         }
 
     def clean(self):

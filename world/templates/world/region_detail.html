@@ -13,7 +13,10 @@
 <div class="region-page">
     <div class="page-heading region-heading">
         <div class="page-heading__title">
-            <a class="back-link" href="{% url 'world:world_map' campaign.id %}"><span aria-hidden="true">←</span> Карта мира</a>
+            <div class="region-heading__actions">
+                <a class="back-link" href="{% url 'world:world_map' campaign.id %}"><span aria-hidden="true">←</span> Карта мира</a>
+                <a class="button button--danger button--compact" href="{% url 'world:region_delete' campaign.id region.id %}">Удалить регион</a>
+            </div>
             <p class="eyebrow">Регион · объективное состояние GM</p>
             <h1>{{ region.name }}</h1>
             <p class="lead">{{ region.get_biome_display }} · {{ sky.phase_state }} · {{ sky.season_label }}</p>
@@ -55,6 +58,37 @@
     </section>
 
     <div class="region-info-grid">
+        {% if environment_summary %}
+            <section class="panel region-info-card environment-card environment-card--severity-{{ environment_summary.overall_severity }}">
+                <p class="panel-kicker">Условия для путника</p>
+                <h2>{{ environment_summary.headline }}</h2>
+                <p class="environment-card__description">{{ environment_summary.short_description }}</p>
+                {% if environment_summary.hazards %}
+                    <div class="environment-hazards" aria-label="Главные опасности">
+                        {% for hazard in environment_summary.hazards %}
+                            <span class="environment-hazard environment-hazard--{{ hazard.severity }}" title="{{ hazard.description }}">{{ hazard.title }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <dl class="region-stats environment-measures">
+                    <div><dt>Ощущается</dt><dd>{{ environment_summary.apparent_temperature_c|floatformat:1 }}°C</dd></div>
+                    <div><dt>Влажный термометр</dt><dd>{{ environment_summary.wet_bulb_temperature_c|floatformat:1 }}°C</dd></div>
+                    {% if environment_summary.wind_chill_c is not None %}<div><dt>С ветром</dt><dd>{{ environment_summary.wind_chill_c|floatformat:1 }}°C</dd></div>{% endif %}
+                    <div><dt>Видимость</dt><dd>{{ environment_summary.visibility_label }}</dd></div>
+                    <div><dt>Давление</dt><dd>{{ environment_summary.pressure_label }}</dd></div>
+                    <div class="region-stat--wide"><dt>Осадки</dt><dd>{{ environment_summary.precipitation_label }}</dd></div>
+                </dl>
+                {% if environment_summary.magical_warnings %}
+                    <div class="environment-magic">
+                        <strong>Особенности Фардекосмии</strong>
+                        {% for warning in environment_summary.magical_warnings %}
+                            <p><b>{{ warning.title }}.</b> {{ warning.description }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </section>
+        {% endif %}
+
         <section class="panel region-info-card">
             <p class="panel-kicker">Погода</p>
             {% if weather %}
@@ -69,7 +103,7 @@
                     <div><dt>Снимок мира</dt><dd>{{ weather.world_minutes }} мин.</dd></div>
                     <div><dt>Источник</dt><dd>{{ weather.get_source_display }}</dd></div>
                 </dl>
-                <p class="weather-reading-note">Скорость ветра показана в м/с и км/ч; направление означает, откуда он дует. Индекс осадков — относительная величина модели за погодный шаг, не канонические миллиметры. Словесные оценки нужны только для удобства чтения и не меняют расчёт.</p>
+                <p class="weather-reading-note">Скорость ветра показана в м/с и км/ч; направление означает, откуда он дует. {% if weather_summary.has_physical_precipitation %}Осадки C3 показаны в мм водного эквивалента: 1 кг/м² = 1 мм.{% else %}Старая история: относительная величина модели (индекс) без физических единиц.{% endif %} Словесные оценки не меняют расчёт.</p>
             {% else %}<p class="empty-copy">Погода ещё не рассчитана. Продвиньте время мира.</p>{% endif %}
         </section>
 
@@ -79,13 +113,71 @@
             <dl class="region-stats">
                 <div><dt>Год</dt><dd>{{ calendar.year }}</dd></div>
                 <div><dt>Виток года</dt><dd>{{ calendar.turn_of_year }} / 52</dd></div>
-                <div><dt>Виток сезона</dt><dd>{{ calendar.turn_of_season }} / 13</dd></div>
+                <div><dt>Ход сезона</dt><dd>{{ calendar.season_progress_percent|floatformat:1 }}%</dd></div>
+                <div><dt>Длина сезона</dt><dd>{{ calendar.season_duration_days|floatformat:2 }} суток · {{ calendar.season_duration_turns|floatformat:2 }} Витка</dd></div>
                 <div><dt>Фаза Витка</dt><dd>{{ calendar.phase_of_turn }} / 7</dd></div>
                 <div><dt>Круг Лика</dt><dd>{{ sky.face_circle_turn }} / 16</dd></div>
                 <div><dt>Тип Витка</dt><dd>{{ sky.turn_type }}</dd></div>
                 <div><dt>Тип сезона</dt><dd>{{ sky.season_light_label }}</dd></div>
-                <div><dt>Красных Витков в сезоне</dt><dd>{{ sky.season_red_turns }} / 13</dd></div>
+                <div><dt>Красная доля сезона</dt><dd>{{ sky.season_red_fraction_percent }}%</dd></div>
+                <div><dt>Красный эквивалент</dt><dd>{{ sky.season_red_equivalent_turns|floatformat:2 }} Витка</dd></div>
             </dl>
+        </section>
+
+        <section class="panel region-info-card">
+            <p class="panel-kicker">Диагностика C1 · GM</p>
+            <h2>Орбитальное воздействие</h2>
+            {% with orbit=radiative_diagnostics.orbital_state %}
+                <dl class="region-stats">
+                    <div><dt>Годовой путь</dt><dd>{{ orbit.year_progress_percent|floatformat:2 }}%</dd></div>
+                    <div><dt>Истинная аномалия</dt><dd>{{ orbit.true_anomaly_degrees|floatformat:2 }}°</dd></div>
+                    <div><dt>До Звезды</dt><dd>{{ orbit.star_distance_au|floatformat:4 }} AU</dd></div>
+                    <div><dt>Поток Звезды</dt><dd>{{ orbit.stellar_flux_w_m2|floatformat:1 }} W/m²</dd></div>
+                    <div><dt>Солнечный зенит</dt><dd>{{ radiative_diagnostics.solar_zenith_degrees|floatformat:2 }}°</dd></div>
+                    <div><dt>Прямой локальный поток</dt><dd>{{ radiative_diagnostics.stellar_direct_w_m2|floatformat:1 }} W/m²</dd></div>
+                    <div><dt>Температурная аномалия Звезды</dt><dd>{{ radiative_diagnostics.stellar_temperature_anomaly_c|floatformat:2 }}°C</dd></div>
+                    <div><dt>Фактор Ympha</dt><dd>{{ radiative_diagnostics.ympha_forcing_factor|floatformat:4 }}</dd></div>
+                    <div><dt>Температурная аномалия Ympha</dt><dd>{{ radiative_diagnostics.ympha_temperature_anomaly_c|floatformat:2 }}°C</dd></div>
+                </dl>
+            {% endwith %}
+        </section>
+
+        <section class="panel region-info-card">
+            <p class="panel-kicker">Диагностика C3 · GM</p>
+            <h2>Океан, пар и облачный конденсат</h2>
+            {% if c2_diagnostics %}
+                <dl class="region-stats">
+                    <div><dt>Удельная влажность qᵥ</dt><dd>{{ c2_diagnostics.specific_humidity_g_kg|floatformat:3 }} г/кг</dd></div>
+                    <div><dt>Насыщение qₛₐₜ</dt><dd>{{ c2_diagnostics.saturation_specific_humidity_g_kg|floatformat:3 }} г/кг</dd></div>
+                    <div><dt>Конденсат q_c</dt><dd>{{ c2_diagnostics.cloud_condensate_specific_humidity_g_kg|floatformat:4 }} г/кг</dd></div>
+                    <div><dt>Cloud water path</dt><dd>{{ c2_diagnostics.cloud_water_path_kg_m2|floatformat:3 }} кг/м²</dd></div>
+                    <div><dt>Расчётная RH</dt><dd>{{ c2_diagnostics.relative_humidity_percent|floatformat:1 }}%</dd></div>
+                    <div><dt>Давление пара</dt><dd>{{ c2_diagnostics.vapor_pressure_pa|floatformat:1 }} Pa</dd></div>
+                    <div><dt>Давление насыщения</dt><dd>{{ c2_diagnostics.saturation_vapor_pressure_pa|floatformat:1 }} Pa</dd></div>
+                    <div><dt>Конденсация</dt><dd>{{ c2_diagnostics.condensation_rate_kg_m2_s|floatformat:8 }} кг/м²/с</dd></div>
+                    <div><dt>Скрытый нагрев</dt><dd>{{ c2_diagnostics.latent_heating_rate_w_m2|floatformat:2 }} W/m²</dd></div>
+                    <div><dt>Поток осадков</dt><dd>{{ c2_diagnostics.precipitation_rate_mm_h|floatformat:3 }} мм/ч</dd></div>
+                    <div><dt>Осадки за шаг</dt><dd>{{ c2_diagnostics.precipitation_amount_mm_per_step|floatformat:3 }} мм</dd></div>
+                    <div><dt>Доля дождя</dt><dd>{{ c2_diagnostics.rain_fraction|floatformat:2 }}</dd></div>
+                    <div><dt>Доля снега</dt><dd>{{ c2_diagnostics.snow_fraction|floatformat:2 }}</dd></div>
+                    <div><dt>Fog proxy</dt><dd>{{ c2_diagnostics.fog_potential|floatformat:3 }}</dd></div>
+                    <div><dt>Снимок атмосферы</dt><dd>{{ c2_diagnostics.snapshot_world_minutes }} мин.</dd></div>
+                    {% if c2_diagnostics.is_ocean %}
+                        <div><dt>Baseline SST</dt><dd>{{ c2_diagnostics.baseline_sst_c|floatformat:2 }}°C</dd></div>
+                        <div><dt>Текущая SST</dt><dd>{{ c2_diagnostics.current_sst_c|floatformat:2 }}°C</dd></div>
+                        <div><dt>Аномалия SST</dt><dd>{{ c2_diagnostics.sst_anomaly_c|floatformat:2 }}°C</dd></div>
+                        <div><dt>Звёздная аномалия океана</dt><dd>{{ c2_diagnostics.stellar_ocean_anomaly_w_m2|floatformat:1 }} W/m²</dd></div>
+                        <div><dt>Sensible heat</dt><dd>{{ c2_diagnostics.sensible_heat_w_m2|floatformat:1 }} W/m²</dd></div>
+                        <div><dt>Latent heat</dt><dd>{{ c2_diagnostics.latent_heat_w_m2|floatformat:1 }} W/m²</dd></div>
+                        <div><dt>Испарение</dt><dd>{{ c2_diagnostics.evaporation_kg_m2_day|floatformat:3 }} кг/м²/сутки</dd></div>
+                    {% else %}
+                        <div class="region-stat--wide"><dt>SST</dt><dd>не применяется: ячейка суши</dd></div>
+                        <div class="region-stat--wide"><dt>Локальное испарение океана</dt><dd>0 кг/м²/сутки</dd></div>
+                    {% endif %}
+                </dl>
+            {% else %}
+                <p class="empty-copy">Совместимый снимок solver v5 ещё не создан. Продвиньте время мира.</p>
+            {% endif %}
         </section>
 
         <section class="panel region-info-card region-location-card">

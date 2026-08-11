@@ -5,7 +5,7 @@ from django.db import OperationalError
 from django.test import TestCase
 from django.urls import reverse
 
-from campaigns.models import Campaign, CampaignMembership
+from campaigns.models import Campaign, CampaignMembership, TimeAdvanceReport
 from world.models import AtmosphericConfig, Region
 
 
@@ -34,6 +34,10 @@ class GmDashboardTests(TestCase):
             "campaigns:configure_atmosphere",
             kwargs={"campaign_id": self.campaign.pk},
         )
+        self.time_settings_url = reverse(
+            "campaigns:configure_time_simulation",
+            kwargs={"campaign_id": self.campaign.pk},
+        )
 
     def test_dashboard_contains_calendar_and_dynamic_time_units(self):
         response = self.client.get(self.dashboard_url)
@@ -42,7 +46,10 @@ class GmDashboardTests(TestCase):
         self.assertContains(response, "Календарь Фардекосмии")
         self.assertContains(response, "Год 0")
         self.assertContains(response, 'value="turns"')
-        self.assertContains(response, "1 Виток = 168 часов")
+        self.assertContains(response, "1 Фаза = 24 часа = 1/7 Витка.")
+        self.assertContains(response, "1 Виток = 168 часов = 7 фаз света.")
+        self.assertContains(response, "Сезоны имеют разную длину")
+        self.assertContains(response, "1 Великий Круг = 364 дня = 52 Витка")
         self.assertContains(response, 'type="range"')
         self.assertContains(response, "Глобальная атмосфера")
         self.assertContains(response, "Выключена")
@@ -66,7 +73,7 @@ class GmDashboardTests(TestCase):
         self.assertEqual(config.ocean_temperature_c, 45)
         self.assertEqual(config.world_seed, 314)
 
-    def test_atmosphere_cannot_be_enabled_without_ocean_temperature(self):
+    def test_atmosphere_can_use_map_sst_without_legacy_ocean_fallback(self):
         response = self.client.post(
             self.atmosphere_url,
             {
@@ -79,13 +86,24 @@ class GmDashboardTests(TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 400)
-        self.assertContains(
-            response,
-            "Задайте температуру океана перед включением сетки",
-            status_code=400,
+        self.assertRedirects(response, self.dashboard_url)
+        config = AtmosphericConfig.objects.get(campaign=self.campaign)
+        self.assertTrue(config.enabled)
+        self.assertIsNone(config.ocean_temperature_c)
+
+    def test_gm_can_configure_exact_and_spinup_thresholds(self):
+        response = self.client.post(
+            self.time_settings_url,
+            {
+                "exact_simulation_max_turns": "6",
+                "fast_forward_spinup_turns": "2",
+            },
         )
-        self.assertFalse(AtmosphericConfig.objects.exists())
+
+        self.assertRedirects(response, self.dashboard_url)
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.exact_simulation_max_turns, 6)
+        self.assertEqual(self.campaign.fast_forward_spinup_turns, 2)
 
     def test_advance_accepts_calendar_units(self):
         response = self.client.post(
@@ -93,7 +111,8 @@ class GmDashboardTests(TestCase):
             {"amount": "1", "unit": "turns"},
         )
 
-        self.assertRedirects(response, self.dashboard_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("advance_report=", response.url)
         self.campaign.refresh_from_db()
         self.assertEqual(
             self.campaign.world_minutes,
@@ -106,7 +125,8 @@ class GmDashboardTests(TestCase):
             {"amount": "37", "unit": "hours"},
         )
 
-        self.assertRedirects(response, self.dashboard_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("advance_report=", response.url)
         self.campaign.refresh_from_db()
         self.assertEqual(self.campaign.world_minutes, 37 * 60)
 
@@ -131,7 +151,23 @@ class GmDashboardTests(TestCase):
             {"amount": "10", "unit": "minutes", "next": map_url},
         )
 
-        self.assertRedirects(response, map_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith(map_url))
+        self.assertIn("advance_report=", response.url)
+
+    def test_report_is_displayed_after_redirect(self):
+        response = self.client.post(
+            self.advance_url,
+            {"amount": "1", "unit": "turns"},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Сводка продвижения времени")
+        self.assertContains(response, "Прошло: 1 Виток")
+        report = TimeAdvanceReport.objects.get()
+        self.assertEqual(report.gm, self.user)
+        self.assertEqual(report.requested_unit, "turns")
 
     @patch("campaigns.views.advance_world")
     def test_database_lock_returns_clear_service_response(self, advance_mock):

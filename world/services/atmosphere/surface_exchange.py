@@ -1,9 +1,29 @@
+import numpy as np
+
 from .forcing import ZeroRadiativeForcing
+from .geometry import geometry_for
 
 
-def clamp(value, minimum, maximum):
-    return max(minimum, min(maximum, value))
-
+def surface_temperature_target(
+    static,
+    settings,
+    *,
+    world_minutes,
+    forcing=None,
+    radiative_grid=None,
+):
+    forcing = forcing or ZeroRadiativeForcing()
+    geometry = geometry_for(settings)
+    baseline = np.asarray(static.mean_temperature, dtype=np.float64).copy()
+    adjustment = (
+        radiative_grid.total_radiative_anomaly_c
+        if radiative_grid is not None
+        else forcing.temperature_adjustment_grid(geometry, world_minutes)
+    )
+    adjustment = np.asarray(adjustment, dtype=np.float64).reshape(-1)
+    if adjustment.size != baseline.size:
+        raise ValueError("Размер radiative forcing не совпадает с атмосферной сеткой.")
+    return baseline + adjustment
 
 def apply_surface_exchange(
     grid,
@@ -12,41 +32,25 @@ def apply_surface_exchange(
     *,
     world_minutes,
     forcing=None,
+    radiative_grid=None,
 ):
     forcing = forcing or ZeroRadiativeForcing()
-    ocean_temperature = None
-    if any(static.is_ocean):
-        ocean_temperature = settings.require_ocean_temperature()
-    for y in range(grid.height):
-        latitude = static.latitude_at_row(y)
-        for x in range(grid.width):
-            index = grid.index(x, y)
-            longitude = static.longitude_at_column(x)
-            if static.is_ocean[index]:
-                target = ocean_temperature
-                exchange = settings.value("ocean_heat_exchange")
-                humidity_exchange = settings.value("ocean_moisture_exchange")
-                grid.fields["relative_humidity"][index] += (
-                    100.0 - grid.fields["relative_humidity"][index]
-                ) * humidity_exchange
-            else:
-                target = static.mean_temperature[index] + forcing.temperature_adjustment(
-                    latitude,
-                    longitude,
-                    world_minutes,
-                )
-                exchange = settings.value("land_temperature_exchange")
-            grid.fields["surface_temperature"][index] = target
-            grid.fields["temperature"][index] += (
-                target - grid.fields["temperature"][index]
-            ) * exchange
-            grid.fields["relative_humidity"][index] = clamp(
-                grid.fields["relative_humidity"][index],
-                0.0,
-                100.0,
-            )
-            grid.fields["water_content"][index] = max(
-                0.0,
-                grid.fields["relative_humidity"][index] / 100.0,
-            )
+    ocean_mask = np.asarray(static.is_ocean, dtype=np.bool_)
 
+    target = surface_temperature_target(
+        static,
+        settings,
+        world_minutes=world_minutes,
+        forcing=forcing,
+        radiative_grid=radiative_grid,
+    )
+    temperature = grid.fields["temperature"].astype(np.float64)
+    land = ~ocean_mask
+    temperature[land] += (
+        target[land] - temperature[land]
+    ) * settings.value("land_temperature_exchange")
+
+    surface = grid.fields["surface_temperature"].astype(np.float64)
+    surface[land] = target[land]
+    grid.fields["surface_temperature"] = surface.astype(np.float32)
+    grid.fields["temperature"] = temperature.astype(np.float32)

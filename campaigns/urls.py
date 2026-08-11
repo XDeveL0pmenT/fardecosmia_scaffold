@@ -17,4 +17,9 @@ urlpatterns = [
         views.configure_atmosphere_view,
         name="configure_atmosphere",
     ),
+    path(
+        "campaign/<uuid:campaign_id>/gm/time-simulation/",
+        views.configure_time_simulation_view,
+        name="configure_time_simulation",
+    ),
 ]

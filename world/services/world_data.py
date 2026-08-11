@@ -211,13 +211,30 @@ class WorldData:
         )
 
     def ocean_temperature_at(self, latitude, longitude, *, configured_temperature=None):
+        return self.ocean_baseline_temperature_at(
+            latitude,
+            longitude,
+            configured_temperature=configured_temperature,
+        )
+
+    def ocean_baseline_temperature_at(
+        self,
+        latitude,
+        longitude,
+        *,
+        configured_temperature=None,
+    ):
         if self.surface_at(latitude, longitude) != SurfaceType.OCEAN:
             raise ValueError("Температура океана запрошена для ячейки суши.")
-        if configured_temperature is None:
-            raise WorldDataUnavailable(
-                "Каноническая температура океана неизвестна; задайте её в конфигурации."
-            )
-        return _finite_number(configured_temperature, "Температура океана")
+        value = self.mean_temperature_at(latitude, longitude)
+        if math.isfinite(value):
+            return value
+        if configured_temperature is not None:
+            return _finite_number(configured_temperature, "Температура океана")
+        raise WorldDataUnavailable(
+            "Карта средней температуры не содержит baseline океана; "
+            "задайте fallback в конфигурации."
+        )
 
     def albedo_at(
         self,
@@ -260,6 +277,19 @@ def distance_to_ocean(latitude, longitude):
 
 def ocean_temperature_at(latitude, longitude, *, configured_temperature=None):
     return WorldData().ocean_temperature_at(
+        latitude,
+        longitude,
+        configured_temperature=configured_temperature,
+    )
+
+
+def ocean_baseline_temperature_at(
+    latitude,
+    longitude,
+    *,
+    configured_temperature=None,
+):
+    return WorldData().ocean_baseline_temperature_at(
         latitude,
         longitude,
         configured_temperature=configured_temperature,

@@ -1,6 +1,7 @@
 import uuid
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
@@ -24,6 +25,22 @@ class Campaign(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     world_minutes = models.BigIntegerField(default=0)
+    exact_simulation_max_turns = models.PositiveSmallIntegerField(
+        default=4,
+        validators=[MinValueValidator(1)],
+        help_text=(
+            "Технический порог: продвижение не длиннее этого числа Витков "
+            "симулируется полностью. Это настройка производительности, не канон."
+        ),
+    )
+    fast_forward_spinup_turns = models.PositiveSmallIntegerField(
+        default=1,
+        validators=[MinValueValidator(1)],
+        help_text=(
+            "Число финальных Витков подробной симуляции после fast-forward. "
+            "Промежуточная погода до spin-up не придумывается."
+        ),
+    )
     calendar_epoch_year = models.IntegerField(
         default=0,
         help_text="Год, соответствующий нулевой игровой минуте.",
@@ -112,7 +129,26 @@ class Campaign(models.Model):
                 ),
                 name="dark_season_threshold_below_light",
             ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    fast_forward_spinup_turns__lte=models.F(
+                        "exact_simulation_max_turns"
+                    ),
+                ),
+                name="fast_forward_spinup_not_above_exact_limit",
+            ),
         ]
+
+    def clean(self):
+        super().clean()
+        if self.fast_forward_spinup_turns > self.exact_simulation_max_turns:
+            raise ValidationError(
+                {
+                    "fast_forward_spinup_turns": (
+                        "Финальный spin-up не должен быть длиннее exact-порога."
+                    )
+                }
+            )
 
     @property
     def calendar_minutes_per_turn(self):
@@ -121,6 +157,16 @@ class Campaign(models.Model):
     @property
     def calendar_minutes_per_phase(self):
         return self.calendar_minutes_per_turn // 7
+
+    @property
+    def light_season_min_red_fraction(self):
+        """C1 proportional meaning of the backward-compatible 8/13 field."""
+        return self.light_season_min_red_turns / 13.0
+
+    @property
+    def dark_season_max_red_fraction(self):
+        """C1 proportional meaning of the backward-compatible 5/13 field."""
+        return self.dark_season_max_red_turns / 13.0
 
     def __str__(self):
         return self.name
@@ -154,3 +200,51 @@ class CampaignMembership(models.Model):
 
     def __str__(self):
         return f"{self.user} — {self.campaign} ({self.role})"
+
+
+class TimeAdvanceReport(models.Model):
+    class SimulationMode(models.TextChoices):
+        EXACT = "exact", "Точная симуляция"
+        FAST_FORWARD = "fast_forward", "Быстрая прокрутка"
+
+    class RequestedUnit(models.TextChoices):
+        MINUTES = "minutes", "Минуты"
+        HOURS = "hours", "Часы"
+        PHASES = "phases", "Фазы Витка"
+        TURNS = "turns", "Витки"
+        SEASONS = "seasons", "Сезоны"
+        YEARS = "years", "Годы"
+
+    campaign = models.ForeignKey(
+        Campaign,
+        on_delete=models.CASCADE,
+        related_name="time_advance_reports",
+    )
+    gm = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="time_advance_reports",
+    )
+    start_world_minutes = models.BigIntegerField()
+    end_world_minutes = models.BigIntegerField()
+    requested_amount = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    requested_unit = models.CharField(max_length=20, choices=RequestedUnit.choices)
+    simulation_mode = models.CharField(max_length=20, choices=SimulationMode.choices)
+    coverage = models.JSONField(default=list)
+    summary = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(end_world_minutes__gt=models.F("start_world_minutes")),
+                name="time_advance_report_end_after_start",
+            )
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.campaign}: {self.start_world_minutes}–{self.end_world_minutes} "
+            f"({self.get_simulation_mode_display()})"
+        )

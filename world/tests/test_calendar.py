@@ -1,6 +1,10 @@
+import math
+
 from django.test import SimpleTestCase
 
-from world.services.calendar import TURNS_PER_YEAR, describe_time
+from campaigns.models import Campaign
+from world.services.calendar import TURNS_PER_YEAR, describe_time, minutes_for_time_step
+from world.services.orbital_climate import orbital_climate_state
 
 
 class CalendarServiceTests(SimpleTestCase):
@@ -34,7 +38,8 @@ class CalendarServiceTests(SimpleTestCase):
         self.assertEqual(next_turn.turn_clock, "000:00")
 
     def test_season_and_year_boundaries_follow_confirmed_calendar(self):
-        autumn = self.at_turn(13)
+        autumn_start = orbital_climate_state(0).season_end_world_minutes
+        autumn = describe_time(math.ceil(autumn_start))
         next_year = self.at_turn(TURNS_PER_YEAR)
 
         self.assertEqual(autumn.season, "Осень")
@@ -72,3 +77,12 @@ class CalendarServiceTests(SimpleTestCase):
         self.assertEqual(moment.year, -3)
         self.assertEqual(moment.phase_of_turn, 2)
         self.assertEqual(moment.turn_clock, "010:05")
+
+    def test_season_time_step_preserves_progress_across_unequal_seasons(self):
+        campaign = Campaign(world_minutes=30 * 24 * 60)
+        before = orbital_climate_state(campaign.world_minutes)
+        minutes = minutes_for_time_step(campaign, 1, "seasons")
+        after = orbital_climate_state(campaign.world_minutes + minutes)
+
+        self.assertNotEqual(before.global_season, after.global_season)
+        self.assertAlmostEqual(before.season_progress, after.season_progress, places=5)

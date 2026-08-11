@@ -4,12 +4,13 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from campaigns.models import Campaign, CampaignMembership
+from campaigns.models import Campaign, CampaignMembership, TimeAdvanceReport
 from world.models import (
     CampaignWorldMapOverride,
     GlobalWorldMapLayer,
     Region,
     WeatherState,
+    WorldEvent,
 )
 from world.services.map_layers import load_land_mask
 
@@ -214,6 +215,37 @@ class WorldMapViewTests(TestCase):
         self.assertContains(response, "region-atmosphere--")
         self.assertEqual(WeatherState.objects.count(), 0)
 
+    def test_time_advance_report_is_displayed_after_return_to_region(self):
+        region = Region.objects.create(
+            campaign=self.campaign,
+            name="Регион со сводкой",
+            biome=Region.Biome.MEADOW,
+            map_longitude=20,
+            map_latitude=10,
+            map_polygon=self.polygon,
+        )
+        region_url = reverse(
+            "world:region_detail",
+            kwargs={"campaign_id": self.campaign.pk, "region_id": region.pk},
+        )
+
+        response = self.client.post(
+            reverse(
+                "campaigns:advance_time",
+                kwargs={"campaign_id": self.campaign.pk},
+            ),
+            {"amount": "10", "unit": "minutes", "next": region_url},
+            follow=True,
+        )
+
+        report = TimeAdvanceReport.objects.get(campaign=self.campaign)
+        self.assertRedirects(
+            response,
+            f"{region_url}?advance_report={report.pk}",
+        )
+        self.assertEqual(response.context["time_advance_report"], report)
+        self.assertContains(response, "Сводка продвижения времени")
+
     def test_region_page_explains_weather_units(self):
         region = Region.objects.create(
             campaign=self.campaign,
@@ -248,6 +280,113 @@ class WorldMapViewTests(TestCase):
         self.assertContains(response, "км/ч")
         self.assertContains(response, "откуда")
         self.assertContains(response, "относительная величина модели")
+
+    def test_region_page_shows_c3_traveller_summary_and_physical_precipitation(self):
+        region = Region.objects.create(
+            campaign=self.campaign,
+            name="Регион C3",
+            biome=Region.Biome.MEADOW,
+            map_longitude=20,
+            map_latitude=10,
+            map_polygon=self.polygon,
+        )
+        WeatherState.objects.create(
+            region=region,
+            world_minutes=0,
+            temperature=38,
+            humidity=85,
+            wind_speed=6,
+            wind_direction_degrees=315,
+            pressure_hpa=970,
+            cloud_cover=0.9,
+            precipitation=0,
+            precipitation_rate_mm_h=8.0,
+            precipitation_amount_mm=48.0,
+            rain_fraction=1.0,
+            snow_fraction=0.0,
+            condition=WeatherState.Condition.RAIN,
+            source=WeatherState.Source.ATMOSPHERIC_GRID_V2,
+        )
+
+        response = self.client.get(
+            reverse(
+                "world:region_detail",
+                kwargs={"campaign_id": self.campaign.pk, "region_id": region.pk},
+            )
+        )
+
+        self.assertContains(response, "Условия для путника")
+        self.assertContains(response, "Влажный термометр")
+        self.assertContains(response, "8.00 мм/ч")
+        self.assertContains(response, "1 кг/м² = 1 мм")
+        self.assertNotContains(response, "не хватает кислорода")
+
+    def test_gm_can_confirm_and_delete_region(self):
+        region = Region.objects.create(
+            campaign=self.campaign,
+            name="Удаляемый регион",
+            biome=Region.Biome.MEADOW,
+        )
+        weather = WeatherState.objects.create(
+            region=region,
+            world_minutes=0,
+            temperature=10,
+            humidity=50,
+            condition=WeatherState.Condition.CLEAR,
+        )
+        event = WorldEvent.objects.create(
+            campaign=self.campaign,
+            region=region,
+            title="Событие региона",
+            trigger_at=120,
+        )
+        delete_url = reverse(
+            "world:region_delete",
+            kwargs={"campaign_id": self.campaign.pk, "region_id": region.pk},
+        )
+
+        confirmation = self.client.get(delete_url)
+
+        self.assertEqual(confirmation.status_code, 200)
+        self.assertContains(confirmation, "Удалить регион «Удаляемый регион»?")
+        self.assertContains(confirmation, "Состояний погоды: 1")
+        self.assertTrue(Region.objects.filter(pk=region.pk).exists())
+
+        response = self.client.post(delete_url, follow=True)
+
+        self.assertRedirects(response, self.map_url)
+        self.assertFalse(Region.objects.filter(pk=region.pk).exists())
+        self.assertFalse(WeatherState.objects.filter(pk=weather.pk).exists())
+        event.refresh_from_db()
+        self.assertIsNone(event.region_id)
+        self.assertContains(response, "Регион «Удаляемый регион» удалён.")
+
+    def test_player_cannot_delete_region(self):
+        region = Region.objects.create(
+            campaign=self.campaign,
+            name="Защищённый регион",
+            biome=Region.Biome.FOREST,
+        )
+        player = get_user_model().objects.create_user(
+            username="region-delete-player",
+            password="test-password",
+        )
+        CampaignMembership.objects.create(
+            campaign=self.campaign,
+            user=player,
+            role=CampaignMembership.Role.PLAYER,
+        )
+        self.client.force_login(player)
+
+        response = self.client.post(
+            reverse(
+                "world:region_delete",
+                kwargs={"campaign_id": self.campaign.pk, "region_id": region.pk},
+            )
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Region.objects.filter(pk=region.pk).exists())
 
     def test_player_cannot_open_objective_world_map(self):
         player = get_user_model().objects.create_user(

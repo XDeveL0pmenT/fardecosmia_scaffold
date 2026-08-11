@@ -1,12 +1,22 @@
 from dataclasses import dataclass
 
+from world.services.orbital_climate import (
+    CANONICAL_YEAR_MINUTES,
+    SEASON_CODES,
+    orbital_climate_state,
+    shift_orbital_seasons,
+)
+
 
 PHASES_PER_TURN = 7
 TURNS_PER_FACE_CIRCLE = 16
 TURNS_PER_HALF_FACE_CIRCLE = 8
+# Deprecated compatibility constant.  Since C1, active season boundaries come
+# from the annual Keplerian orbit rather than four fixed blocks of 13 Vitok.
 TURNS_PER_SEASON = 13
 SEASONS_PER_YEAR = 4
-TURNS_PER_YEAR = TURNS_PER_SEASON * SEASONS_PER_YEAR
+# The year remains exactly 52 Vitok; this no longer implies 13 Vitok per season.
+TURNS_PER_YEAR = 52
 PHASES_PER_SEASON = TURNS_PER_SEASON * PHASES_PER_TURN
 PHASES_PER_YEAR = TURNS_PER_YEAR * PHASES_PER_TURN
 
@@ -68,7 +78,15 @@ class CalendarMoment:
     year_index: int
     phase_of_year: int
     season: str
+    season_code: str
     season_number: int
+    season_progress: float
+    season_duration_minutes: float
+    season_duration_days: float
+    season_duration_turns: float
+    season_start_world_minutes: float
+    season_end_world_minutes: float
+    turns_in_season: int
     phase_of_season: int
     turn_of_season: int
     turn_of_year: int
@@ -88,6 +106,10 @@ class CalendarMoment:
     turn_clock: str
     phase_fraction: float
 
+    @property
+    def season_progress_percent(self):
+        return self.season_progress * 100.0
+
 
 def _ympha_visibility(face_circle_turn):
     """Technical 0..1 interpolation of the confirmed 16-turn face cycle."""
@@ -105,6 +127,7 @@ def describe_time(
     hours_per_turn=168,
     minutes_per_hour=60,
     red_turn_visibility_threshold=0.5,
+    season_world_minutes=None,
 ):
     if hours_per_turn < 1 or minutes_per_hour < 1:
         raise ValueError("Длительность Витка должна быть положительной.")
@@ -113,11 +136,18 @@ def describe_time(
 
     minutes_per_turn = hours_per_turn * minutes_per_hour
     absolute_turn, minute_of_turn = divmod(world_minutes, minutes_per_turn)
-    year_index, turn_of_year_zero = divmod(absolute_turn, TURNS_PER_YEAR)
-    season_index, turn_of_season_zero = divmod(
-        turn_of_year_zero,
-        TURNS_PER_SEASON,
+    _legacy_year_index, turn_of_year_zero = divmod(absolute_turn, TURNS_PER_YEAR)
+    orbital = orbital_climate_state(
+        world_minutes if season_world_minutes is None else season_world_minutes
     )
+    year_index = orbital.year_index
+    season_index = SEASON_CODES.index(orbital.global_season)
+    season_elapsed = max(
+        0.0,
+        (world_minutes if season_world_minutes is None else season_world_minutes)
+        - orbital.season_start_world_minutes,
+    )
+    turn_of_season_zero = int(season_elapsed // minutes_per_turn)
     face_circle_turn = absolute_turn % TURNS_PER_FACE_CIRCLE + 1
 
     phase_progress = minute_of_turn * PHASES_PER_TURN / minutes_per_turn
@@ -142,10 +172,18 @@ def describe_time(
         year=epoch_year + year_index,
         year_index=year_index,
         phase_of_year=turn_of_year_zero * PHASES_PER_TURN + phase_of_turn_zero + 1,
-        season=SEASONS[season_index],
+        season=orbital.global_season_label,
+        season_code=orbital.global_season,
         season_number=season_index + 1,
+        season_progress=orbital.season_progress,
+        season_duration_minutes=orbital.season_duration_minutes,
+        season_duration_days=orbital.season_duration_days,
+        season_duration_turns=orbital.season_duration_minutes / minutes_per_turn,
+        season_start_world_minutes=orbital.season_start_world_minutes,
+        season_end_world_minutes=orbital.season_end_world_minutes,
+        turns_in_season=max(1, int(-(-orbital.season_duration_minutes // minutes_per_turn))),
         phase_of_season=(
-            turn_of_season_zero * PHASES_PER_TURN + phase_of_turn_zero + 1
+            int(season_elapsed // (minutes_per_turn / PHASES_PER_TURN)) + 1
         ),
         turn_of_season=turn_of_season_zero + 1,
         turn_of_year=turn_of_year_zero + 1,
@@ -192,9 +230,10 @@ def minutes_for_time_step(campaign, amount, unit):
         "turns": campaign.calendar_minutes_per_turn,
         # Legacy request value: a world day is one full Turn, not 24 hours.
         "days": campaign.calendar_minutes_per_turn,
-        "seasons": campaign.calendar_minutes_per_turn * TURNS_PER_SEASON,
-        "years": campaign.calendar_minutes_per_turn * TURNS_PER_YEAR,
+        "years": CANONICAL_YEAR_MINUTES,
     }
+    if unit == "seasons":
+        return shift_orbital_seasons(campaign.world_minutes, amount)
     try:
         return amount * minute_multipliers[unit]
     except KeyError as error:

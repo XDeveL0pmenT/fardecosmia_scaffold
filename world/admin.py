@@ -69,7 +69,16 @@ class CampaignWorldMapOverrideAdmin(admin.ModelAdmin):
 
 @admin.register(AtmosphericConfig)
 class AtmosphericConfigAdmin(admin.ModelAdmin):
-    list_display = ("campaign", "enabled", "grid_width", "grid_height", "step_minutes")
+    list_display = (
+        "campaign",
+        "enabled",
+        "grid_width",
+        "grid_height",
+        "step_minutes",
+        "oxygen_fraction",
+        "checkpoint_interval_minutes",
+        "checkpoint_retention_count",
+    )
     list_filter = ("enabled",)
 
 
@@ -81,6 +90,8 @@ class AtmosphericSnapshotAdmin(admin.ModelAdmin):
         "grid_width",
         "grid_height",
         "format_version",
+        "solver_version",
+        "is_checkpoint",
         "created_at",
     )
     readonly_fields = (
@@ -89,6 +100,9 @@ class AtmosphericSnapshotAdmin(admin.ModelAdmin):
         "grid_width",
         "grid_height",
         "format_version",
+        "solver_version",
+        "input_fingerprint",
+        "is_checkpoint",
         "payload",
         "created_at",
     )

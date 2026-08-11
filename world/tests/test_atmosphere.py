@@ -1,18 +1,21 @@
+import base64
+import json
 import math
 from array import array
+from pathlib import Path
 from unittest.mock import patch
 
+import numpy as np
 from django.test import SimpleTestCase
 
 from world.services.atmosphere.advection import advect_scalar
 from world.services.atmosphere.config import AtmosphericSettings
-from world.services.atmosphere.forcing import ConfigurableOrbit
 from world.services.atmosphere.forcing import CampaignSkyForcing
 from world.services.atmosphere.grid import AtmosphericGrid
 from world.services.atmosphere.orography import apply_orography_and_precipitation
 from world.services.atmosphere.simulation import initialize_atmosphere, simulate_step
 from world.services.atmosphere.static_grid import StaticWorldGrid
-from world.services.atmosphere.surface_exchange import apply_surface_exchange
+from world.services.atmosphere.ocean import apply_ocean_surface_exchange
 from world.services.atmosphere.wind import solve_wind
 
 
@@ -35,8 +38,8 @@ def settings(width=8, height=4, **overrides):
     parameters = {
         "initial_temperature_noise_c": 0.0,
         "pressure_noise_hpa": 0.0,
-        "star_heating_c": 0.0,
-        "ympha_heating_c": 0.0,
+        "stellar_response_c": 0.0,
+        "ympha_response_c": 0.0,
     }
     parameters.update(overrides.pop("parameters", {}))
     return AtmosphericSettings(
@@ -49,26 +52,38 @@ def settings(width=8, height=4, **overrides):
 
 
 class AtmosphericGridTests(SimpleTestCase):
+    def test_phase_b_payload_is_not_silently_read_as_solver_v4(self):
+        fixture_path = (
+            Path(__file__).with_name("fixtures")
+            / "atmosphere_scalar_regression.json"
+        )
+        fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+        encoded = next(iter(fixture["states"].values()))
+
+        with self.assertRaises(ValueError):
+            AtmosphericGrid.deserialize(
+                fixture["width"],
+                fixture["height"],
+                base64.b64decode(encoded),
+            )
+
     def test_disabled_heat_hooks_skip_expensive_local_sky_calculation(self):
         forcing = CampaignSkyForcing(object(), settings())
 
-        with patch("world.services.atmosphere.forcing.calculate_local_sky") as calculate:
+        with patch(
+            "world.services.atmosphere.forcing._annual_reference_for_latitudes"
+        ) as annual_reference:
             adjustment = forcing.temperature_adjustment(10, 20, 360)
 
         self.assertEqual(adjustment, 0.0)
-        calculate.assert_not_called()
-
-    def test_orbit_keeps_confirmed_five_au_span_without_inventing_absolute_scale(self):
-        orbit = ConfigurableOrbit(periapsis_au=17, period_minutes=1000)
-
-        self.assertEqual(orbit.apoapsis_au, 22)
+        annual_reference.assert_not_called()
 
     def test_default_grid_storage_is_one_compact_float_blob(self):
         grid = AtmosphericGrid.empty(180, 90)
         payload = grid.serialize()
         restored = AtmosphericGrid.deserialize(180, 90, payload)
 
-        self.assertEqual(grid.uncompressed_size_bytes, 583_200)
+        self.assertEqual(grid.uncompressed_size_bytes, 842_400)
         self.assertLess(len(payload), grid.uncompressed_size_bytes)
         self.assertEqual(restored.serialize(), payload)
 
@@ -146,49 +161,51 @@ class AtmosphericGridTests(SimpleTestCase):
         self.assertAlmostEqual(moved[grid.index(3, 0)], 100.0, delta=0.01)
         self.assertLess(moved[grid.index(2, 0)], 1.0)
 
-    def test_hot_ocean_supplies_heat_and_moisture_from_config(self):
+    def test_ocean_uses_map_baseline_instead_of_legacy_constant(self):
         config = settings(
             width=4,
             height=2,
             ocean_temperature_c=60,
             parameters={
-                "ocean_heat_exchange": 0.5,
-                "ocean_moisture_exchange": 0.5,
+                "ocean_sensible_transfer_coefficient": 0.0012,
+                "ocean_evaporation_transfer_coefficient": 0.0012,
             },
         )
         static = static_grid(4, 2, ocean_indices={0})
-        grid = AtmosphericGrid.empty(4, 2)
-        grid.fields["temperature"][0] = 10.0
-        grid.fields["relative_humidity"][0] = 20.0
+        grid, _ = initialize_atmosphere(config, static=static)
 
-        apply_surface_exchange(grid, static, config, world_minutes=0)
+        apply_ocean_surface_exchange(grid, static, config)
 
-        self.assertEqual(grid.fields["surface_temperature"][0], 60.0)
-        self.assertEqual(grid.fields["temperature"][0], 35.0)
-        self.assertEqual(grid.fields["relative_humidity"][0], 60.0)
+        self.assertAlmostEqual(grid.fields["sea_surface_temperature_c"][0], 10.0, delta=0.01)
+        self.assertNotEqual(grid.fields["sea_surface_temperature_c"][0], 60.0)
 
-    def test_mountain_has_windward_rain_and_a_drier_lee(self):
+    def test_orography_cools_windward_slope_without_directly_changing_water(self):
         width, height = 5, 2
         elevations = [0, 0, 1000, 0, 0] * height
         static = static_grid(width, height, elevations=elevations)
         config = settings(width=width, height=height)
         grid = AtmosphericGrid.empty(width, height)
-        for index in range(grid.size):
-            grid.fields["relative_humidity"][index] = 90.0
-            grid.fields["wind_u"][index] = 10.0
+        grid.fields["temperature"].fill(20.0)
+        grid.fields["wind_u"].fill(10.0)
+        q_before = grid.fields["water_vapor_specific_humidity"].copy()
 
-        apply_orography_and_precipitation(grid, static, config)
+        apply_orography_and_precipitation(
+            grid,
+            static,
+            config,
+            relative_humidity=np.full(grid.size, 90.0),
+        )
 
         windward_plain = grid.index(1, 0)
         mountain = grid.index(2, 0)
-        lee = grid.index(3, 0)
-        self.assertGreater(
-            grid.fields["precipitation_rate"][mountain],
-            grid.fields["precipitation_rate"][windward_plain],
-        )
         self.assertLess(
-            grid.fields["relative_humidity"][lee],
-            grid.fields["relative_humidity"][windward_plain],
+            grid.fields["temperature"][mountain],
+            grid.fields["temperature"][windward_plain],
+        )
+        self.assertEqual(float(grid.fields["precipitation_rate"][mountain]), 0.0)
+        np.testing.assert_array_equal(
+            grid.fields["water_vapor_specific_humidity"],
+            q_before,
         )
 
     def test_same_seed_and_state_are_bitwise_deterministic(self):

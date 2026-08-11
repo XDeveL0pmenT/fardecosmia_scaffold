@@ -15,15 +15,17 @@ def _wind_strength(speed_m_s):
     # the number already produced by the solver and do not affect simulation.
     if speed_m_s < 0.5:
         return "штиль"
-    if speed_m_s < 3.4:
+    if speed_m_s < 5.0:
         return "лёгкий"
-    if speed_m_s < 8.0:
+    if speed_m_s < 10.0:
         return "умеренный"
-    if speed_m_s < 13.9:
+    if speed_m_s < 17.0:
         return "сильный"
-    if speed_m_s < 20.8:
+    if speed_m_s < 25.0:
         return "штормовой"
-    return "крайне сильный"
+    if speed_m_s < 33.0:
+        return "буря"
+    return "ураганный"
 
 
 def _compass_direction(degrees):
@@ -48,6 +50,31 @@ def _cloud_description(cloud_cover):
 
 
 def _precipitation_description(weather):
+    physical_rate = getattr(weather, "precipitation_rate_mm_h", None)
+    if physical_rate is not None:
+        rate = max(0.0, float(physical_rate))
+        amount = max(0.0, float(getattr(weather, "precipitation_amount_mm", 0.0) or 0.0))
+        snow_fraction = float(getattr(weather, "snow_fraction", 0.0) or 0.0)
+        rain_fraction = float(getattr(weather, "rain_fraction", 1.0 - snow_fraction) or 0.0)
+        if rate < 0.05:
+            return "нет"
+        if 0.35 <= snow_fraction <= 0.65:
+            label = "мокрый снег / смешанные осадки"
+        elif snow_fraction > rain_fraction:
+            label = "слабый снег" if rate < 0.5 else "снег" if rate < 2.5 else "сильный снегопад"
+        else:
+            label = (
+                "морось / следы"
+                if rate < 0.5
+                else "слабый дождь"
+                if rate < 2.5
+                else "умеренный дождь"
+                if rate < 7.5
+                else "сильный дождь / ливень"
+                if rate < 30.0
+                else "очень сильный ливень"
+            )
+        return f"{label} · {rate:.2f} мм/ч · {amount:.2f} мм за шаг"
     value = max(0.0, float(weather.precipitation))
     if value <= 0:
         return "нет"
@@ -91,5 +118,11 @@ def build_weather_summary(weather):
         "clouds": _cloud_description(weather.cloud_cover),
         "pressure": pressure,
         "precipitation": _precipitation_description(weather),
-        "is_atmospheric": weather.source == WeatherState.Source.ATMOSPHERIC_GRID_V1,
+        "is_atmospheric": weather.source in {
+            WeatherState.Source.ATMOSPHERIC_GRID_V1,
+            WeatherState.Source.ATMOSPHERIC_GRID_V2,
+        },
+        "has_physical_precipitation": getattr(
+            weather, "precipitation_rate_mm_h", None
+        ) is not None,
     }

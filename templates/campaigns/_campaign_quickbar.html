@@ -12,7 +12,7 @@
                 <span class="sr-only">Единица времени</span>
                 <select name="unit" data-time-unit>
                     {% for unit in time_advance_units %}
-                        <option value="{{ unit.value }}" data-max="{{ unit.max }}" data-default="{{ unit.default }}">{{ unit.label }}</option>
+                        <option value="{{ unit.value }}" data-max="{{ unit.max }}" data-default="{{ unit.default }}" data-help="{{ unit.help }}">{{ unit.label }}</option>
                     {% endfor %}
                 </select>
             </label>
@@ -21,7 +21,7 @@
                 <input name="amount" type="range" min="1" max="180" value="10" data-time-amount>
             </label>
             <output data-time-output>10 минут</output>
-            <span class="quick-time-control__canon">1 Виток = 168 часов</span>
+            <span class="quick-time-control__canon" data-time-help aria-live="polite" hidden></span>
             <button type="submit">Продвинуть</button>
         </form>
     </div>

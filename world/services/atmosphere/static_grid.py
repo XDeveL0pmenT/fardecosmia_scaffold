@@ -1,6 +1,7 @@
-from array import array
 from dataclasses import dataclass
 from functools import lru_cache
+
+import numpy as np
 
 from world.models import GlobalWorldMapLayer
 from world.services.world_data import SurfaceType, WorldData
@@ -10,10 +11,21 @@ from world.services.world_data import SurfaceType, WorldData
 class StaticWorldGrid:
     width: int
     height: int
-    is_ocean: array
-    elevation: array
-    mean_temperature: array
+    is_ocean: np.ndarray
+    elevation: np.ndarray
+    mean_temperature: np.ndarray
     biome: tuple
+
+    def __post_init__(self):
+        self.is_ocean = np.asarray(self.is_ocean, dtype=np.bool_).reshape(-1)
+        self.elevation = np.asarray(self.elevation, dtype=np.float32).reshape(-1)
+        self.mean_temperature = np.asarray(
+            self.mean_temperature,
+            dtype=np.float32,
+        ).reshape(-1)
+        self.is_ocean.flags.writeable = False
+        self.elevation.flags.writeable = False
+        self.mean_temperature.flags.writeable = False
 
     @property
     def size(self):
@@ -34,9 +46,9 @@ class StaticWorldGrid:
 
 def build_static_world_grid(settings, *, world_data=None):
     world_data = world_data or WorldData()
-    ocean = array("b")
-    elevation = array("f")
-    mean_temperature = array("f")
+    ocean = []
+    elevation = []
+    mean_temperature = []
     biomes = []
     for y in range(settings.height):
         for x in range(settings.width):
@@ -53,9 +65,9 @@ def build_static_world_grid(settings, *, world_data=None):
     return StaticWorldGrid(
         width=settings.width,
         height=settings.height,
-        is_ocean=ocean,
-        elevation=elevation,
-        mean_temperature=mean_temperature,
+        is_ocean=np.asarray(ocean, dtype=np.bool_),
+        elevation=np.asarray(elevation, dtype=np.float32),
+        mean_temperature=np.asarray(mean_temperature, dtype=np.float32),
         biome=tuple(biomes),
     )
 
@@ -67,8 +79,14 @@ class _GridShape:
 
 
 @lru_cache(maxsize=8)
-def _cached_static_world_grid(width, height, layer_pk, layer_revision):
-    del layer_revision  # It exists solely to invalidate the cache key.
+def _cached_static_world_grid(
+    width,
+    height,
+    layer_pk,
+    layer_revision,
+    static_maps_revision,
+):
+    del layer_revision, static_maps_revision  # Cache-invalidation keys.
     layer = None
     if layer_pk is not None:
         layer = GlobalWorldMapLayer.objects.get(pk=layer_pk)
@@ -80,6 +98,8 @@ def _cached_static_world_grid(width, height, layer_pk, layer_revision):
 
 def cached_static_world_grid(settings):
     """Cache immutable geography until the shared atlas changes."""
+    from .fingerprint import static_maps_version
+
     layer = (
         GlobalWorldMapLayer.objects.filter(slug=GlobalWorldMapLayer.FARDECOSMIA_SLUG)
         .only("pk", "updated_at")
@@ -91,4 +111,5 @@ def cached_static_world_grid(settings):
         settings.height,
         None if layer is None else layer.pk,
         revision,
+        tuple(sorted(static_maps_version().items())),
     )

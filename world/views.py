@@ -1,13 +1,15 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.views.decorators.http import require_http_methods
 
 from campaigns.models import Campaign, CampaignMembership
 from campaigns.time_controls import TIME_ADVANCE_UNITS
 from world.biomes import BIOME_PALETTE
 from world.forms import MapLayerPaintForm, RegionMapForm, RegionPlacementForm
-from world.models import Region
+from world.models import AtmosphericConfig, Region
 from world.services.astronomy import (
     build_light_bands,
     celestial_positions,
@@ -25,6 +27,10 @@ from world.services.map_layers import (
 )
 from world.services.weather import generate_weather
 from world.services.weather_display import build_weather_summary
+from world.services.environment_summary import build_environment_summary
+from world.services.atmosphere.config import AtmosphericSettings
+from world.services.atmosphere.forcing import CampaignSkyForcing
+from world.services.atmosphere.persistence import latest_atmospheric_cell_diagnostics
 
 
 SEASON_CODES = {
@@ -216,10 +222,48 @@ def region_detail(request, campaign_id, region_id):
     weather = _latest_weather(region, campaign.world_minutes)
     sky = describe_region_sky(region, campaign.world_minutes)
     moment = sky.local_moment
+    atmospheric_config = AtmosphericConfig.objects.filter(campaign=campaign).first()
+    atmosphere_settings = (
+        AtmosphericSettings.from_model(atmospheric_config, campaign)
+        if atmospheric_config is not None
+        else AtmosphericSettings(world_circumference_km=campaign.world_circumference_km)
+    )
+    radiative_diagnostics = CampaignSkyForcing(
+        campaign,
+        atmosphere_settings,
+    ).diagnostics(
+        sky.latitude,
+        sky.longitude,
+        campaign.world_minutes,
+    )
+    c2_diagnostics = None
+    if (
+        atmospheric_config is not None
+        and atmospheric_config.enabled
+        and region.map_latitude is not None
+        and region.map_longitude is not None
+    ):
+        c2_diagnostics = latest_atmospheric_cell_diagnostics(
+            campaign,
+            atmospheric_config,
+            region.map_latitude,
+            region.map_longitude,
+            world_minutes=campaign.world_minutes,
+        )
     atmosphere_style = (
         f"--star-opacity:{0.04 + sky.star_intensity * 0.96:.4f};"
         f"--ympha-opacity:{(1 - sky.star_intensity) * sky.ympha_visibility:.4f};"
         f"--dark-opacity:{sky.darkness * 0.99:.4f};"
+    )
+    environment_summary = build_environment_summary(
+        weather,
+        sky=sky,
+        biome=region.biome,
+        elevation_m=region.elevation,
+        oxygen_fraction=(
+            None if atmospheric_config is None else atmospheric_config.oxygen_fraction
+        ),
+        parameters=atmosphere_settings.parameters,
     )
     return render(
         request,
@@ -229,6 +273,7 @@ def region_detail(request, campaign_id, region_id):
             "region": region,
             "weather": weather,
             "weather_summary": build_weather_summary(weather),
+            "environment_summary": environment_summary,
             "sky": sky,
             "calendar": moment,
             "season_code": SEASON_CODES[moment.season],
@@ -240,6 +285,38 @@ def region_detail(request, campaign_id, region_id):
                 sky.longitude,
                 sky.latitude,
             ),
+            "radiative_diagnostics": radiative_diagnostics,
+            "c2_diagnostics": c2_diagnostics,
+            "time_advance_units": TIME_ADVANCE_UNITS,
+            "can_advance_time": True,
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def region_delete(request, campaign_id, region_id):
+    campaign = _gm_campaign_or_403(request.user, campaign_id)
+    region = get_object_or_404(
+        Region,
+        pk=region_id,
+        campaign=campaign,
+    )
+
+    if request.method == "POST":
+        region_name = region.name
+        region.delete()
+        messages.success(request, f"Регион «{region_name}» удалён.")
+        return redirect("world:world_map", campaign_id=campaign.pk)
+
+    return render(
+        request,
+        "world/region_confirm_delete.html",
+        {
+            "campaign": campaign,
+            "region": region,
+            "weather_state_count": region.weather_history.count(),
+            "world_event_count": region.events.count(),
             "time_advance_units": TIME_ADVANCE_UNITS,
             "can_advance_time": True,
         },

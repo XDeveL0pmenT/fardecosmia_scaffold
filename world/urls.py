@@ -17,4 +17,9 @@ urlpatterns = [
         views.region_detail,
         name="region_detail",
     ),
+    path(
+        "campaign/<uuid:campaign_id>/gm/regions/<int:region_id>/delete/",
+        views.region_delete,
+        name="region_delete",
+    ),
 ]

@@ -5,8 +5,8 @@ from world.models import WeatherState
 from world.services.astronomy import describe_region_sky
 from world.services.calendar import (
     PHASES_PER_TURN,
-    PHASES_PER_YEAR,
 )
+from world.services.orbital_climate import orbital_climate_state
 
 
 PRECIPITATION_CONDITIONS = {
@@ -16,6 +16,7 @@ PRECIPITATION_CONDITIONS = {
 }
 NIGHT_EXPOSURE_BY_TURN_DAY = (0, 0, 0, 0.2, 0.8, 1, 0.5)
 MAX_WEATHER_TRANSITIONS_PER_ADVANCE = 10_000
+LEGACY_ORBITAL_FLUX_RESPONSE_SCALE = 0.42
 SEASON_CODES = {
     "Лето": "summer",
     "Осень": "autumn",
@@ -42,12 +43,16 @@ def _target_temperature(region, world_minutes, rng):
     sky = describe_region_sky(region, world_minutes)
     moment = sky.local_moment
 
-    year_progress = (
-        (moment.phase_of_year - 1) + moment.phase_fraction
-    ) / PHASES_PER_YEAR
-    # Technical interpolation: the middle of Summer is the warmest point and the
-    # middle of Winter is the coldest. Region.seasonal_amplitude controls its size.
-    seasonal_factor = math.cos(2 * math.pi * (year_progress - 0.125))
+    orbital = orbital_climate_state(world_minutes)
+    # Legacy weather keeps its configurable amplitude, but C1 drives it with
+    # the physical inverse-square flux anomaly instead of a fixed 13-turn cosine.
+    # The calibration divisor is technical and merely preserves a readable
+    # meaning for existing Region.seasonal_amplitude values.
+    seasonal_factor = clamp(
+        (orbital.flux_anomaly_ratio - 1.0) / LEGACY_ORBITAL_FLUX_RESPONSE_SCALE,
+        -1.5,
+        1.5,
+    )
 
     turn_progress = (moment.phase_of_turn - 1) + moment.phase_fraction
     # The confirmed light cycle peaks on day 3 and reaches its minimum near day 6.
@@ -123,13 +128,13 @@ def _choose_condition(
     return WeatherState.Condition.CLEAR
 
 
-def generate_weather(region, world_minutes, previous=None):
+def generate_weather(region, world_minutes, previous=None, *, use_history=True):
     """Create one immutable weather snapshot at a scheduled simulation boundary."""
     existing = region.weather_history.filter(world_minutes=world_minutes).first()
     if existing:
         return existing
 
-    if previous is None:
+    if previous is None and use_history:
         previous = (
             region.weather_history.filter(world_minutes__lt=world_minutes)
             .order_by("-world_minutes")
@@ -194,22 +199,28 @@ def generate_weather(region, world_minutes, previous=None):
     )
 
 
-def update_weather_for_period(region, old_time, new_time):
+def update_weather_for_period(region, old_time, new_time, *, force_initialize=False):
     """Advance weather only across the region's fixed simulation boundaries."""
     if new_time < old_time:
         raise ValueError("Погоду нельзя прокручивать назад этим сервисом.")
 
     interval = region.weather_update_interval_minutes
-    previous = (
-        region.weather_history.filter(world_minutes__lte=old_time)
-        .order_by("-world_minutes")
-        .first()
-    )
+    previous = None
+    if not force_initialize:
+        previous = (
+            region.weather_history.filter(world_minutes__lte=old_time)
+            .order_by("-world_minutes")
+            .first()
+        )
     generated = []
 
     if previous is None:
         initial_boundary = old_time - (old_time % interval)
-        previous = generate_weather(region, initial_boundary)
+        previous = generate_weather(
+            region,
+            initial_boundary,
+            use_history=not force_initialize,
+        )
         generated.append(previous)
 
     next_boundary = (old_time // interval + 1) * interval

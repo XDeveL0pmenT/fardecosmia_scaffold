@@ -44,6 +44,9 @@
     {% include "campaigns/_campaign_quickbar.html" %}
 {% endif %}
 <main class="container">
+    {% if time_advance_report %}
+        {% include "campaigns/_time_advance_report.html" %}
+    {% endif %}
     {% if messages %}
         <div class="site-messages" aria-live="polite">
             {% for message in messages %}<div class="site-message site-message--{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}

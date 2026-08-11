@@ -275,6 +275,184 @@ h2 {
     white-space: nowrap;
 }
 
+.time-report {
+    position: relative;
+    z-index: 4;
+    isolation: isolate;
+    margin-bottom: 24px;
+    padding: 24px;
+    color: var(--text);
+    background:
+        linear-gradient(145deg, rgba(255,255,255,.055), transparent 35%),
+        rgba(17, 18, 42, 0.94);
+}
+
+.time-report--fast {
+    border-color: rgba(255, 184, 108, 0.34);
+}
+
+.time-report__header,
+.time-report__grid {
+    position: relative;
+    z-index: 1;
+}
+
+.time-report__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.time-report__header h2,
+.time-report__header .panel-kicker,
+.time-report__grid h3 {
+    margin-top: 0;
+}
+
+.time-report__mode {
+    padding: 7px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--violet-bright);
+    font-size: .68rem;
+    white-space: nowrap;
+}
+
+.time-report__warning {
+    position: relative;
+    z-index: 1;
+    padding: 11px 13px;
+    border-left: 2px solid #ffb86c;
+    background: rgba(255, 184, 108, .08);
+    color: #ffd5a3;
+}
+
+.time-report__ocean {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    margin-top: 14px;
+    padding: 11px 13px;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 7px 12px;
+    border: 1px solid rgba(115, 231, 245, 0.18);
+    border-radius: 10px;
+    color: var(--muted);
+    background: rgba(42, 124, 146, 0.07);
+    font-size: 0.76rem;
+}
+
+.time-report__ocean strong {
+    color: var(--cyan);
+}
+
+.time-report__ocean small {
+    color: var(--faint);
+}
+
+.time-report__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    margin-top: 20px;
+}
+
+.time-report__grid > section {
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: rgba(4, 5, 15, .34);
+}
+
+.time-report__grid h3 {
+    color: var(--violet-bright);
+    font-size: .82rem;
+}
+
+.time-report__event,
+.time-report__region,
+.time-report__grid section > p {
+    margin: 9px 0;
+    color: var(--muted);
+    font-size: .78rem;
+    line-height: 1.5;
+}
+
+.time-report__event small {
+    margin-left: 5px;
+    color: var(--faint);
+}
+
+.time-report__region {
+    display: grid;
+    gap: 3px;
+}
+
+.time-report__details,
+.time-simulation-settings {
+    position: relative;
+    z-index: 1;
+    margin-top: 18px;
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+}
+
+.time-report__details summary,
+.time-simulation-settings summary {
+    color: var(--violet-bright);
+    cursor: pointer;
+    font-size: .75rem;
+}
+
+.time-report__coverage,
+.time-report__shares {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin: 10px 0;
+}
+
+.time-report__coverage span,
+.time-report__shares span {
+    padding: 4px 7px;
+    border-radius: 6px;
+    background: rgba(167, 139, 250, .09);
+    color: var(--muted);
+    font-size: .68rem;
+}
+
+.time-report__regional-detail {
+    padding: 12px 0;
+    border-top: 1px solid rgba(181, 166, 255, .1);
+}
+
+.time-report__regional-detail h4,
+.time-report__regional-detail p {
+    margin: 5px 0;
+}
+
+.time-simulation-settings form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+    align-items: end;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.time-simulation-settings label {
+    display: grid;
+    gap: 5px;
+    color: var(--muted);
+    font-size: .75rem;
+}
+
+.time-simulation-settings small {
+    color: var(--faint);
+    line-height: 1.35;
+}
+
 .brand {
     display: inline-flex;
     align-items: center;
@@ -617,6 +795,30 @@ button:not(.link-button):disabled {
 
 .button--wide {
     width: 100%;
+}
+
+.button--compact {
+    min-height: 34px;
+    padding: 7px 11px;
+    font-size: 0.72rem;
+}
+
+.button--danger,
+button.button--danger {
+    border-color: rgba(255, 140, 163, 0.42);
+    color: #ffe9ee;
+    background: linear-gradient(135deg, #8f2946, #b33b59);
+    box-shadow: 0 8px 24px rgba(139, 28, 62, 0.24), inset 0 1px 0 rgba(255,255,255,.12);
+}
+
+.button--danger:hover,
+button.button--danger:hover {
+    box-shadow: 0 10px 30px rgba(180, 42, 82, 0.34), inset 0 1px 0 rgba(255,255,255,.16);
+}
+
+.button--secondary {
+    background: rgba(167, 139, 250, 0.08);
+    box-shadow: none;
 }
 
 .inline-form {
@@ -1766,6 +1968,12 @@ button.map-tool-button.is-active {
     overflow: auto;
 }
 
+.region-placement-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px;
+}
+
 .region-placement-item,
 button.region-placement-item {
     display: flex;
@@ -1783,6 +1991,23 @@ button.region-placement-item {
 .region-placement-item small {
     color: var(--faint);
     font-size: 0.65rem;
+}
+
+.region-placement-open {
+    display: inline-flex;
+    padding: 0 9px;
+    align-items: center;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    color: var(--violet-bright);
+    background: rgba(167, 139, 250, 0.06);
+    font-size: 0.65rem;
+    text-decoration: none;
+}
+
+.region-placement-open:hover {
+    border-color: var(--line-strong);
+    color: #fff;
 }
 
 .region-atmosphere {
@@ -1889,6 +2114,56 @@ button.region-placement-item {
 
 .region-page {
     position: relative;
+    z-index: 1;
+}
+
+.region-heading__actions {
+    display: flex;
+    margin-bottom: 30px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+}
+
+.region-heading__actions .back-link {
+    margin-bottom: 0;
+}
+
+.delete-confirmation {
+    width: min(100%, 760px);
+    margin: 0 auto;
+}
+
+.delete-confirmation__panel {
+    padding: clamp(28px, 6vw, 48px);
+    border-color: rgba(255, 140, 163, 0.28);
+}
+
+.delete-confirmation__panel h1 {
+    max-width: 680px;
+    font-size: clamp(2rem, 5vw, 3.6rem);
+}
+
+.delete-confirmation__impact {
+    display: grid;
+    margin: 28px 0;
+    padding: 18px;
+    gap: 10px;
+    border: 1px solid rgba(255, 140, 163, 0.2);
+    border-radius: 12px;
+    color: var(--muted);
+    background: rgba(255, 90, 124, 0.055);
+    line-height: 1.55;
+}
+
+.delete-confirmation__impact p {
+    margin: 0;
+}
+
+.delete-confirmation__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 .local-time-orb {
@@ -1986,6 +2261,68 @@ button.region-placement-item {
 
 .region-info-card h2 {
     font-size: 2.3rem;
+}
+
+.environment-card {
+    grid-column: 1 / -1;
+    min-height: 0;
+    border-color: rgba(93, 214, 255, 0.24);
+    background:
+        radial-gradient(circle at 92% 15%, rgba(92, 58, 170, 0.2), transparent 34%),
+        rgba(8, 12, 29, 0.92);
+}
+
+.environment-card--severity-3,
+.environment-card--severity-4 {
+    border-color: rgba(255, 112, 92, 0.55);
+    box-shadow: inset 0 0 40px rgba(142, 34, 41, 0.16);
+}
+
+.environment-card__description {
+    max-width: 76ch;
+    margin: 10px 0 0;
+    color: var(--muted);
+    line-height: 1.65;
+}
+
+.environment-hazards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.environment-hazard {
+    padding: 7px 10px;
+    border: 1px solid rgba(181, 166, 255, 0.25);
+    border-radius: 999px;
+    background: rgba(129, 108, 219, 0.14);
+    color: var(--text);
+    font-size: 0.72rem;
+}
+
+.environment-hazard--3,
+.environment-hazard--4 {
+    border-color: rgba(255, 116, 93, 0.5);
+    background: rgba(151, 42, 45, 0.28);
+    color: #ffd9cf;
+}
+
+.environment-measures {
+    max-width: 760px;
+}
+
+.environment-magic {
+    margin-top: 18px;
+    padding: 15px 17px;
+    border-left: 2px solid rgba(221, 85, 137, 0.62);
+    background: rgba(90, 23, 67, 0.16);
+}
+
+.environment-magic p {
+    margin: 8px 0 0;
+    color: var(--muted);
+    line-height: 1.55;
 }
 
 .region-condition {
@@ -2099,10 +2436,6 @@ button.region-placement-item {
         justify-content: flex-end;
     }
 
-    .quick-time-control__canon {
-        display: none;
-    }
-
     .auth-layout {
         grid-template-columns: 1fr;
         gap: 28px;
@@ -2137,6 +2470,11 @@ button.region-placement-item {
     }
 
     .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .time-report__grid,
+    .time-simulation-settings form {
         grid-template-columns: 1fr;
     }
 
@@ -2208,6 +2546,11 @@ button.region-placement-item {
 
     .quick-time-control output {
         min-width: 0;
+    }
+
+    .quick-time-control__canon {
+        grid-column: 1 / -1;
+        text-align: right;
     }
 
     .brand__text {

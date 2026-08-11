@@ -1,22 +1,27 @@
 import math
-import sys
 import zlib
-from array import array
+
+import numpy as np
 
 
 ATMOSPHERIC_FIELDS = (
     "temperature",
-    "relative_humidity",
+    "water_vapor_specific_humidity",
+    "cloud_condensate_specific_humidity",
     "pressure_hpa",
     "wind_u",
     "wind_v",
     "cloud_cover",
-    "water_content",
     "precipitation_rate",
+    "condensation_rate_kg_m2_s",
+    "latent_heating_rate_w_m2",
     "surface_temperature",
+    "sea_surface_temperature_c",
+    "evaporation_flux_kg_m2_s",
 )
-MAGIC = b"FATM1"
+MAGIC = b"FATM3"
 FLOAT_BYTES = 4
+FLOAT_DTYPE = np.dtype("<f4")
 
 
 class AtmosphericGrid:
@@ -30,11 +35,10 @@ class AtmosphericGrid:
             raise ValueError("Набор полей атмосферной сетки не соответствует версии формата.")
         self.fields = {}
         for name in ATMOSPHERIC_FIELDS:
-            values = fields[name]
-            values = values if isinstance(values, array) else array("f", values)
-            if values.typecode != "f" or len(values) != self.size:
+            values = np.asarray(fields[name], dtype=FLOAT_DTYPE)
+            if values.size != self.size:
                 raise ValueError(f"Поле {name} имеет неверный размер или тип.")
-            self.fields[name] = values
+            self.fields[name] = np.ascontiguousarray(values.reshape(self.size))
 
     @classmethod
     def empty(cls, width, height):
@@ -42,7 +46,7 @@ class AtmosphericGrid:
         return cls(
             width,
             height,
-            {name: array("f", [0.0]) * size for name in ATMOSPHERIC_FIELDS},
+            {name: np.zeros(size, dtype=FLOAT_DTYPE) for name in ATMOSPHERIC_FIELDS},
         )
 
     @property
@@ -53,7 +57,7 @@ class AtmosphericGrid:
         return AtmosphericGrid(
             self.width,
             self.height,
-            {name: array("f", values) for name, values in self.fields.items()},
+            {name: values.copy() for name, values in self.fields.items()},
         )
 
     def index(self, x, y):
@@ -66,10 +70,7 @@ class AtmosphericGrid:
     def serialize(self):
         raw = bytearray(MAGIC)
         for name in ATMOSPHERIC_FIELDS:
-            values = array("f", self.fields[name])
-            if sys.byteorder != "little":
-                values.byteswap()
-            raw.extend(values.tobytes())
+            raw.extend(self.fields[name].astype(FLOAT_DTYPE, copy=False).tobytes())
         # Level 1 is materially faster for frequent simulation checkpoints;
         # payloads remain version-compatible and are still substantially
         # smaller than the uncompressed float grid.
@@ -87,13 +88,17 @@ class AtmosphericGrid:
         offset = len(MAGIC)
         byte_count = width * height * FLOAT_BYTES
         for name in ATMOSPHERIC_FIELDS:
-            values = array("f")
-            values.frombytes(raw[offset : offset + byte_count])
-            if sys.byteorder != "little":
-                values.byteswap()
-            fields[name] = values
+            fields[name] = np.frombuffer(
+                raw,
+                dtype=FLOAT_DTYPE,
+                count=width * height,
+                offset=offset,
+            ).copy()
             offset += byte_count
         return cls(width, height, fields)
+
+    def field_2d(self, field):
+        return self.fields[field].reshape(self.height, self.width)
 
     def bilinear_sample(self, field, x, y):
         values = self.fields[field]

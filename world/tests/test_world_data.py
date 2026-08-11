@@ -94,16 +94,21 @@ class WorldDataStaticTests(TestCase):
         self.assertEqual(data.elevation_at(latitude, longitude), 4321.5)
         self.assertNotEqual(data.mean_temperature_at(latitude, longitude), -123)
 
-    def test_future_fields_require_explicit_configuration(self):
+    def test_ocean_baseline_uses_mean_temperature_map_before_fallback(self):
         latitude, longitude = self.ocean_coordinates
         data = WorldData()
-        with self.assertRaises(WorldDataUnavailable):
-            data.ocean_temperature_at(latitude, longitude)
+        expected = data.mean_temperature_at(latitude, longitude)
+        self.assertEqual(data.ocean_temperature_at(latitude, longitude), expected)
         self.assertEqual(
             data.ocean_temperature_at(
                 latitude,
                 longitude,
                 configured_temperature=38,
             ),
-            38,
+            expected,
         )
+
+    def test_unimplemented_spatial_fields_still_fail_explicitly(self):
+        latitude, longitude = self.ocean_coordinates
+        with self.assertRaises(WorldDataUnavailable):
+            WorldData().distance_to_ocean(latitude, longitude)

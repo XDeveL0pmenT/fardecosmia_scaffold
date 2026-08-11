@@ -168,10 +168,13 @@
                 {{ placement_form.map_polygon.errors }}
                 <div class="region-placement-list">
                     {% for region in regions %}
-                        <button type="button" class="region-placement-item" data-place-region="{{ region.id }}">
-                            <span>{{ region.name }}</span>
-                            <small>{% if region.map_polygon %}перерисовать{% else %}нанести на карту{% endif %}</small>
-                        </button>
+                        <div class="region-placement-row">
+                            <button type="button" class="region-placement-item" data-place-region="{{ region.id }}">
+                                <span>{{ region.name }}</span>
+                                <small>{% if region.map_polygon %}перерисовать{% else %}нанести на карту{% endif %}</small>
+                            </button>
+                            <a class="region-placement-open" href="{% url 'world:region_detail' campaign.id region.id %}" aria-label="Открыть регион {{ region.name }}">Открыть</a>
+                        </div>
                     {% empty %}<p class="empty-copy">Регионов пока нет.</p>{% endfor %}
                 </div>
                 <button type="submit" class="button button--wide" data-save-placement disabled>Сохранить новый контур</button>

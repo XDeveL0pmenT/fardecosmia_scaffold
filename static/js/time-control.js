@@ -20,6 +20,7 @@
         const amount = form.querySelector("[data-time-amount]");
         const output = form.querySelector("[data-time-output]");
         const maxLabel = form.querySelector("[data-time-max]");
+        const help = form.querySelector("[data-time-help]");
         if (!unit || !amount || !output) return;
         const storageKey = `fardecosmia:time-control:${form.action}`;
         const readStored = () => {
@@ -48,6 +49,10 @@
             const option = unit.selectedOptions[0];
             amount.max = option.dataset.max;
             if (maxLabel) maxLabel.textContent = option.dataset.max;
+            if (help) {
+                help.textContent = option.dataset.help || "";
+                help.hidden = !help.textContent;
+            }
         };
         const stored = readStored();
         if (stored && Array.from(unit.options).some(option => option.value === String(stored.unit))) {

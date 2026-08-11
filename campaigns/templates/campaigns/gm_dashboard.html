@@ -37,7 +37,7 @@
         <div class="calendar-fact">
             <span>Сезон</span>
             <strong>{{ reference_sky.season_label }}</strong>
-            <small>Виток {{ calendar.turn_of_season }} из 13 · центр мира</small>
+            <small>{{ calendar.season_progress_percent|floatformat:1 }}% · {{ calendar.season_duration_days|floatformat:2 }} суток</small>
         </div>
         <div class="calendar-fact">
             <span>Текущий Виток</span>
@@ -50,17 +50,48 @@
             <small>нулевая долгота; Лик и видимость смотрите в регионах</small>
         </div>
     </div>
+    <details class="atmosphere-advanced orbital-diagnostics">
+        <summary>Орбитальная диагностика C1</summary>
+        {% with orbit=orbital_diagnostics.orbital_state %}
+            <div class="atmosphere-form__grid">
+                <p><span>Годовой путь</span><strong>{{ orbit.year_progress_percent|floatformat:2 }}%</strong></p>
+                <p><span>Истинная аномалия</span><strong>{{ orbit.true_anomaly_degrees|floatformat:2 }}°</strong></p>
+                <p><span>Расстояние до Звезды</span><strong>{{ orbit.star_distance_au|floatformat:4 }} AU</strong></p>
+                <p><span>Поток Звезды</span><strong>{{ orbit.stellar_flux_w_m2|floatformat:1 }} W/m²</strong></p>
+                <p><span>Поток в земных единицах</span><strong>{{ orbit.stellar_flux_earth_ratio|floatformat:4 }} S⊕</strong></p>
+                <p><span>Глобальный сезон</span><strong>{{ orbit.global_season_label }} · {{ orbit.season_progress_percent|floatformat:1 }}%</strong></p>
+                <p><span>Склонение Звезды</span><strong>{{ orbit.solar_declination_degrees|floatformat:2 }}°</strong></p>
+                <p><span>Прямой поток, 0°/0°</span><strong>{{ orbital_diagnostics.stellar_direct_w_m2|floatformat:1 }} W/m²</strong></p>
+            </div>
+        {% endwith %}
+    </details>
+    <details class="time-simulation-settings" {% if time_settings_form.errors %}open{% endif %}>
+        <summary>Настройки точной и быстрой прокрутки</summary>
+        <form method="post" action="{% url 'campaigns:configure_time_simulation' campaign.id %}">
+            {% csrf_token %}
+            {{ time_settings_form.non_field_errors }}
+            {% for field in time_settings_form %}
+                <label for="{{ field.id_for_label }}">
+                    <span>{{ field.label }}</span>
+                    {{ field }}
+                    <small>{{ field.help_text }}</small>
+                    {{ field.errors }}
+                </label>
+            {% endfor %}
+            <button type="submit">Сохранить режим</button>
+        </form>
+    </details>
 </section>
 
 <section class="panel atmosphere-control" aria-labelledby="atmosphere-title">
     <div class="panel__glow" aria-hidden="true"></div>
     <header class="atmosphere-control__header">
         <div>
-            <p class="panel-kicker">Погодная система Phase B</p>
+            <p class="panel-kicker">Погодная система Phase C3</p>
             <h2 id="atmosphere-title">Глобальная атмосфера</h2>
             <p class="atmosphere-control__copy">
-                Давление, направленный ветер, перенос тепла и влаги, горячий океан,
-                облачность и орографические осадки на общей сетке мира.
+                Давление, направленный ветер, перенос физического водяного пара,
+                динамическая SST, физический облачный конденсат, скрытая теплота и осадки с водным балансом на общей сетке мира.
             </p>
         </div>
         {% if atmospheric_config and atmospheric_config.enabled %}
