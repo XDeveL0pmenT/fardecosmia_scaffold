@@ -12,6 +12,7 @@ class RegionMapForm(forms.ModelForm):
         model = Region
         fields = (
             "name",
+            "use_manual_climate_overrides",
             "biome",
             "base_temperature",
             "seasonal_amplitude",
@@ -23,8 +24,9 @@ class RegionMapForm(forms.ModelForm):
         )
         labels = {
             "name": "Название",
+            "use_manual_climate_overrides": "Использовать ручные климатические поправки",
             "biome": "Биом",
-            "base_temperature": "Базовая температура, °C",
+            "base_temperature": "Климатическая средняя температура, °C",
             "seasonal_amplitude": "Отклик на орбитальную аномалию, °C",
             "humidity": "Средняя влажность, %",
             "elevation": "Высота",
@@ -33,37 +35,49 @@ class RegionMapForm(forms.ModelForm):
         }
         help_texts = {
             "biome": (
-                "Если под контуром нарисован слой биомов, карта предложит его автоматически. "
-                "Иначе выберите значение вручную."
+                "Автоматически берётся из общего атласа или локальной замены кампании."
             ),
             "base_temperature": (
-                "Среднее значение без текущего сезона и времени суток. Оно автоматически "
-                "считывается с предоставленной карты температур."
+                "Среднее значение карты, не текущая температура AtmosphericGrid."
             ),
             "seasonal_amplitude": (
-                "Техническая сила отклика legacy-погоды на физическое изменение потока "
-                "Звезды между перицентром и апоцентром. Это не фиксированный бонус сезона."
+                "Только legacy weather-v2. AtmosphericGrid v5 уже считает орбиту C1 "
+                "и не применяет это поле повторно."
             ),
             "humidity": (
-                "Климатическая влажность: низкое значение означает сухой регион, высокое — "
-                "частые облака и больше шансов осадков."
+                "Начальная климатическая RH из той же baseline-логики, что и AtmosphericGrid. "
+                "Текущая влажность всегда рассчитывается из qᵥ/T/p."
             ),
             "elevation": (
-                "Высота центра региона. Автоматически считывается с общей карты высот; GM может оставить поверх неё локальную поправку."
+                "Автоматически считывается с общей карты высот."
             ),
             "weather_volatility": (
-                "Размах случайных колебаний: 0 — почти неизменная погода, 1 — обычная, "
-                "3 — крайне резкая. Частоту пересчёта задаёт отдельный интервал региона."
+                "Только legacy weather-v2; AtmosphericGrid не создаёт из него второй "
+                "случайный климатический слой."
             ),
             "precipitation_bias": (
-                "От −1 для особенно сухих мест до +1 для особенно влажных. 0 не вносит поправку."
+                "Только legacy weather-v2. Осадки C3 возникают из qᵥ/q_c, переноса, "
+                "охлаждения и рельефа."
+            ),
+            "use_manual_climate_overrides": (
+                "По умолчанию выключено. Включайте только для намеренного GM-override; "
+                "обычный регион полностью настраивается по выбранной точке карты."
             ),
         }
 
     def __init__(self, *args, campaign, **kwargs):
         super().__init__(*args, **kwargs)
         self.campaign = campaign
-        self.fields["precipitation_bias"].required = False
+        for field_name in (
+            "biome",
+            "base_temperature",
+            "seasonal_amplitude",
+            "humidity",
+            "elevation",
+            "weather_volatility",
+            "precipitation_bias",
+        ):
+            self.fields[field_name].required = False
 
     def clean_name(self):
         name = self.cleaned_data["name"].strip()
@@ -79,7 +93,30 @@ class RegionMapForm(forms.ModelForm):
 
     def clean_precipitation_bias(self):
         value = self.cleaned_data.get("precipitation_bias")
-        return 0 if value is None else value
+        return Region._meta.get_field("precipitation_bias").get_default() if value is None else value
+
+    def clean_seasonal_amplitude(self):
+        value = self.cleaned_data.get("seasonal_amplitude")
+        return Region._meta.get_field("seasonal_amplitude").get_default() if value is None else value
+
+    def clean_weather_volatility(self):
+        value = self.cleaned_data.get("weather_volatility")
+        return Region._meta.get_field("weather_volatility").get_default() if value is None else value
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("use_manual_climate_overrides"):
+            labels = {
+                "biome": "Укажите биом для ручного override.",
+                "base_temperature": "Укажите климатическую среднюю температуру.",
+                "humidity": "Укажите климатическую среднюю влажность.",
+                "elevation": "Укажите высоту для ручного override.",
+            }
+            for field_name, message in labels.items():
+                value = cleaned.get(field_name)
+                if value is None or value == "":
+                    self.add_error(field_name, message)
+        return cleaned
 
 
 class RegionPlacementForm(forms.Form):

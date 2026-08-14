@@ -26,7 +26,13 @@ class Region(models.Model):
         related_name="regions",
     )
     name = models.CharField(max_length=200)
-    biome = models.CharField(max_length=30, choices=Biome.choices)
+    biome = models.CharField(
+        max_length=30,
+        choices=Biome.choices,
+        blank=True,
+        default="",
+        help_text="Пустое значение означает, что биом в World Data ещё не задан.",
+    )
     base_temperature = models.FloatField(default=10)
     seasonal_amplitude = models.FloatField(
         default=15,
@@ -36,7 +42,19 @@ class Region(models.Model):
         default=50,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
     )
-    elevation = models.FloatField(default=0)
+    elevation = models.FloatField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text="Высота из World Data; null означает неизвестное значение карты.",
+    )
+    use_manual_climate_overrides = models.BooleanField(
+        default=False,
+        help_text=(
+            "GM явно переопределяет климатические значения карты. "
+            "По умолчанию регион получает их из World Data."
+        ),
+    )
     weather_volatility = models.FloatField(
         default=1,
         validators=[MinValueValidator(0), MaxValueValidator(3)],
@@ -97,6 +115,14 @@ class Region(models.Model):
         blank=True,
         help_text="Контур региона как нормализованные точки карты [[x, y], ...].",
     )
+    weather_geometry_revision = models.PositiveIntegerField(
+        default=0,
+        editable=False,
+        help_text=(
+            "Ревизия контура и опорной точки, для которых рассчитывается "
+            "текущая погода региона."
+        ),
+    )
 
     class Meta:
         ordering = ["name"]
@@ -109,6 +135,42 @@ class Region(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        """Advance weather provenance only when sampling geometry changes."""
+
+        if self.pk:
+            geometry_fields = {
+                "map_polygon",
+                "map_latitude",
+                "map_longitude",
+                "elevation",
+            }
+            update_fields = kwargs.get("update_fields")
+            compared_fields = (
+                geometry_fields
+                if update_fields is None
+                else geometry_fields.intersection(update_fields)
+            )
+            if compared_fields:
+                previous = (
+                    type(self)
+                    .objects.filter(pk=self.pk)
+                    .values(*compared_fields, "weather_geometry_revision")
+                    .first()
+                )
+                if previous is not None and any(
+                    previous[field_name] != getattr(self, field_name)
+                    for field_name in compared_fields
+                ):
+                    self.weather_geometry_revision = (
+                        int(previous["weather_geometry_revision"]) + 1
+                    )
+                    if update_fields is not None:
+                        kwargs["update_fields"] = set(update_fields) | {
+                            "weather_geometry_revision"
+                        }
+        super().save(*args, **kwargs)
 
     def clean(self):
         super().clean()
@@ -337,6 +399,7 @@ class WeatherState(models.Model):
         LEGACY_V2 = "legacy_v2", "Региональная weather-v2"
         ATMOSPHERIC_GRID_V1 = "atmospheric_grid_v1", "Глобальная атмосферная сетка v1"
         ATMOSPHERIC_GRID_V2 = "atmospheric_grid_v2", "Глобальная атмосферная сетка C3"
+        ATMOSPHERIC_GRID_V3 = "atmospheric_grid_v3", "Глобальная атмосферная сетка C4"
 
     class Condition(models.TextChoices):
         CLEAR = "clear", "Ясно"
@@ -391,18 +454,128 @@ class WeatherState(models.Model):
         choices=Source.choices,
         default=Source.LEGACY_V2,
     )
+    region_weather_revision = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+    sample_latitude = models.FloatField(null=True, blank=True)
+    sample_longitude = models.FloatField(null=True, blank=True)
+    sample_elevation_m = models.FloatField(null=True, blank=True)
+    solver_version = models.PositiveSmallIntegerField(null=True, blank=True)
+    atmosphere_fingerprint = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         ordering = ["-world_minutes"]
         constraints = [
             models.UniqueConstraint(
-                fields=["region", "world_minutes"],
-                name="unique_weather_state_per_region_time",
+                fields=["region", "world_minutes", "region_weather_revision"],
+                name="unique_weather_state_per_region_time_revision",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["region", "region_weather_revision", "-world_minutes"],
+                name="world_ws_current_idx",
             )
         ]
 
     def __str__(self):
         return f"{self.region}: {self.temperature}°C, {self.condition}"
+
+
+class RegionAreaWeatherState(models.Model):
+    """Physical weather aggregated over a manually authored Region contour."""
+
+    class SamplingMode(models.TextChoices):
+        AREA = "area", "Контур области"
+        POINT_FALLBACK = "point_fallback", "Точечная оценка"
+
+    region = models.ForeignKey(
+        Region,
+        on_delete=models.CASCADE,
+        related_name="area_weather_history",
+    )
+    world_minutes = models.BigIntegerField()
+    region_weather_revision = models.PositiveIntegerField(db_index=True)
+    sampling_mode = models.CharField(
+        max_length=20,
+        choices=SamplingMode.choices,
+        default=SamplingMode.AREA,
+    )
+    grid_width = models.PositiveSmallIntegerField()
+    grid_height = models.PositiveSmallIntegerField()
+    covered_cell_count = models.PositiveIntegerField(default=0)
+    covered_area_m2 = models.FloatField(default=0.0)
+
+    temperature_mean_c = models.FloatField()
+    temperature_min_c = models.FloatField()
+    temperature_max_c = models.FloatField()
+    temperature_p10_c = models.FloatField()
+    temperature_p90_c = models.FloatField()
+    humidity_mean_percent = models.FloatField()
+    humidity_p10_percent = models.FloatField()
+    humidity_p90_percent = models.FloatField()
+    surface_pressure_mean_hpa = models.FloatField()
+    cloud_cover_mean = models.FloatField()
+    cloudy_area_fraction = models.FloatField()
+    heavy_cloud_area_fraction = models.FloatField()
+
+    precipitating_area_fraction = models.FloatField()
+    rain_area_fraction = models.FloatField()
+    snow_area_fraction = models.FloatField()
+    area_mean_precipitation_rate_mm_h = models.FloatField()
+    wet_area_mean_precipitation_rate_mm_h = models.FloatField()
+    max_precipitation_rate_mm_h = models.FloatField()
+
+    wind_mean_u_m_s = models.FloatField()
+    wind_mean_v_m_s = models.FloatField()
+    prevailing_wind_direction_degrees = models.FloatField(null=True, blank=True)
+    wind_speed_mean_m_s = models.FloatField()
+    wind_speed_p90_m_s = models.FloatField()
+    wind_speed_max_m_s = models.FloatField()
+    strong_wind_area_fraction = models.FloatField()
+
+    fog_area_fraction = models.FloatField(default=0.0)
+    dangerous_heat_area_fraction = models.FloatField(default=0.0)
+    dangerous_cold_area_fraction = models.FloatField(default=0.0)
+
+    source = models.CharField(
+        max_length=30,
+        choices=WeatherState.Source.choices,
+        default=WeatherState.Source.ATMOSPHERIC_GRID_V3,
+    )
+    solver_version = models.PositiveSmallIntegerField(null=True, blank=True)
+    atmosphere_fingerprint = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["-world_minutes"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["region", "world_minutes", "region_weather_revision"],
+                name="unique_region_area_weather_time_revision",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["region", "region_weather_revision", "-world_minutes"],
+                name="world_raw_current_idx",
+            )
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.region}: {self.temperature_mean_c}°C area mean "
+            f"at {self.world_minutes}"
+        )
 
 
 class WorldEvent(models.Model):

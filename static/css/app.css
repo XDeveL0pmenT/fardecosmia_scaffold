@@ -1937,6 +1937,69 @@ button.map-tool-button.is-active {
     line-height: 1.45;
 }
 
+.map-manual-toggle {
+    display: flex;
+    margin: 6px 0 3px;
+    gap: 9px;
+    align-items: center;
+    color: var(--text);
+    font-size: 0.78rem;
+}
+
+.map-manual-toggle input {
+    width: auto;
+    margin: 0;
+}
+
+.map-world-data-fields {
+    margin-top: 14px;
+    padding: 12px;
+    border: 1px solid rgba(115, 231, 245, 0.14);
+    border-radius: 10px;
+    background: rgba(33, 91, 114, 0.07);
+}
+
+.map-world-data-fields:not(.is-manual) input,
+.map-world-data-fields:not(.is-manual) select {
+    color: #9edee7;
+    border-color: rgba(115, 231, 245, 0.12);
+    background: rgba(4, 10, 24, 0.45);
+}
+
+.map-legacy-settings {
+    margin: 12px 0;
+    padding: 10px 12px;
+    border: 1px solid rgba(232, 184, 100, 0.18);
+    border-radius: 10px;
+    background: rgba(96, 59, 29, 0.08);
+}
+
+.map-legacy-settings summary {
+    cursor: pointer;
+    color: #e8c484;
+    font-size: 0.75rem;
+}
+
+.map-physics-note {
+    color: var(--faint);
+    font-size: 0.68rem;
+    line-height: 1.45;
+}
+
+.region-climate-refresh {
+    display: flex;
+    margin-top: 14px;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.region-climate-refresh small {
+    max-width: 430px;
+    color: var(--faint);
+    font-size: 0.7rem;
+}
+
 .world-map-panel:fullscreen {
     display: flex;
     width: 100vw;

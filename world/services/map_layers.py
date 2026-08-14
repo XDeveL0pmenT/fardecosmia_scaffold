@@ -76,23 +76,9 @@ def sample_authored_layers(layer_state, longitude, latitude):
 
 
 def map_defaults_at(campaign, longitude, latitude):
-    layer_state = get_global_map_layer()
-    world_data = WorldData(layer=layer_state)
-    biome = world_data.biome_at(latitude, longitude)
-    campaign_layer = get_campaign_map_override(campaign)
-    if campaign_layer is not None and world_data.surface_at(latitude, longitude).value == "land":
-        _, _, campaign_index = coordinates_to_cell(
-            longitude,
-            latitude,
-            campaign_layer.grid_width,
-            campaign_layer.grid_height,
-        )
-        biome = campaign_layer.biome_cells.get(str(campaign_index), biome)
-    return {
-        "base_temperature": world_data.mean_temperature_at(latitude, longitude),
-        "biome": biome,
-        "elevation": world_data.elevation_at(latitude, longitude),
-    }
+    from world.services.region_climate import region_climate_at
+
+    return region_climate_at(campaign, latitude, longitude)
 
 
 def validate_layer_cells(cells, layer_type, *, width=MAP_GRID_WIDTH, height=MAP_GRID_HEIGHT):

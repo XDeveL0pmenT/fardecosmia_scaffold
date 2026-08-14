@@ -90,7 +90,40 @@
         {% endif %}
 
         <section class="panel region-info-card">
-            <p class="panel-kicker">Погода</p>
+            <p class="panel-kicker">Погода по территории · основная сводка</p>
+            {% if area_weather and area_weather_summary %}
+                <h2>{{ area_weather_summary.headline }}</h2>
+                <p class="region-condition">{{ area_weather_summary.description }}</p>
+                <dl class="region-stats">
+                    <div><dt>Средняя температура</dt><dd>{{ area_weather.temperature_mean_c|floatformat:1 }}°C</dd></div>
+                    <div><dt>Основной диапазон p10–p90</dt><dd>{{ area_weather.temperature_p10_c|floatformat:1 }}…{{ area_weather.temperature_p90_c|floatformat:1 }}°C</dd></div>
+                    <div><dt>Минимум / максимум</dt><dd>{{ area_weather.temperature_min_c|floatformat:1 }}…{{ area_weather.temperature_max_c|floatformat:1 }}°C</dd></div>
+                    <div><dt>Средняя влажность</dt><dd>{{ area_weather.humidity_mean_percent|floatformat:0 }}%</dd></div>
+                    <div><dt>Среднее давление</dt><dd>{{ area_weather.surface_pressure_mean_hpa|floatformat:1 }} гПа</dd></div>
+                    <div><dt>Территория с осадками</dt><dd>{% widthratio area_weather.precipitating_area_fraction 1 100 %}%</dd></div>
+                    <div><dt>Средний ветер / p90</dt><dd>{{ area_weather.wind_speed_mean_m_s|floatformat:1 }} / {{ area_weather.wind_speed_p90_m_s|floatformat:1 }} м/с</dd></div>
+                    <div><dt>Покрыто ячеек</dt><dd>{{ area_weather.covered_cell_count }}</dd></div>
+                    <div><dt>Снимок мира</dt><dd>{{ area_weather.world_minutes }} мин.</dd></div>
+                    <div><dt>Возраст данных</dt><dd>{{ area_weather_age.label }}{% if area_weather_age.is_stale %} · устарели{% endif %}</dd></div>
+                </dl>
+                {% if area_weather_age.is_stale %}<p class="form-message">Атмосферное состояние устарело. Контурная сводка старше одного атмосферного шага.</p>{% endif %}
+                {% if area_weather_summary.is_point_fallback %}<p class="weather-reading-note">Контур меньше разрешения атмосферной сетки, поэтому использована честно обозначенная точечная оценка.</p>{% endif %}
+                {% if area_weather_summary.hazards %}
+                    <div class="environment-hazards" aria-label="Территориальные опасности">
+                        {% for hazard in area_weather_summary.hazards %}<span class="environment-hazard environment-hazard--warning">{{ hazard }}</span>{% endfor %}
+                    </div>
+                {% endif %}
+            {% elif area_weather_pending %}
+                <h2>Физическая погода ожидает расчёта</h2>
+                <p class="empty-copy">Физическое состояние атмосферы появится после ближайшего атмосферного обновления.</p>
+            {% else %}
+                <h2>Контурная сводка недоступна</h2>
+                <p class="empty-copy">Площадная погода появляется для расположенного региона при включённой глобальной атмосфере.</p>
+            {% endif %}
+        </section>
+
+        <section class="panel region-info-card">
+            <p class="panel-kicker">Погода в опорной точке · GM / диагностика</p>
             {% if weather %}
                 <h2>{{ weather.temperature|floatformat:1 }}°C</h2>
                 <p class="region-condition">{{ weather.get_condition_display }}</p>
@@ -99,11 +132,16 @@
                     <div class="region-stat--wide"><dt>Ветер</dt><dd>{{ weather_summary.wind }}</dd></div>
                     {% if weather_summary.pressure %}<div><dt>Давление</dt><dd>{{ weather_summary.pressure }}</dd></div>{% endif %}
                     {% if weather_summary.clouds %}<div><dt>Облачность</dt><dd>{{ weather_summary.clouds }}</dd></div>{% endif %}
-                    <div class="region-stat--wide"><dt>Осадки</dt><dd>{{ weather_summary.precipitation }}</dd></div>
+                    <div class="region-stat--wide"><dt>Осадки сейчас</dt><dd>{{ weather_summary.precipitation }}</dd></div>
                     <div><dt>Снимок мира</dt><dd>{{ weather.world_minutes }} мин.</dd></div>
+                    <div><dt>Возраст данных</dt><dd>{{ weather_age.label }}{% if weather_age.is_stale %} · устарели{% endif %}</dd></div>
                     <div><dt>Источник</dt><dd>{{ weather.get_source_display }}</dd></div>
+                    <div><dt>Ревизия геометрии</dt><dd>{{ weather.region_weather_revision }}</dd></div>
+                    {% if weather.sample_latitude is not None %}<div class="region-stat--wide"><dt>Точка выборки</dt><dd>{{ weather.sample_latitude|floatformat:4 }}°, {{ weather.sample_longitude|floatformat:4 }}° · {{ weather.sample_elevation_m|floatformat:1 }} м</dd></div>{% endif %}
                 </dl>
-                <p class="weather-reading-note">Скорость ветра показана в м/с и км/ч; направление означает, откуда он дует. {% if weather_summary.has_physical_precipitation %}Осадки C3 показаны в мм водного эквивалента: 1 кг/м² = 1 мм.{% else %}Старая история: относительная величина модели (индекс) без физических единиц.{% endif %} Словесные оценки не меняют расчёт.</p>
+                {% if weather_age.is_stale %}<p class="form-message">Атмосферное состояние устарело. Точечная погода старше одного атмосферного шага.</p>{% endif %}
+                <p class="weather-reading-note">Скорость ветра показана в м/с и км/ч; направление означает, откуда он дует. {% if weather_summary.has_physical_precipitation %}Здесь показана текущая интенсивность и количество за последний атмосферный шаг. Сумма осадков за прокрутку времени находится в сводке продвижения. Единицы — мм водного эквивалента: 1 кг/м² = 1 мм.{% else %}Старая история: относительная величина модели (индекс) без физических единиц.{% endif %} Словесные оценки не меняют расчёт.</p>
+            {% elif physical_weather_pending %}<p class="empty-copy">Точечная физическая погода ещё не рассчитана. Legacy-значение намеренно не создаётся поверх включённой AtmosphericGrid.</p>
             {% else %}<p class="empty-copy">Погода ещё не рассчитана. Продвиньте время мира.</p>{% endif %}
         </section>
 
@@ -143,13 +181,33 @@
         </section>
 
         <section class="panel region-info-card">
-            <p class="panel-kicker">Диагностика C3 · GM</p>
-            <h2>Океан, пар и облачный конденсат</h2>
+            <p class="panel-kicker">Диагностика C4 · GM</p>
+            <h2>Циркуляция, рельеф, океан и облака</h2>
             {% if c2_diagnostics %}
+                <p class="weather-reading-note">Температура, влажность, давление циркуляции и ветер интерполируются в координате региона. Местное давление заново рассчитывается для непрерывной высоты региона; готовые давления соседних высот не смешиваются. Тип поверхности и биом остаются дискретными данными ближайшей ячейки.</p>
                 <dl class="region-stats">
+                    <div><dt>Температура выборки</dt><dd>{{ c2_diagnostics.temperature_c|floatformat:1 }}°C</dd></div>
+                    <div><dt>Локальная высота расчёта</dt><dd>{{ c2_diagnostics.local_elevation_m|floatformat:1 }} м</dd></div>
+                    <div><dt>Высота ближайшей атм. ячейки</dt><dd>{{ c2_diagnostics.nearest_elevation_m|floatformat:1 }} м</dd></div>
+                    <div><dt>Давление циркуляции</dt><dd>{{ c2_diagnostics.circulation_pressure_hpa|floatformat:2 }} гПа</dd></div>
+                    <div><dt>Аномалия давления</dt><dd>{{ c2_diagnostics.circulation_pressure_anomaly_hpa|floatformat:2 }} гПа</dd></div>
+                    <div><dt>Местное давление</dt><dd>{{ c2_diagnostics.surface_pressure_hpa|floatformat:2 }} гПа</dd></div>
+                    <div><dt>Старая интерполяция готового давления</dt><dd>{{ c2_diagnostics.interpolated_grid_surface_pressure_hpa|floatformat:2 }} гПа</dd></div>
+                    <div><dt>Ветер u / v</dt><dd>{{ c2_diagnostics.wind_u_m_s|floatformat:2 }} / {{ c2_diagnostics.wind_v_m_s|floatformat:2 }} м/с</dd></div>
+                    <div><dt>Скорость ветра</dt><dd>{{ c2_diagnostics.wind_speed_m_s|floatformat:2 }} м/с</dd></div>
+                    <div><dt>Разгон градиентом</dt><dd>{{ c2_diagnostics.pressure_gradient_acceleration_m_s2|floatformat:7 }} м/с²</dd></div>
+                    <div><dt>Параметр Кориолиса f</dt><dd>{{ c2_diagnostics.coriolis_parameter_s_1|floatformat:9 }} с⁻¹</dd></div>
+                    <div><dt>Торможение поверхности</dt><dd>{{ c2_diagnostics.surface_drag_acceleration_m_s2|floatformat:7 }} м/с²</dd></div>
+                    <div><dt>Дивергенция</dt><dd>{{ c2_diagnostics.divergence_s_1|floatformat:9 }} с⁻¹</dd></div>
+                    <div><dt>Относительная завихрённость</dt><dd>{{ c2_diagnostics.relative_vorticity_s_1|floatformat:9 }} с⁻¹</dd></div>
+                    <div><dt>Орографический w-proxy</dt><dd>{{ c2_diagnostics.w_orographic_m_s|floatformat:5 }} м/с</dd></div>
+                    <div><dt>Конвергентный w-proxy</dt><dd>{{ c2_diagnostics.w_convergence_m_s|floatformat:5 }} м/с</dd></div>
+                    <div><dt>Общий w-proxy</dt><dd>{{ c2_diagnostics.vertical_motion_proxy_m_s|floatformat:5 }} м/с</dd></div>
+                    <div><dt>Уклон / неровность</dt><dd>{{ c2_diagnostics.terrain_slope|floatformat:6 }} / {{ c2_diagnostics.terrain_ruggedness|floatformat:6 }}</dd></div>
                     <div><dt>Удельная влажность qᵥ</dt><dd>{{ c2_diagnostics.specific_humidity_g_kg|floatformat:3 }} г/кг</dd></div>
                     <div><dt>Насыщение qₛₐₜ</dt><dd>{{ c2_diagnostics.saturation_specific_humidity_g_kg|floatformat:3 }} г/кг</dd></div>
                     <div><dt>Конденсат q_c</dt><dd>{{ c2_diagnostics.cloud_condensate_specific_humidity_g_kg|floatformat:4 }} г/кг</dd></div>
+                    <div><dt>Облачность выборки</dt><dd>{{ c2_diagnostics.cloud_cover_fraction|floatformat:4 }}</dd></div>
                     <div><dt>Cloud water path</dt><dd>{{ c2_diagnostics.cloud_water_path_kg_m2|floatformat:3 }} кг/м²</dd></div>
                     <div><dt>Расчётная RH</dt><dd>{{ c2_diagnostics.relative_humidity_percent|floatformat:1 }}%</dd></div>
                     <div><dt>Давление пара</dt><dd>{{ c2_diagnostics.vapor_pressure_pa|floatformat:1 }} Pa</dd></div>
@@ -176,7 +234,7 @@
                     {% endif %}
                 </dl>
             {% else %}
-                <p class="empty-copy">Совместимый снимок solver v5 ещё не создан. Продвиньте время мира.</p>
+                <p class="empty-copy">Совместимый снимок текущей версии solver ещё не создан. Продвиньте время мира.</p>
             {% endif %}
         </section>
 
@@ -186,11 +244,21 @@
             <dl class="region-stats">
                 <div><dt>Широта</dt><dd>{% if sky.location_known %}{{ sky.latitude_label }}{% else %}—{% endif %}</dd></div>
                 <div><dt>От нулевого меридиана</dt><dd>{{ sky.equatorial_offset_km|floatformat:1 }} км</dd></div>
-                <div><dt>Высота</dt><dd>{{ region.elevation|floatformat:0 }}</dd></div>
+                <div><dt>Высота</dt><dd>{% if region.elevation is not None %}{{ region.elevation|floatformat:0 }} м{% else %}неизвестна{% endif %}</dd></div>
                 <div><dt>Часовой пояс</dt><dd>{{ sky.timezone_label }}</dd></div>
-                <div><dt>Средняя по карте</dt><dd>{{ map_defaults.base_temperature|floatformat:1 }}°C</dd></div>
+                <div><dt>Климатическая средняя</dt><dd>{% if map_defaults %}{{ map_defaults.base_temperature|floatformat:1 }}°C{% else %}—{% endif %}</dd></div>
+                <div><dt>Климатическая влажность</dt><dd>{% if map_defaults %}{{ map_defaults.humidity|floatformat:0 }}%{% else %}—{% endif %}</dd></div>
+                <div><dt>Поверхность</dt><dd>{% if map_defaults %}{{ map_defaults.surface_label }}{% else %}—{% endif %}</dd></div>
+                <div><dt>Биом</dt><dd>{% if map_defaults %}{{ map_defaults.biome_label }}{% if map_defaults.biome_source == "campaign_override" %} · локальная замена{% endif %}{% else %}—{% endif %}</dd></div>
+                <div><dt>Источник параметров</dt><dd>{% if region.use_manual_climate_overrides %}ручной GM override{% else %}World Data · авто{% endif %}</dd></div>
                 <div><dt>Средняя видимость Ympha в сезоне</dt><dd>{{ sky.season_ympha_visibility_percent }}%</dd></div>
             </dl>
+            <form method="post" class="region-climate-refresh">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="{% if region.use_manual_climate_overrides %}enable-auto-climate{% else %}refresh-climate{% endif %}">
+                <button type="submit" class="button button--small">{% if region.use_manual_climate_overrides %}Перейти на данные World Data{% else %}Обновить данные с карты{% endif %}</button>
+                <small>{% if region.use_manual_climate_overrides %}Это явное действие отключит старые ручные значения и пересчитает климат по карте.{% else %}Обновляет только производные климатические поля; история погоды не меняется.{% endif %}</small>
+            </form>
         </section>
 
         <section class="panel region-map-preview">

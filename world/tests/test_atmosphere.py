@@ -83,25 +83,25 @@ class AtmosphericGridTests(SimpleTestCase):
         payload = grid.serialize()
         restored = AtmosphericGrid.deserialize(180, 90, payload)
 
-        self.assertEqual(grid.uncompressed_size_bytes, 842_400)
+        self.assertEqual(grid.uncompressed_size_bytes, 907_200)
         self.assertLess(len(payload), grid.uncompressed_size_bytes)
         self.assertEqual(restored.serialize(), payload)
 
     def test_pressure_anomaly_persists_and_relaxes_instead_of_rerolling(self):
         config = settings(
             parameters={
-                "pressure_relaxation": 0.2,
-                "pressure_neighbor_smoothing": 0.0,
+                "initial_circulation_pressure_perturbation_hpa": 0.0,
+                "circulation_pressure_relaxation_hours": 24.0,
+                "circulation_pressure_diffusion_fraction": 0.0,
+                "pressure_gradient_acceleration_scale": 0.0,
                 "land_temperature_exchange": 0.0,
-                "wind_pressure_factor": 0.0,
-                "wind_thermal_factor": 0.0,
             }
         )
         static = static_grid()
         grid, _ = initialize_atmosphere(config, static=static)
         centre = grid.index(3, 2)
-        equilibrium = grid.fields["pressure_hpa"][centre]
-        grid.fields["pressure_hpa"][centre] = equilibrium + 20.0
+        equilibrium = grid.fields["circulation_pressure_hpa"][centre]
+        grid.fields["circulation_pressure_hpa"][centre] = equilibrium + 20.0
 
         after_one = simulate_step(
             grid,
@@ -118,11 +118,11 @@ class AtmosphericGridTests(SimpleTestCase):
             world_minutes=720,
         )
 
-        self.assertGreater(after_one.fields["pressure_hpa"][centre], equilibrium)
-        self.assertGreater(after_two.fields["pressure_hpa"][centre], equilibrium)
+        self.assertGreater(after_one.fields["circulation_pressure_hpa"][centre], equilibrium)
+        self.assertGreater(after_two.fields["circulation_pressure_hpa"][centre], equilibrium)
         self.assertLess(
-            after_two.fields["pressure_hpa"][centre],
-            after_one.fields["pressure_hpa"][centre],
+            after_two.fields["circulation_pressure_hpa"][centre],
+            after_one.fields["circulation_pressure_hpa"][centre],
         )
 
     def test_pressure_gradient_drives_air_from_high_to_low_pressure(self):
@@ -130,11 +130,12 @@ class AtmosphericGridTests(SimpleTestCase):
         static = static_grid()
         grid = AtmosphericGrid.empty(8, 4)
         for index in range(grid.size):
+            grid.fields["circulation_pressure_hpa"][index] = 1000.0
             grid.fields["pressure_hpa"][index] = 1000.0
             grid.fields["temperature"][index] = 10.0
         index = grid.index(3, 2)
-        grid.fields["pressure_hpa"][grid.index(2, 2)] = 1010.0
-        grid.fields["pressure_hpa"][grid.index(4, 2)] = 990.0
+        grid.fields["circulation_pressure_hpa"][grid.index(2, 2)] = 1010.0
+        grid.fields["circulation_pressure_hpa"][grid.index(4, 2)] = 990.0
 
         wind_u, _wind_v = solve_wind(grid, static, config)
 

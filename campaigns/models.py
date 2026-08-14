@@ -87,7 +87,7 @@ class Campaign(models.Model):
         ),
     )
     world_circumference_km = models.FloatField(
-        default=72_200,
+        default=72_500,
         validators=[MinValueValidator(1)],
         help_text="Полная длина мира по экватору, км.",
     )

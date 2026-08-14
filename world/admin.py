@@ -6,6 +6,7 @@ from .models import (
     CampaignWorldMapOverride,
     GlobalWorldMapLayer,
     Region,
+    RegionAreaWeatherState,
     WeatherState,
     WorldEvent,
     WorldMapLayer,
@@ -20,11 +21,13 @@ class RegionAdmin(admin.ModelAdmin):
         "biome",
         "base_temperature",
         "humidity",
+        "use_manual_climate_overrides",
         "map_longitude",
         "map_latitude",
+        "weather_geometry_revision",
         "weather_update_interval_minutes",
     )
-    list_filter = ("campaign", "biome")
+    list_filter = ("campaign", "biome", "use_manual_climate_overrides")
     search_fields = ("name",)
 
 
@@ -38,8 +41,24 @@ class WeatherStateAdmin(admin.ModelAdmin):
         "humidity",
         "pressure_hpa",
         "source",
+        "region_weather_revision",
     )
     list_filter = ("condition", "source", "region__campaign")
+
+
+@admin.register(RegionAreaWeatherState)
+class RegionAreaWeatherStateAdmin(admin.ModelAdmin):
+    list_display = (
+        "region",
+        "world_minutes",
+        "region_weather_revision",
+        "sampling_mode",
+        "temperature_mean_c",
+        "precipitating_area_fraction",
+        "wind_speed_mean_m_s",
+        "source",
+    )
+    list_filter = ("sampling_mode", "source", "region__campaign")
 
 
 @admin.register(WorldEvent)

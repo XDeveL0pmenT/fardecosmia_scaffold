@@ -246,6 +246,24 @@ class WorldMapViewTests(TestCase):
         self.assertEqual(response.context["time_advance_report"], report)
         self.assertContains(response, "Сводка продвижения времени")
 
+        report.summary["regional_weather"][0]["integrated_precipitation"] = {
+            "integrated_amount_mm": 2.4,
+            "rain_amount_mm": 2.4,
+            "snow_water_equivalent_mm": 0.0,
+            "maximum_rate_mm_h": 0.4,
+            "sampled_steps": 1,
+            "wet_steps": 1,
+        }
+        report.summary["extremes"]["precipitation_maximum"] = {
+            "region_name": region.name,
+            "value": 2.4,
+        }
+        report.save(update_fields=["summary"])
+
+        response = self.client.get(f"{region_url}?advance_report={report.pk}")
+        self.assertContains(response, "2,40 мм")
+        self.assertContains(response, "Осадки за подробно рассчитанную часть периода")
+
     def test_region_page_explains_weather_units(self):
         region = Region.objects.create(
             campaign=self.campaign,
@@ -305,7 +323,7 @@ class WorldMapViewTests(TestCase):
             rain_fraction=1.0,
             snow_fraction=0.0,
             condition=WeatherState.Condition.RAIN,
-            source=WeatherState.Source.ATMOSPHERIC_GRID_V2,
+            source=WeatherState.Source.ATMOSPHERIC_GRID_V3,
         )
 
         response = self.client.get(
@@ -318,6 +336,8 @@ class WorldMapViewTests(TestCase):
         self.assertContains(response, "Условия для путника")
         self.assertContains(response, "Влажный термометр")
         self.assertContains(response, "8.00 мм/ч")
+        self.assertContains(response, "Осадки сейчас")
+        self.assertContains(response, "Сумма осадков за прокрутку времени")
         self.assertContains(response, "1 кг/м² = 1 мм")
         self.assertNotContains(response, "не хватает кислорода")
 

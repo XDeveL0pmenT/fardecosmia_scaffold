@@ -1,6 +1,7 @@
 import numpy as np
 
 from .advection import advect_heat_and_moisture
+from .climatology import initial_relative_humidity_percent
 from .deterministic import deterministic_signed_array
 from .forcing import ZeroRadiativeForcing
 from .grid import AtmosphericGrid
@@ -16,7 +17,11 @@ from .microphysics import (
     saturation_adjustment,
 )
 from .orography import apply_orographic_temperature_tendency
-from .pressure import pressure_for_arrays, solve_pressure
+from .pressure import (
+    initialize_pressure_fields,
+    solve_pressure,
+    surface_pressure_from_circulation,
+)
 from .static_grid import build_static_world_grid
 from .surface_exchange import apply_surface_exchange, surface_temperature_target
 from .thermodynamics import (
@@ -25,6 +30,35 @@ from .thermodynamics import (
     specific_humidity_from_relative_humidity,
 )
 from .wind import solve_wind
+
+
+def apply_external_tendencies(grid, settings, tendencies=None):
+    """Apply optional in-memory tendencies from a future orchestration layer.
+
+    C4 itself never reads WorldEvent or catastrophe tables.  The small explicit
+    boundary lets a later service contribute SI-rate arrays without coupling
+    the solver core to database entities.
+    """
+
+    if tendencies is None:
+        return
+    seconds = settings.step_minutes * 60.0
+    mapping = {
+        "temperature_c_s": "temperature",
+        "circulation_pressure_hpa_s": "circulation_pressure_hpa",
+        "wind_u_m_s2": "wind_u",
+        "wind_v_m_s2": "wind_v",
+        "specific_humidity_s_1": "water_vapor_specific_humidity",
+    }
+    for tendency_name, field_name in mapping.items():
+        values = tendencies.get(tendency_name)
+        if values is None:
+            continue
+        field = grid.fields[field_name].astype(np.float64)
+        tendency = np.asarray(values, dtype=np.float64)
+        if tendency.size not in {1, grid.size}:
+            raise ValueError(f"Неверный размер внешней тенденции {tendency_name}.")
+        grid.fields[field_name] = (field + tendency * seconds).astype(np.float32)
 
 
 def initialize_atmosphere(
@@ -55,11 +89,7 @@ def initialize_atmosphere(
     mean_temperature = np.asarray(static.mean_temperature, dtype=np.float64)
     forcing = forcing or ZeroRadiativeForcing()
     ocean_mask = np.asarray(static.is_ocean, dtype=np.bool_)
-    humidity = np.where(
-        ocean_mask,
-        settings.value("initial_ocean_humidity"),
-        settings.value("initial_land_humidity"),
-    )
+    humidity = initial_relative_humidity_percent(ocean_mask, settings)
     radiative_grid = (
         forcing.forcing_grid(geometry_for(settings), world_minutes)
         if hasattr(forcing, "forcing_grid")
@@ -75,9 +105,10 @@ def initialize_atmosphere(
     surface_baseline = mean_temperature.copy()
     radiative_adjustment = surface_temperature - surface_baseline
     temperature = mean_temperature + radiative_adjustment + noise
-    pressure = pressure_for_arrays(
+    provisional_circulation, pressure = initialize_pressure_fields(
         temperature,
         mean_temperature,
+        np.zeros(grid.size, dtype=np.float64),
         static.elevation,
         settings,
     )
@@ -115,10 +146,18 @@ def initialize_atmosphere(
     temperature = adjusted["temperature"]
     q_v = adjusted["q_v"]
     q_c = adjusted["q_c"]
+    circulation_pressure, pressure = initialize_pressure_fields(
+        temperature,
+        mean_temperature,
+        q_v,
+        static.elevation,
+        settings,
+    )
     grid.fields["temperature"] = temperature.astype(np.float32)
     grid.fields["water_vapor_specific_humidity"] = q_v.astype(np.float32)
     grid.fields["cloud_condensate_specific_humidity"] = q_c.astype(np.float32)
-    grid.fields["pressure_hpa"] = pressure.astype(np.float32)
+    grid.fields["circulation_pressure_hpa"] = circulation_pressure
+    grid.fields["pressure_hpa"] = pressure
     grid.fields["wind_u"].fill(0.0)
     grid.fields["wind_v"].fill(0.0)
     grid.fields["cloud_cover"] = cloud_cover_from_condensate(
@@ -182,6 +221,7 @@ def simulate_step(
     world_minutes,
     forcing=None,
     diagnostics=None,
+    external_tendencies=None,
 ):
     if (previous.width, previous.height) != (settings.width, settings.height):
         raise ValueError("Размер снимка не совпадает с конфигурацией атмосферы.")
@@ -192,6 +232,7 @@ def simulate_step(
     advected = advect_heat_and_moisture(previous, settings)
     for name, values in advected.items():
         result.fields[name] = values
+    apply_external_tendencies(result, settings, external_tendencies)
     result.fields["precipitation_rate"] = np.zeros(result.size, dtype=np.float32)
 
     forcing = forcing or ZeroRadiativeForcing()
@@ -216,11 +257,25 @@ def simulate_step(
         radiative_grid=radiative_grid,
         diagnostics=diagnostics,
     )
+    result.fields["pressure_hpa"] = solve_pressure(
+        result,
+        static,
+        settings,
+        step_index,
+        diagnostics=diagnostics,
+    )
+    wind_u, wind_v = solve_wind(result, static, settings, diagnostics=diagnostics)
+    result.fields["wind_u"] = wind_u
+    result.fields["wind_v"] = wind_v
     apply_orographic_temperature_tendency(
         result,
         static,
         settings,
         diagnostics=diagnostics,
+    )
+    air_mass_column = air_column_mass_kg_m2(
+        result.fields["pressure_hpa"],
+        settings,
     )
     adjusted = saturation_adjustment(
         result.fields["temperature"],
@@ -229,8 +284,10 @@ def simulate_step(
         result.fields["cloud_condensate_specific_humidity"],
         settings,
         diagnostics=diagnostics,
+        air_mass_kg_m2_values=air_mass_column,
+        cell_areas_m2=geometry_for(settings).cell_areas_m2,
     )
-    air_mass = air_column_mass_kg_m2(result.fields["pressure_hpa"], settings)
+    air_mass = air_mass_column
     seconds = settings.step_minutes * 60.0
     condensation_rate = adjusted["condensation_delta_q"] * air_mass / seconds
     cloud_evaporation_rate = adjusted["cloud_evaporation_delta_q"] * air_mass / seconds
@@ -242,16 +299,20 @@ def simulate_step(
     result.fields["temperature"] = adjusted["temperature"].astype(np.float32)
     result.fields["water_vapor_specific_humidity"] = adjusted["q_v"].astype(np.float32)
     result.fields["cloud_condensate_specific_humidity"] = adjusted["q_c"].astype(np.float32)
-
-    result.fields["pressure_hpa"] = solve_pressure(
-        result,
-        static,
+    # Surface pressure is diagnostic.  Refresh it after latent heating so the
+    # persisted field matches the final T/q state without advancing the
+    # prognostic circulation pressure a second time.
+    result.fields["pressure_hpa"] = surface_pressure_from_circulation(
+        result.fields["circulation_pressure_hpa"],
+        result.fields["temperature"],
+        result.fields["water_vapor_specific_humidity"],
+        static.elevation,
         settings,
-        step_index,
+    ).astype(np.float32)
+    fallout_air_mass = air_column_mass_kg_m2(
+        result.fields["pressure_hpa"],
+        settings,
     )
-    wind_u, wind_v = solve_wind(result, static, settings)
-    result.fields["wind_u"] = wind_u
-    result.fields["wind_v"] = wind_v
 
     fallout = precipitation_fallout(
         result.fields["cloud_condensate_specific_humidity"],
@@ -259,6 +320,9 @@ def simulate_step(
         result.fields["temperature"],
         settings,
         diagnostics=diagnostics,
+        air_mass_kg_m2_values=fallout_air_mass,
+        cell_areas_m2=geometry_for(settings).cell_areas_m2,
+        include_phase_partition=False,
     )
     result.fields["cloud_condensate_specific_humidity"] = fallout["q_c"].astype(np.float32)
     result.fields["precipitation_rate"] = fallout["rate_kg_m2_s"].astype(np.float32)

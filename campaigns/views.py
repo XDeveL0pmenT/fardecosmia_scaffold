@@ -17,6 +17,7 @@ from world.services.astronomy import calculate_local_sky, describe_region_sky
 from world.services.atmosphere.config import AtmosphericSettings
 from world.services.atmosphere.forcing import CampaignSkyForcing
 from world.services.calendar import minutes_for_time_step
+from world.services.region_weather import latest_current_point_weather
 from world.services.time import advance_world
 
 from .time_controls import TIME_ADVANCE_LIMITS, TIME_ADVANCE_UNITS
@@ -46,9 +47,10 @@ def _gm_dashboard_context(campaign, *, atmosphere_form=None, time_settings_form=
         weather_rows.append(
             {
                 "region": region,
-                "weather": region.weather_history.filter(
-                    world_minutes__lte=campaign.world_minutes,
-                ).order_by("-world_minutes").first(),
+                "weather": latest_current_point_weather(
+                    region,
+                    campaign.world_minutes,
+                ),
                 "sky": describe_region_sky(region, campaign.world_minutes),
             }
         )

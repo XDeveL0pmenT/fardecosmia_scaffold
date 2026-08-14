@@ -187,6 +187,7 @@ class CampaignSkyForcing:
 
     def __init__(self, campaign, settings):
         self.campaign = campaign
+        self._geometry_terms_cache = {}
         self.stellar_response_c = float(
             np.clip(settings.value("stellar_response_c"), -100.0, 100.0)
         )
@@ -232,7 +233,16 @@ class CampaignSkyForcing:
         self.total_min_c, self.total_max_c = total_bounds
         self.is_zero = self.stellar_response_c == 0 and self.ympha_response_c == 0
 
-    def _forcing_for_coordinates(self, latitude, longitude, world_minutes):
+    def _forcing_for_coordinates(
+        self,
+        latitude,
+        longitude,
+        world_minutes,
+        *,
+        latitude_sine=None,
+        latitude_cosine=None,
+        annual_reference=None,
+    ):
         latitude = np.asarray(latitude, dtype=np.float64).reshape(-1)
         longitude = np.asarray(longitude, dtype=np.float64).reshape(-1)
         state = orbital_climate_state(
@@ -240,11 +250,17 @@ class CampaignSkyForcing:
             axial_tilt_deg=self.axial_tilt_deg,
             axial_phase_deg=self.axial_phase_deg,
         )
-        latitude_rad = np.radians(latitude)
+        if latitude_sine is None or latitude_cosine is None:
+            latitude_rad = np.radians(latitude)
+            latitude_sine = np.sin(latitude_rad)
+            latitude_cosine = np.cos(latitude_rad)
+        else:
+            latitude_sine = np.asarray(latitude_sine, dtype=np.float64).reshape(-1)
+            latitude_cosine = np.asarray(latitude_cosine, dtype=np.float64).reshape(-1)
         hour_angle = _local_hour_angle(self.campaign, world_minutes, longitude)
         cos_zenith = (
-            np.sin(latitude_rad) * math.sin(state.solar_declination_rad)
-            + np.cos(latitude_rad)
+            latitude_sine * math.sin(state.solar_declination_rad)
+            + latitude_cosine
             * math.cos(state.solar_declination_rad)
             * np.cos(hour_angle)
         )
@@ -259,16 +275,22 @@ class CampaignSkyForcing:
             occlusion,
             dtype=np.float64,
         )
-        unique_latitudes, latitude_inverse = np.unique(latitude, return_inverse=True)
-        reference_unique = np.asarray(
-            _annual_reference_for_latitudes(
-                tuple(float(value) for value in unique_latitudes),
-                self.axial_tilt_deg,
-                self.axial_phase_deg,
-            ),
-            dtype=np.float64,
-        )
-        reference = reference_unique[latitude_inverse]
+        if annual_reference is None:
+            unique_latitudes, latitude_inverse = np.unique(
+                latitude,
+                return_inverse=True,
+            )
+            reference_unique = np.asarray(
+                _annual_reference_for_latitudes(
+                    tuple(float(value) for value in unique_latitudes),
+                    self.axial_tilt_deg,
+                    self.axial_phase_deg,
+                ),
+                dtype=np.float64,
+            )
+            reference = reference_unique[latitude_inverse]
+        else:
+            reference = np.asarray(annual_reference, dtype=np.float64).reshape(-1)
         stellar_flux_anomaly = direct - reference * ANNUAL_MEAN_STELLAR_FLUX_W_M2
         normalized_anomaly = direct / ANNUAL_MEAN_STELLAR_FLUX_W_M2 - reference
         stellar_temperature = np.clip(
@@ -308,6 +330,44 @@ class CampaignSkyForcing:
             ympha_temperature_anomaly_c=ympha_temperature,
             total_radiative_anomaly_c=total,
             solar_zenith_cosine=cos_zenith,
+        )
+
+    def _geometry_terms(self, geometry):
+        key = id(geometry)
+        cached = self._geometry_terms_cache.get(key)
+        if cached is not None:
+            return cached
+        latitude = np.asarray(geometry.latitude, dtype=np.float64).reshape(-1)
+        latitude_rad = np.radians(latitude)
+        unique_latitudes, latitude_inverse = np.unique(
+            latitude,
+            return_inverse=True,
+        )
+        reference_unique = np.asarray(
+            _annual_reference_for_latitudes(
+                tuple(float(value) for value in unique_latitudes),
+                self.axial_tilt_deg,
+                self.axial_phase_deg,
+            ),
+            dtype=np.float64,
+        )
+        cached = (
+            np.sin(latitude_rad),
+            np.cos(latitude_rad),
+            reference_unique[latitude_inverse],
+        )
+        self._geometry_terms_cache[key] = cached
+        return cached
+
+    def _forcing_for_geometry(self, geometry, world_minutes):
+        latitude_sine, latitude_cosine, reference = self._geometry_terms(geometry)
+        return self._forcing_for_coordinates(
+            geometry.latitude,
+            geometry.longitude,
+            world_minutes,
+            latitude_sine=latitude_sine,
+            latitude_cosine=latitude_cosine,
+            annual_reference=reference,
         )
 
     def ocean_macro_forcing_grid(
@@ -408,11 +468,7 @@ class CampaignSkyForcing:
         ympha_temperature_samples = []
         air_temperature_samples = []
         for sample_time in sample_times:
-            sampled = self._forcing_for_coordinates(
-                latitude,
-                longitude,
-                sample_time,
-            )
+            sampled = self._forcing_for_geometry(geometry, sample_time)
             stellar_samples.append(sampled.stellar_flux_anomaly_w_m2)
             ympha_temperature_samples.append(sampled.ympha_temperature_anomaly_c)
             air_temperature_samples.append(sampled.total_radiative_anomaly_c)
@@ -432,11 +488,7 @@ class CampaignSkyForcing:
         )
 
     def forcing_grid(self, geometry, world_minutes):
-        return self._forcing_for_coordinates(
-            geometry.latitude,
-            geometry.longitude,
-            world_minutes,
-        )
+        return self._forcing_for_geometry(geometry, world_minutes)
 
     def temperature_adjustment_grid(self, geometry, world_minutes):
         if self.is_zero:

@@ -143,13 +143,57 @@
                 <input type="hidden" name="action" value="create">
                 {{ create_form.map_polygon }}
                 {{ create_form.non_field_errors }}
-                {% for field in create_form.visible_fields %}
+                <p>
+                    {{ create_form.name.label_tag }}{{ create_form.name }}
+                    {{ create_form.name.errors }}
+                </p>
+                <label class="map-manual-toggle">
+                    {{ create_form.use_manual_climate_overrides }}
+                    <span>{{ create_form.use_manual_climate_overrides.label }}</span>
+                </label>
+                <small class="field-help">{{ create_form.use_manual_climate_overrides.help_text }}</small>
+                {{ create_form.use_manual_climate_overrides.errors }}
+                <div class="map-world-data-fields" data-world-data-fields>
                     <p>
-                        {{ field.label_tag }}{{ field }}
-                        {% if field.help_text %}<small class="field-help">{{ field.help_text }}</small>{% endif %}
-                        {{ field.errors }}
+                        {{ create_form.biome.label_tag }}{{ create_form.biome }}
+                        <small class="field-help">{{ create_form.biome.help_text }}</small>
+                        {{ create_form.biome.errors }}
                     </p>
-                {% endfor %}
+                    <p>
+                        {{ create_form.base_temperature.label_tag }}{{ create_form.base_temperature }}
+                        <small class="field-help">{{ create_form.base_temperature.help_text }}</small>
+                        {{ create_form.base_temperature.errors }}
+                    </p>
+                    <p>
+                        {{ create_form.humidity.label_tag }}{{ create_form.humidity }}
+                        <small class="field-help">{{ create_form.humidity.help_text }}</small>
+                        {{ create_form.humidity.errors }}
+                    </p>
+                    <p>
+                        {{ create_form.elevation.label_tag }}{{ create_form.elevation }}
+                        <small class="field-help">{{ create_form.elevation.help_text }}</small>
+                        {{ create_form.elevation.errors }}
+                    </p>
+                </div>
+                <details class="map-legacy-settings" data-manual-climate-settings>
+                    <summary>Дополнительные / legacy-настройки</summary>
+                    <p class="map-physics-note">AtmosphericGrid v5 не использует эти три значения. Они сохранены только для legacy weather-v2.</p>
+                    <p>
+                        {{ create_form.seasonal_amplitude.label_tag }}{{ create_form.seasonal_amplitude }}
+                        <small class="field-help">{{ create_form.seasonal_amplitude.help_text }}</small>
+                        {{ create_form.seasonal_amplitude.errors }}
+                    </p>
+                    <p>
+                        {{ create_form.weather_volatility.label_tag }}{{ create_form.weather_volatility }}
+                        <small class="field-help">{{ create_form.weather_volatility.help_text }}</small>
+                        {{ create_form.weather_volatility.errors }}
+                    </p>
+                    <p>
+                        {{ create_form.precipitation_bias.label_tag }}{{ create_form.precipitation_bias }}
+                        <small class="field-help">{{ create_form.precipitation_bias.help_text }}</small>
+                        {{ create_form.precipitation_bias.errors }}
+                    </p>
+                </details>
                 <div class="map-auto-fill" data-auto-fill-status>Нарисуйте контур, чтобы получить доступные значения карты.</div>
                 <button type="submit" class="button button--wide">Создать регион</button>
             </form>
@@ -207,8 +251,11 @@
     const placementPolygon = document.querySelector("[name='placement-map_polygon']");
     const createPolygon = document.querySelector("[name='create-map_polygon']");
     const createTemperature = document.querySelector("[name='create-base_temperature']");
+    const createHumidity = document.querySelector("[name='create-humidity']");
     const createElevation = document.querySelector("[name='create-elevation']");
     const createBiome = document.querySelector("[name='create-biome']");
+    const manualClimateToggle = document.querySelector("[name='create-use_manual_climate_overrides']");
+    const manualClimateSettings = document.querySelector("[data-manual-climate-settings]");
     const autoFillStatus = document.querySelector("[data-auto-fill-status]");
     const editLayerButton = document.querySelector("[data-edit-layer]");
     const layerEditor = document.querySelector("[data-layer-editor]");
@@ -260,6 +307,7 @@
     let elevationData = null;
     let landMask = null;
     let viewBox = {x: 0, y: 0, width: 1000, height: 500};
+    let climatePreviewRequest = 0;
 
     const applyViewBox = () => {
         svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
@@ -390,28 +438,54 @@
         const cellY = Math.max(0, Math.min(gridHeight - 1, Math.floor(y * gridHeight)));
         return cellY * gridWidth + cellX;
     };
-    const applyMapSuggestions = () => {
-        if (placementMode || points.length < 3 || !temperatureData) return;
-        const center = polygonCenter();
-        const index = cellAt(center);
-        const applied = [];
-        if (createTemperature && temperatureData.values[index] !== undefined) {
-            createTemperature.value = temperatureData.values[index];
-            applied.push(`температура ${temperatureData.values[index]}°C`);
+    const syncManualClimateMode = () => {
+        const manual = Boolean(manualClimateToggle?.checked);
+        if (createBiome) createBiome.disabled = !manual;
+        [createTemperature, createHumidity, createElevation].forEach(field => {
+            if (field) field.readOnly = !manual;
+        });
+        if (manualClimateSettings) {
+            manualClimateSettings.hidden = !manual;
+            manualClimateSettings.querySelectorAll("input, select").forEach(field => {
+                field.disabled = !manual;
+            });
         }
-        const elevation = layers.elevation[String(index)] ?? elevationData?.values[index];
-        if (createElevation && elevation !== undefined && elevation !== null) {
-            createElevation.value = elevation;
-            applied.push(`высота ${elevation} м`);
-        }
-        if (createBiome && layers.biome[String(index)] !== undefined) {
-            createBiome.value = layers.biome[String(index)];
-            applied.push("биом со слоя GM");
-        }
-        autoFillStatus.textContent = applied.length
-            ? `Автоматически заполнено: ${applied.join(", ")}. Поля можно поправить вручную.`
-            : "Для центра контура нет заданного биома; температура и высота заполнены, если доступны общие слои.";
+        document.querySelector("[data-world-data-fields]")?.classList.toggle("is-manual", manual);
     };
+    const applyMapSuggestions = async () => {
+        if (placementMode || points.length < 3) return;
+        const requestId = ++climatePreviewRequest;
+        autoFillStatus.textContent = "Читаю климатические данные World Data…";
+        const query = new URLSearchParams({polygon: normalizedJson()});
+        try {
+            const response = await fetch(`{% url 'world:region_climate_preview' campaign.id %}?${query}`);
+            const data = await response.json();
+            if (requestId !== climatePreviewRequest) return;
+            if (!response.ok) throw new Error(data.error || "preview failed");
+            const manual = Boolean(manualClimateToggle?.checked);
+            if (!manual) {
+                if (createTemperature) createTemperature.value = data.base_temperature;
+                if (createHumidity) createHumidity.value = data.humidity;
+                if (createElevation) createElevation.value = data.elevation ?? "";
+                if (createBiome) createBiome.value = data.biome || "";
+            }
+            const biomeSource = data.biome_source === "campaign_override"
+                ? "локальная замена кампании"
+                : (data.biome_source === "global_atlas" ? "общий атлас" : "не задан");
+            const elevation = data.elevation === null ? "неизвестна" : `${data.elevation} м`;
+            const prefix = manual ? "World Data для сравнения" : "Автоматически заполнено";
+            autoFillStatus.textContent = `${prefix}: ${data.surface_label}; биом — ${data.biome_label} (${biomeSource}); температура ${data.base_temperature}°C; влажность ${data.humidity}%; высота ${elevation}.`;
+        } catch (error) {
+            if (requestId === climatePreviewRequest) {
+                autoFillStatus.textContent = "Не удалось получить климатические данные от сервера.";
+            }
+        }
+    };
+    manualClimateToggle?.addEventListener("change", () => {
+        syncManualClimateMode();
+        applyMapSuggestions();
+    });
+    syncManualClimateMode();
     Promise.all([
         fetch("{% static 'data/fardecosmia-average-temperature-grid.json' %}").then(response => response.ok ? response.json() : Promise.reject()),
         fetch("{% static 'data/fardecosmia-elevation-grid.json' %}").then(response => response.ok ? response.json() : Promise.reject()),

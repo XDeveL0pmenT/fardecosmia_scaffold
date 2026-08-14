@@ -65,7 +65,7 @@ def _target_temperature(region, world_minutes, rng):
         region.base_temperature
         + region.seasonal_amplitude * seasonal_factor
         + region.light_cycle_temperature_amplitude * light_cycle_factor
-        + region.elevation_temperature_per_1000m * region.elevation / 1000
+        + region.elevation_temperature_per_1000m * (region.elevation or 0.0) / 1000
         + region.ympha_temperature_influence
         * sky.ympha_visibility
         * night_exposure
@@ -130,13 +130,19 @@ def _choose_condition(
 
 def generate_weather(region, world_minutes, previous=None, *, use_history=True):
     """Create one immutable weather snapshot at a scheduled simulation boundary."""
-    existing = region.weather_history.filter(world_minutes=world_minutes).first()
+    existing = region.weather_history.filter(
+        world_minutes=world_minutes,
+        region_weather_revision=region.weather_geometry_revision,
+    ).first()
     if existing:
         return existing
 
     if previous is None and use_history:
         previous = (
-            region.weather_history.filter(world_minutes__lt=world_minutes)
+            region.weather_history.filter(
+                world_minutes__lt=world_minutes,
+                region_weather_revision=region.weather_geometry_revision,
+            )
             .order_by("-world_minutes")
             .first()
         )
@@ -196,6 +202,10 @@ def generate_weather(region, world_minutes, previous=None, *, use_history=True):
         wind_speed=round(wind_speed, 1),
         precipitation=round(precipitation, 1),
         condition=condition,
+        region_weather_revision=region.weather_geometry_revision,
+        sample_latitude=region.map_latitude,
+        sample_longitude=region.map_longitude,
+        sample_elevation_m=region.elevation,
     )
 
 
@@ -208,7 +218,10 @@ def update_weather_for_period(region, old_time, new_time, *, force_initialize=Fa
     previous = None
     if not force_initialize:
         previous = (
-            region.weather_history.filter(world_minutes__lte=old_time)
+            region.weather_history.filter(
+                world_minutes__lte=old_time,
+                region_weather_revision=region.weather_geometry_revision,
+            )
             .order_by("-world_minutes")
             .first()
         )

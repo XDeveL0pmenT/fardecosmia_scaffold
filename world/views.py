@@ -1,9 +1,12 @@
+import json
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_GET, require_http_methods
 
 from campaigns.models import Campaign, CampaignMembership
 from campaigns.time_controls import TIME_ADVANCE_UNITS
@@ -25,12 +28,18 @@ from world.services.map_layers import (
     land_only_biome_cells,
     map_defaults_at,
 )
-from world.services.weather import generate_weather
+from world.services.region_climate import apply_region_climate, region_climate_at
 from world.services.weather_display import build_weather_summary
 from world.services.environment_summary import build_environment_summary
 from world.services.atmosphere.config import AtmosphericSettings
 from world.services.atmosphere.forcing import CampaignSkyForcing
 from world.services.atmosphere.persistence import latest_atmospheric_cell_diagnostics
+from world.services.atmosphere.region_area import build_region_area_weather_summary
+from world.services.region_weather import (
+    initialize_region_weather,
+    latest_current_area_weather,
+    latest_current_point_weather,
+)
 
 
 SEASON_CODES = {
@@ -58,6 +67,28 @@ def _biome_palette():
 
 
 @login_required
+@require_GET
+def region_climate_preview(request, campaign_id):
+    campaign = _gm_campaign_or_403(request.user, campaign_id)
+    try:
+        if request.GET.get("polygon"):
+            longitude, latitude = polygon_center(json.loads(request.GET["polygon"]))
+        else:
+            latitude = float(request.GET["latitude"])
+            longitude = float(request.GET["longitude"])
+        climate = region_climate_at(campaign, latitude, longitude)
+    except (KeyError, TypeError, ValueError) as error:
+        return JsonResponse({"error": str(error)}, status=400)
+    return JsonResponse(
+        {
+            **climate,
+            "latitude": latitude,
+            "longitude": longitude,
+        }
+    )
+
+
+@login_required
 def global_world_map(request):
     can_view_objective_layers = request.user.campaign_memberships.filter(
         role=CampaignMembership.Role.GM,
@@ -81,11 +112,24 @@ def global_world_map(request):
 
 
 def _latest_weather(region, world_minutes):
-    return (
-        region.weather_history.filter(world_minutes__lte=world_minutes)
-        .order_by("-world_minutes")
-        .first()
-    )
+    return latest_current_point_weather(region, world_minutes)
+
+
+def _weather_age_context(state, current_world_minutes, stale_after_minutes):
+    if state is None:
+        return None
+    age_minutes = max(0, int(current_world_minutes) - int(state.world_minutes))
+    if age_minutes < 60:
+        label = f"{age_minutes} мин."
+    elif age_minutes < 1440:
+        label = f"{age_minutes / 60:.1f} ч."
+    else:
+        label = f"{age_minutes / 1440:.1f} суток"
+    return {
+        "minutes": age_minutes,
+        "label": label,
+        "is_stale": age_minutes > int(stale_after_minutes),
+    }
 
 
 def _temperature_color(weather):
@@ -140,7 +184,17 @@ def world_map(request, campaign_id):
             region.map_polygon = polygon
             region.map_longitude = longitude
             region.map_latitude = latitude
-            region.save(update_fields=["map_polygon", "map_longitude", "map_latitude"])
+            climate = region_climate_at(campaign, latitude, longitude)
+            climate_fields = apply_region_climate(region, climate)
+            region.save(
+                update_fields=[
+                    "map_polygon",
+                    "map_longitude",
+                    "map_latitude",
+                    *climate_fields,
+                ]
+            )
+            initialize_region_weather(region)
             return redirect(
                 "world:region_detail",
                 campaign_id=campaign.pk,
@@ -165,11 +219,12 @@ def world_map(request, campaign_id):
             longitude, latitude = polygon_center(region.map_polygon)
             region.map_longitude = longitude
             region.map_latitude = latitude
-            region.save()
-            boundary = campaign.world_minutes - (
-                campaign.world_minutes % region.weather_update_interval_minutes
+            apply_region_climate(
+                region,
+                region_climate_at(campaign, latitude, longitude),
             )
-            generate_weather(region, boundary)
+            region.save()
+            initialize_region_weather(region)
             return redirect(
                 "world:region_detail",
                 campaign_id=campaign.pk,
@@ -212,6 +267,7 @@ def world_map(request, campaign_id):
 
 
 @login_required
+@require_http_methods(["GET", "POST"])
 def region_detail(request, campaign_id, region_id):
     campaign = _gm_campaign_or_403(request.user, campaign_id)
     region = get_object_or_404(
@@ -219,7 +275,48 @@ def region_detail(request, campaign_id, region_id):
         pk=region_id,
         campaign=campaign,
     )
+    if request.method == "POST" and request.POST.get("action") in {
+        "refresh-climate",
+        "enable-auto-climate",
+    }:
+        if region.map_latitude is None or region.map_longitude is None:
+            messages.error(request, "Сначала расположите регион на карте.")
+        elif (
+            region.use_manual_climate_overrides
+            and request.POST.get("action") == "refresh-climate"
+        ):
+            messages.info(
+                request,
+                "Ручные климатические поправки включены; World Data их не перезаписывает.",
+            )
+        else:
+            region.use_manual_climate_overrides = False
+            updated = apply_region_climate(
+                region,
+                region_climate_at(
+                    campaign,
+                    region.map_latitude,
+                    region.map_longitude,
+                ),
+            )
+            region.save(
+                update_fields=["use_manual_climate_overrides", *updated]
+            )
+            initialization = initialize_region_weather(region)
+            if initialization.pending:
+                messages.info(
+                    request,
+                    "Данные региона обновлены; физическая погода ожидает первый совместимый снимок атмосферы.",
+                )
+            else:
+                messages.success(request, "Данные региона обновлены из World Data.")
+        return redirect(
+            "world:region_detail",
+            campaign_id=campaign.pk,
+            region_id=region.pk,
+        )
     weather = _latest_weather(region, campaign.world_minutes)
+    area_weather = latest_current_area_weather(region, campaign.world_minutes)
     sky = describe_region_sky(region, campaign.world_minutes)
     moment = sky.local_moment
     atmospheric_config = AtmosphericConfig.objects.filter(campaign=campaign).first()
@@ -228,6 +325,24 @@ def region_detail(request, campaign_id, region_id):
         if atmospheric_config is not None
         else AtmosphericSettings(world_circumference_km=campaign.world_circumference_km)
     )
+    stale_after_minutes = (
+        atmospheric_config.step_minutes
+        if (
+            atmospheric_config is not None
+            and atmospheric_config.enabled
+            and region.map_latitude is not None
+            and region.map_longitude is not None
+        )
+        else region.weather_update_interval_minutes
+    )
+    physical_weather_expected = (
+        atmospheric_config is not None
+        and atmospheric_config.enabled
+        and region.map_latitude is not None
+        and region.map_longitude is not None
+    )
+    physical_weather_pending = physical_weather_expected and weather is None
+    area_weather_pending = physical_weather_expected and area_weather is None
     radiative_diagnostics = CampaignSkyForcing(
         campaign,
         atmosphere_settings,
@@ -249,6 +364,7 @@ def region_detail(request, campaign_id, region_id):
             region.map_latitude,
             region.map_longitude,
             world_minutes=campaign.world_minutes,
+            local_elevation_m=region.elevation,
         )
     atmosphere_style = (
         f"--star-opacity:{0.04 + sky.star_intensity * 0.96:.4f};"
@@ -272,6 +388,20 @@ def region_detail(request, campaign_id, region_id):
             "campaign": campaign,
             "region": region,
             "weather": weather,
+            "area_weather": area_weather,
+            "area_weather_summary": build_region_area_weather_summary(area_weather),
+            "weather_age": _weather_age_context(
+                weather,
+                campaign.world_minutes,
+                stale_after_minutes,
+            ),
+            "area_weather_age": _weather_age_context(
+                area_weather,
+                campaign.world_minutes,
+                stale_after_minutes,
+            ),
+            "physical_weather_pending": physical_weather_pending,
+            "area_weather_pending": area_weather_pending,
             "weather_summary": build_weather_summary(weather),
             "environment_summary": environment_summary,
             "sky": sky,
@@ -280,10 +410,10 @@ def region_detail(request, campaign_id, region_id):
             "weather_code": weather.condition if weather else "clear",
             "atmosphere_style": atmosphere_style,
             "region_points": polygon_svg_points(region.map_polygon),
-            "map_defaults": map_defaults_at(
-                campaign,
-                sky.longitude,
-                sky.latitude,
+            "map_defaults": (
+                map_defaults_at(campaign, sky.longitude, sky.latitude)
+                if sky.location_known
+                else None
             ),
             "radiative_diagnostics": radiative_diagnostics,
             "c2_diagnostics": c2_diagnostics,

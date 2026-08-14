@@ -10,7 +10,7 @@ class AtmosphericSettings:
     height: int = 90
     step_minutes: int = 360
     world_seed: int = 0
-    world_circumference_km: float = 72_200.0
+    world_circumference_km: float = 72_500.0
     ocean_temperature_c: float | None = None
     parameters: dict | None = None
 
@@ -65,4 +65,3 @@ class AtmosphericSettings:
 
     def value(self, name):
         return float(self.parameters[name])
-

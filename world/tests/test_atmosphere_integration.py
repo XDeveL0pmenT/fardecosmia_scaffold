@@ -57,7 +57,7 @@ class AtmosphericIntegrationTests(TestCase):
             [0, 360],
         )
         weather = region.weather_history.order_by("-world_minutes").first()
-        self.assertEqual(weather.source, WeatherState.Source.ATMOSPHERIC_GRID_V2)
+        self.assertEqual(weather.source, WeatherState.Source.ATMOSPHERIC_GRID_V3)
         self.assertIsNotNone(weather.pressure_hpa)
         self.assertIsNotNone(weather.cloud_cover)
         self.assertIsNotNone(weather.precipitation_rate_mm_h)

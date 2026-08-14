@@ -121,6 +121,7 @@ def build_weather_summary(weather):
         "is_atmospheric": weather.source in {
             WeatherState.Source.ATMOSPHERIC_GRID_V1,
             WeatherState.Source.ATMOSPHERIC_GRID_V2,
+            WeatherState.Source.ATMOSPHERIC_GRID_V3,
         },
         "has_physical_precipitation": getattr(
             weather, "precipitation_rate_mm_h", None

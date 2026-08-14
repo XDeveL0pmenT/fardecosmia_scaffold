@@ -5,8 +5,8 @@ Campaigns may override every coefficient through ``AtmosphericConfig.parameters`
 """
 
 
-ATMOSPHERIC_FORMAT_VERSION = 3
-ATMOSPHERIC_SOLVER_VERSION = 5
+ATMOSPHERIC_FORMAT_VERSION = 4
+ATMOSPHERIC_SOLVER_VERSION = 7
 ATMOSPHERIC_DEFAULT_WIDTH = 180
 ATMOSPHERIC_DEFAULT_HEIGHT = 90
 ATMOSPHERIC_DEFAULT_STEP_MINUTES = 360
@@ -137,4 +137,31 @@ def default_atmospheric_parameters():
         # Optional-composition/human-summary thresholds remain configurable.
         "human_reference_pressure_hpa": 1000.0,
         "heat_corruption_lowland_elevation_m": 500.0,
+        # Phase C4 single-layer circulation.  The rotation period and gravity
+        # are confirmed world inputs.  The rotation sign and all response/
+        # damping coefficients remain explicit technical assumptions.
+        "rotation_period_days": 7.52,
+        "rotation_direction_sign": 1.0,
+        "dry_air_gas_constant_j_kg_k": 287.05,
+        "virtual_temperature_moisture_coefficient": 0.61,
+        "circulation_reference_pressure_hpa": 1000.0,
+        "circulation_pressure_temperature_factor_hpa_k": 0.55,
+        "circulation_pressure_relaxation_hours": 72.0,
+        "circulation_pressure_diffusion_fraction": 0.08,
+        "initial_circulation_pressure_perturbation_hpa": 0.6,
+        "minimum_circulation_pressure_hpa": 820.0,
+        "maximum_circulation_pressure_hpa": 1180.0,
+        "pressure_gradient_acceleration_scale": 0.22,
+        "land_drag_timescale_hours": 18.0,
+        "ocean_drag_timescale_hours": 36.0,
+        "terrain_upslope_drag_rate_per_slope_s": 0.0010,
+        "terrain_ruggedness_drag_rate_per_slope_s": 0.0004,
+        "effective_mixing_depth_m": 1800.0,
+        # Coupling applies only to the diagnosed convergence component.
+        # Orographic u*grad(h) already is a physical vertical velocity.
+        "vertical_motion_coupling": 0.12,
+        "effective_adiabatic_lapse_rate_c_per_km": 4.5,
+        "maximum_vertical_motion_proxy_m_s": 2.5,
+        "maximum_vertical_temperature_change_c": 8.0,
+        "circulation_pressure_emergency_margin_hpa": 0.01,
     }

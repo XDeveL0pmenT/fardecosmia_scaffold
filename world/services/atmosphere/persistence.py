@@ -4,10 +4,10 @@ from world.atmosphere_defaults import (
     ATMOSPHERIC_FORMAT_VERSION,
     ATMOSPHERIC_SOLVER_VERSION,
 )
-from world.models import AtmosphericSnapshot
-from world.services.world_data import coordinates_to_grid
-
+from world.models import AtmosphericConfig, AtmosphericSnapshot
+from world.services.world_data import WorldData
 from .config import AtmosphericSettings
+from .coordinate_sampling import sample_environment_at
 from .fingerprint import atmospheric_input_fingerprint
 from .forcing import CampaignSkyForcing
 from .geometry import geometry_for
@@ -20,6 +20,7 @@ from .ocean import (
     ocean_weighted_mean,
 )
 from .microphysics import atmospheric_water_mass_diagnostics
+from .region_area import AtmosphericRegionAreaSampler
 from .sampling import AtmosphericRegionSampler
 from .simulation import initialize_atmosphere, simulate_step
 from .static_grid import cached_static_world_grid
@@ -32,6 +33,7 @@ SNAPSHOT_BULK_SIZE = 16
 @dataclass
 class AtmosphericAdvanceResult:
     weather_states: list
+    area_weather_states: list
     simulated_steps: int = 0
     snapshots_written: int = 0
     snapshot_bytes_written: int = 0
@@ -155,7 +157,11 @@ def advance_atmosphere_for_period(
     if new_time < old_time:
         raise ValueError("Атмосферу нельзя прокручивать назад этим сервисом.")
     settings = AtmosphericSettings.from_model(config, campaign)
-    result = AtmosphericAdvanceResult(weather_states=[], numerical_diagnostics={})
+    result = AtmosphericAdvanceResult(
+        weather_states=[],
+        area_weather_states=[],
+        numerical_diagnostics={},
+    )
 
     next_boundary = (old_time // settings.step_minutes + 1) * settings.step_minutes
     if next_boundary > new_time:
@@ -307,10 +313,24 @@ def advance_atmosphere_for_period(
         new_time,
         parameters=config.parameters,
         settings=settings,
+        static=static,
+        solver_version=ATMOSPHERIC_SOLVER_VERSION,
+        atmosphere_fingerprint=fingerprint,
+    )
+    area_sampler = AtmosphericRegionAreaSampler(
+        regions,
+        boundary,
+        new_time,
+        parameters=config.parameters,
+        settings=settings,
+        static=static,
+        solver_version=ATMOSPHERIC_SOLVER_VERSION,
+        atmosphere_fingerprint=fingerprint,
     )
     if initial_state_created:
         if boundary == old_time or force_initialize:
             sampler.sample(boundary, grid)
+            area_sampler.sample(boundary, grid)
         if boundary % checkpoint_interval == 0:
             queue_snapshot(boundary, grid, is_checkpoint=True)
 
@@ -330,6 +350,7 @@ def advance_atmosphere_for_period(
         final_boundary = boundary
         if boundary > old_time:
             sampler.sample(boundary, grid)
+            area_sampler.sample(boundary, grid)
         if boundary % checkpoint_interval == 0:
             queue_snapshot(boundary, grid, is_checkpoint=True)
         if ocean_mask.any():
@@ -351,6 +372,7 @@ def advance_atmosphere_for_period(
         )
     flush_snapshots()
     result.weather_states = sampler.save()
+    result.area_weather_states = area_sampler.save()
     final_mean_sst = ocean_weighted_mean(
         grid.fields["sea_surface_temperature_c"],
         static,
@@ -440,6 +462,61 @@ def advance_atmosphere_for_period(
     return result
 
 
+def initialize_region_weather_from_latest_snapshot(region, config):
+    """Persist physical point and contour weather without advancing world time.
+
+    A newly created or relocated Region may be sampled only from an already
+    compatible global snapshot.  When none exists the caller must leave the
+    physical state pending; this function deliberately never invents a grid or
+    falls back to the legacy regional generator.
+    """
+
+    if (
+        config is None
+        or not config.enabled
+        or region.map_latitude is None
+        or region.map_longitude is None
+    ):
+        return [], []
+    campaign = region.campaign
+    settings = AtmosphericSettings.from_model(config, campaign)
+    fingerprint = atmospheric_input_fingerprint(campaign, config)
+    snapshot = _latest_compatible_snapshot(
+        campaign,
+        settings,
+        campaign.world_minutes,
+        fingerprint,
+    )
+    if snapshot is None:
+        return [], []
+
+    grid = grid_from_snapshot(snapshot)
+    static = cached_static_world_grid(settings)
+    point_sampler = AtmosphericRegionSampler(
+        [region],
+        snapshot.world_minutes,
+        snapshot.world_minutes,
+        parameters=config.parameters,
+        settings=settings,
+        static=static,
+        solver_version=snapshot.solver_version,
+        atmosphere_fingerprint=snapshot.input_fingerprint,
+    )
+    area_sampler = AtmosphericRegionAreaSampler(
+        [region],
+        snapshot.world_minutes,
+        snapshot.world_minutes,
+        parameters=config.parameters,
+        settings=settings,
+        static=static,
+        solver_version=snapshot.solver_version,
+        atmosphere_fingerprint=snapshot.input_fingerprint,
+    )
+    point_sampler.sample(snapshot.world_minutes, grid)
+    area_sampler.sample(snapshot.world_minutes, grid)
+    return point_sampler.save(), area_sampler.save()
+
+
 def snapshot_storage_estimate(width=180, height=90):
     fields = len(AtmosphericGrid.empty(4, 2).fields)
     uncompressed = int(width) * int(height) * fields * 4
@@ -458,6 +535,7 @@ def latest_atmospheric_cell_diagnostics(
     longitude,
     *,
     world_minutes=None,
+    local_elevation_m=None,
 ):
     """Read-only GM diagnostics; never initializes or mutates atmosphere on GET."""
     settings = AtmosphericSettings.from_model(config, campaign)
@@ -473,11 +551,15 @@ def latest_atmospheric_cell_diagnostics(
         return None
     grid = grid_from_snapshot(snapshot)
     static = cached_static_world_grid(settings)
-    _x, _y, index = coordinates_to_grid(
+    if local_elevation_m is None:
+        local_elevation_m = WorldData().elevation_at(latitude, longitude)
+    point = sample_environment_at(
+        grid,
+        static,
+        settings,
         latitude,
         longitude,
-        width=grid.width,
-        height=grid.height,
+        local_elevation_m=local_elevation_m,
     )
     forcing = CampaignSkyForcing(campaign, settings)
     radiative_grid = forcing.forcing_grid(
@@ -488,8 +570,48 @@ def latest_atmospheric_cell_diagnostics(
         grid,
         static,
         settings,
-        index,
+        point.nearest_index,
         radiative_grid=radiative_grid,
+        point_sample=point,
     )
     diagnostics["snapshot_world_minutes"] = snapshot.world_minutes
     return diagnostics
+
+
+def sample_campaign_environment_at(
+    campaign,
+    latitude,
+    longitude,
+    *,
+    world_minutes=None,
+    config=None,
+):
+    """Read a compatible C4 state at coordinates without requiring Region."""
+
+    if config is None:
+        try:
+            config = campaign.atmospheric_config
+        except AtmosphericConfig.DoesNotExist:
+            config = None
+    if config is None or not config.enabled:
+        return None
+    settings = AtmosphericSettings.from_model(config, campaign)
+    fingerprint = atmospheric_input_fingerprint(campaign, config)
+    target = campaign.world_minutes if world_minutes is None else world_minutes
+    snapshot = _latest_compatible_snapshot(
+        campaign,
+        settings,
+        target,
+        fingerprint,
+    )
+    if snapshot is None:
+        return None
+    local_elevation_m = WorldData().elevation_at(latitude, longitude)
+    return sample_environment_at(
+        grid_from_snapshot(snapshot),
+        cached_static_world_grid(settings),
+        settings,
+        latitude,
+        longitude,
+        local_elevation_m=local_elevation_m,
+    )

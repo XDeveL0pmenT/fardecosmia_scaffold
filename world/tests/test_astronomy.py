@@ -24,7 +24,7 @@ class RegionalAstronomyTests(SimpleTestCase):
     def test_equatorial_distance_uses_confirmed_circumference(self):
         sky = calculate_local_sky(self.campaign, 0, 90)
 
-        self.assertEqual(sky.equatorial_offset_km, 18_050)
+        self.assertEqual(sky.equatorial_offset_km, 18_125)
 
     def test_star_wraps_in_one_turn_and_ympha_in_sixteen(self):
         at_epoch = celestial_positions(self.campaign, 0)

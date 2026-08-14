@@ -18,6 +18,11 @@ urlpatterns = [
         name="region_detail",
     ),
     path(
+        "campaign/<uuid:campaign_id>/gm/regions/climate-preview/",
+        views.region_climate_preview,
+        name="region_climate_preview",
+    ),
+    path(
         "campaign/<uuid:campaign_id>/gm/regions/<int:region_id>/delete/",
         views.region_delete,
         name="region_delete",

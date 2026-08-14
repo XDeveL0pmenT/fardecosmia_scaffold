@@ -80,6 +80,45 @@ def coordinates_to_grid(
     return x, y, y * width + x
 
 
+def coordinates_to_bilinear_point(
+    latitude,
+    longitude,
+    *,
+    width=MAP_GRID_WIDTH,
+    height=MAP_GRID_HEIGHT,
+):
+    """Map coordinates to fractional cell-centre coordinates."""
+
+    # Reuse the public validator before calculating the fractional position.
+    coordinates_to_grid(latitude, longitude, width=width, height=height)
+    longitude = normalize_longitude(longitude)
+    latitude = clamp_latitude(latitude)
+    x = ((longitude + 180.0) / 360.0) * width - 0.5
+    y = ((90.0 - latitude) / 180.0) * height - 0.5
+    return x % width, max(0.0, min(height - 1.0, y))
+
+
+def _bilinear_neighbors(latitude, longitude, *, width, height):
+    x, y = coordinates_to_bilinear_point(
+        latitude,
+        longitude,
+        width=width,
+        height=height,
+    )
+    x0 = int(math.floor(x))
+    y0 = int(math.floor(y))
+    x1 = (x0 + 1) % width
+    y1 = min(height - 1, y0 + 1)
+    tx = x - x0
+    ty = y - y0
+    return (
+        (x0, y0, (1.0 - tx) * (1.0 - ty)),
+        (x1, y0, tx * (1.0 - ty)),
+        (x0, y1, (1.0 - tx) * ty),
+        (x1, y1, tx * ty),
+    )
+
+
 def _load_grid(path, label):
     with path.open(encoding="utf-8") as source:
         payload = json.load(source)
@@ -170,21 +209,50 @@ class WorldData:
         )
 
     def elevation_at(self, latitude, longitude):
-        layer = self._global_layer()
-        if layer is not None:
-            _, _, layer_index = coordinates_to_grid(
-                latitude,
-                longitude,
-                width=layer.grid_width,
-                height=layer.grid_height,
-            )
-            override = layer.elevation_cells.get(str(layer_index))
-            if override is not None:
-                return float(override)
+        """Return continuous elevation without inventing values over gaps.
 
-        _, _, index = coordinates_to_grid(latitude, longitude)
-        value = load_elevation_grid()["values"][index]
-        return None if value is None else float(value)
+        Elevation is a continuous physical field, unlike surface type and
+        biome.  Four valid neighbouring raster samples are blended at their
+        cell centres.  If the authoritative raster contains an UNKNOWN value
+        in that footprint, the nearest value is retained instead of extending
+        terrain into ocean or the source image's hidden strip.
+        """
+
+        layer = self._global_layer()
+        raster = load_elevation_grid()["values"]
+
+        def effective_value(x, y):
+            index = y * MAP_GRID_WIDTH + x
+            if layer is not None:
+                cell_latitude = 90.0 - (y + 0.5) * 180.0 / MAP_GRID_HEIGHT
+                cell_longitude = -180.0 + (x + 0.5) * 360.0 / MAP_GRID_WIDTH
+                _, _, layer_index = coordinates_to_grid(
+                    cell_latitude,
+                    cell_longitude,
+                    width=layer.grid_width,
+                    height=layer.grid_height,
+                )
+                override = layer.elevation_cells.get(str(layer_index))
+                if override is not None:
+                    return float(override)
+            value = raster[index]
+            return None if value is None else float(value)
+
+        nearest_x, nearest_y, _ = coordinates_to_grid(latitude, longitude)
+        nearest = effective_value(nearest_x, nearest_y)
+        neighbours = _bilinear_neighbors(
+            latitude,
+            longitude,
+            width=MAP_GRID_WIDTH,
+            height=MAP_GRID_HEIGHT,
+        )
+        samples = [
+            (effective_value(x, y), weight)
+            for x, y, weight in neighbours
+        ]
+        if any(value is None for value, _weight in samples):
+            return nearest
+        return sum(value * weight for value, weight in samples)
 
     def mean_temperature_at(self, latitude, longitude):
         _, _, index = coordinates_to_grid(latitude, longitude)

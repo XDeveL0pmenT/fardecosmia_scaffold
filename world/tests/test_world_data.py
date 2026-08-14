@@ -94,6 +94,49 @@ class WorldDataStaticTests(TestCase):
         self.assertEqual(data.elevation_at(latitude, longitude), 4321.5)
         self.assertNotEqual(data.mean_temperature_at(latitude, longitude), -123)
 
+    def test_elevation_is_bilinear_between_valid_raster_cell_centres(self):
+        elevations = load_elevation_grid()["values"]
+        candidate = next(
+            (x, y)
+            for y in range(MAP_GRID_HEIGHT - 1)
+            for x in range(MAP_GRID_WIDTH - 1)
+            if all(
+                elevations[(y + dy) * MAP_GRID_WIDTH + x + dx] is not None
+                for dy in (0, 1)
+                for dx in (0, 1)
+            )
+            and len(
+                {
+                    elevations[(y + dy) * MAP_GRID_WIDTH + x + dx]
+                    for dy in (0, 1)
+                    for dx in (0, 1)
+                }
+            )
+            > 1
+        )
+        x, y = candidate
+        # This coordinate is halfway between the four raster cell centres.
+        longitude = -180.0 + (x + 1.0) * 360.0 / MAP_GRID_WIDTH
+        latitude = 90.0 - (y + 1.0) * 180.0 / MAP_GRID_HEIGHT
+        expected = sum(
+            elevations[(y + dy) * MAP_GRID_WIDTH + x + dx]
+            for dy in (0, 1)
+            for dx in (0, 1)
+        ) / 4.0
+
+        self.assertAlmostEqual(
+            WorldData().elevation_at(latitude, longitude),
+            expected,
+        )
+        # Surface type deliberately keeps nearest/discrete semantics.
+        _, _, nearest_index = coordinates_to_grid(latitude, longitude)
+        expected_surface = (
+            SurfaceType.LAND
+            if load_land_mask()["values"][nearest_index]
+            else SurfaceType.OCEAN
+        )
+        self.assertEqual(WorldData().surface_at(latitude, longitude), expected_surface)
+
     def test_ocean_baseline_uses_mean_temperature_map_before_fallback(self):
         latitude, longitude = self.ocean_coordinates
         data = WorldData()

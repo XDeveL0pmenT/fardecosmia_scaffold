@@ -1,67 +1,65 @@
-"""Terrain-driven cooling/warming for Phase C3 cloud microphysics."""
+"""Unified convergence/orographic vertical-motion coupling for C4."""
+
+from __future__ import annotations
 
 import numpy as np
 
-from .geometry import geometry_for
+from .circulation import vertical_motion_fields
 
 
 def orographic_uplift(grid, static, settings):
-    """Return wind-aligned climb/descent and a normalized flow factor."""
-
-    geometry = geometry_for(settings)
-    u = grid.fields["wind_u"].astype(np.float64)
-    v = grid.fields["wind_v"].astype(np.float64)
-    upwind_x = (geometry.flat_x - np.sign(u).astype(np.int32)) % grid.width
-    upwind_y = np.clip(
-        geometry.flat_y + np.sign(v).astype(np.int32),
-        0,
-        grid.height - 1,
-    )
-    upwind = upwind_y * grid.width + upwind_x
-    elevation = np.asarray(static.elevation, dtype=np.float64)
-    delta = elevation - elevation[upwind]
-    speed_factor = np.minimum(1.0, np.hypot(u, v) / 10.0)
+    diagnostics = vertical_motion_fields(grid, static, settings)
     return {
-        "climb_m": np.maximum(0.0, delta),
-        "descent_m": np.maximum(0.0, -delta),
-        "speed_factor": speed_factor,
+        "w_orographic_m_s": diagnostics["w_orographic_m_s"],
+        "w_convergence_m_s": diagnostics["w_convergence_m_s"],
+        "vertical_motion_proxy_m_s": diagnostics["vertical_motion_proxy_m_s"],
+        "divergence_s_1": diagnostics["divergence_s_1"],
     }
 
 
 def apply_orographic_temperature_tendency(grid, static, settings, *, diagnostics=None):
-    """Cool rising flow and warm descending flow before saturation adjustment.
+    """Apply one physically linked 2D ascent/descent temperature proxy."""
 
-    No moisture is created or destroyed here.  Windward condensation and lee
-    dryness emerge later from saturation, fallout, and downwind transport.
-    """
-
-    uplift = orographic_uplift(grid, static, settings)
-    cooling = (
-        uplift["climb_m"]
-        / 1000.0
-        * settings.value("orographic_cooling_c_per_1000m")
-        * uplift["speed_factor"]
+    fields = vertical_motion_fields(grid, static, settings)
+    vertical_motion = fields["vertical_motion_proxy_m_s"]
+    seconds = settings.step_minutes * 60.0
+    lapse_rate_c_m = (
+        settings.value("effective_adiabatic_lapse_rate_c_per_km") / 1000.0
     )
-    warming = (
-        uplift["descent_m"]
-        / 1000.0
-        * settings.value("orographic_descent_warming_c_per_1000m")
-        * uplift["speed_factor"]
+    change = (
+        -vertical_motion
+        * seconds
+        * lapse_rate_c_m
     )
-    maximum = max(0.0, settings.value("orographic_max_temperature_change_c"))
-    temperature_change = np.clip(warming - cooling, -maximum, maximum)
+    maximum = max(0.0, settings.value("maximum_vertical_temperature_change_c"))
+    change = np.clip(change, -maximum, maximum)
     grid.fields["temperature"] = (
-        grid.fields["temperature"].astype(np.float64) + temperature_change
+        grid.fields["temperature"].astype(np.float64) + change
     ).astype(np.float32)
     if diagnostics is not None:
         diagnostics["orographic_uplift_cell_count"] = diagnostics.get(
             "orographic_uplift_cell_count", 0
-        ) + int(np.count_nonzero(cooling > 0.0))
+        ) + int(np.count_nonzero(fields["w_orographic_m_s"] > 0.0))
+        diagnostics["convergence_uplift_cell_count"] = diagnostics.get(
+            "convergence_uplift_cell_count", 0
+        ) + int(np.count_nonzero(fields["w_convergence_m_s"] > 0.0))
+        diagnostics["maximum_orographic_ascent_m_s"] = max(
+            diagnostics.get("maximum_orographic_ascent_m_s", 0.0),
+            float(np.max(fields["w_orographic_m_s"], initial=0.0)),
+        )
+        diagnostics["maximum_convergence_ascent_m_s"] = max(
+            diagnostics.get("maximum_convergence_ascent_m_s", 0.0),
+            float(np.max(fields["w_convergence_m_s"], initial=0.0)),
+        )
+        diagnostics["maximum_vertical_motion_proxy_m_s"] = max(
+            diagnostics.get("maximum_vertical_motion_proxy_m_s", 0.0),
+            float(np.max(np.abs(vertical_motion), initial=0.0)),
+        )
         diagnostics["maximum_orographic_cooling_c"] = max(
             diagnostics.get("maximum_orographic_cooling_c", 0.0),
-            float(np.max(np.maximum(0.0, -temperature_change), initial=0.0)),
+            float(np.max(np.maximum(0.0, -change), initial=0.0)),
         )
-    return uplift
+    return fields
 
 
 def apply_orography_and_precipitation(
@@ -72,8 +70,6 @@ def apply_orography_and_precipitation(
     relative_humidity=None,
     diagnostics=None,
 ):
-    """Deprecated compatibility wrapper; C3 precipitation lives in microphysics."""
-
     del relative_humidity
     return apply_orographic_temperature_tendency(
         grid,

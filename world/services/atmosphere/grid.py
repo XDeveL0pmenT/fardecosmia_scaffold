@@ -8,6 +8,7 @@ ATMOSPHERIC_FIELDS = (
     "temperature",
     "water_vapor_specific_humidity",
     "cloud_condensate_specific_humidity",
+    "circulation_pressure_hpa",
     "pressure_hpa",
     "wind_u",
     "wind_v",
@@ -19,7 +20,7 @@ ATMOSPHERIC_FIELDS = (
     "sea_surface_temperature_c",
     "evaporation_flux_kg_m2_s",
 )
-MAGIC = b"FATM3"
+MAGIC = b"FATM4"
 FLOAT_BYTES = 4
 FLOAT_DTYPE = np.dtype("<f4")
 
