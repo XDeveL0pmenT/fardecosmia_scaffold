@@ -9,7 +9,8 @@
     <link rel="icon" type="image/png" sizes="117x117" href="{% static 'images/fardecosmia-favicon.png' %}">
     <link rel="shortcut icon" type="image/png" href="{% static 'images/fardecosmia-favicon.png' %}">
     <link rel="apple-touch-icon" href="{% static 'images/fardecosmia-favicon.png' %}">
-    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=m1-leaflet-atlas-2">
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
 <div class="cosmos" aria-hidden="true">
@@ -28,6 +29,7 @@
         <nav class="account-nav" aria-label="Пользовательское меню">
             {% if user.is_authenticated %}
                 {% if can_view_global_atlas %}<a class="account-nav__atlas" href="{% url 'world:global_world_map' %}">Атлас мира</a>{% endif %}
+                {% if can_view_global_atlas %}<a class="account-nav__atlas" href="{% url 'world:global_world_entry_list' %}">Канон мира</a>{% endif %}
                 <span class="account-nav__user">
                     <span class="account-nav__signal" aria-hidden="true"></span>
                     {{ user.display_name|default:user.username }}

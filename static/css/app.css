@@ -821,6 +821,19 @@ button.button--danger:hover {
     box-shadow: none;
 }
 
+.button--ghost,
+button.button--ghost {
+    background: rgba(167, 139, 250, 0.08);
+    box-shadow: none;
+}
+
+.button--small,
+button.button--small {
+    min-height: 34px;
+    padding: 7px 11px;
+    font-size: 0.74rem;
+}
+
 .inline-form {
     display: inline;
     margin: 0;
@@ -922,6 +935,77 @@ button.button--danger:hover {
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+}
+
+.stacked-form label small {
+    display: block;
+    margin: 6px 0 8px;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 400;
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+.canon-panel,
+.canon-form-panel,
+.canon-entry-body,
+.danger-panel {
+    max-width: 980px;
+    margin-inline: auto;
+}
+
+.canon-entry-list {
+    display: grid;
+    gap: 16px;
+}
+
+.canon-entry-card {
+    padding: 20px;
+    border: 1px solid rgba(181,166,255,.15);
+    border-radius: 12px;
+    background: rgba(10,11,29,.46);
+}
+
+.canon-entry-card--suppressed {
+    opacity: .68;
+}
+
+.canon-entry-card h2 {
+    margin: 8px 0;
+}
+
+.canon-entry-card__meta {
+    color: var(--muted);
+    font-size: .78rem;
+}
+
+.canon-entry-card__actions,
+.page-heading__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.override-comparison {
+    display: grid;
+    margin-bottom: 24px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.override-comparison > div {
+    padding: 14px;
+    border: 1px solid rgba(181,166,255,.14);
+    border-radius: 10px;
+    background: rgba(7,8,22,.45);
+}
+
+@media (max-width: 760px) {
+    .override-comparison {
+        grid-template-columns: 1fr;
+    }
 }
 
 input,
@@ -2021,6 +2105,260 @@ button.map-tool-button.is-active {
 .world-map-panel:fullscreen .world-map-stage svg {
     width: 100%;
     max-height: 100%;
+}
+
+/* M1 Leaflet planetary atlas.  The older SVG selectors above remain for the
+   small Region preview; these rules isolate the slippy-map canvas. */
+.atlas-stage {
+    height: clamp(430px, 64vh, 720px);
+    min-height: 430px;
+    isolation: isolate;
+}
+
+.atlas-stage .fardecosmia-leaflet-map {
+    width: 100%;
+    height: 100%;
+    min-height: 430px;
+    color: #e8ecff;
+    background: #02040b;
+    cursor: grab;
+}
+
+.atlas-stage .fardecosmia-leaflet-map:active { cursor: grabbing; }
+.atlas-stage .fardecosmia-leaflet-map.atlas-map--editing,
+.atlas-stage .fardecosmia-leaflet-map.atlas-map--painting,
+.atlas-stage .fardecosmia-leaflet-map.atlas-map--inspect { cursor: crosshair; }
+
+.atlas-stage .leaflet-overlay-pane svg,
+.world-map-panel:fullscreen .atlas-stage .leaflet-overlay-pane svg {
+    width: auto;
+    height: auto;
+    max-height: none;
+}
+
+.atlas-stage .leaflet-control-zoom a {
+    border-color: rgba(181, 166, 255, 0.24);
+    color: #e9e5ff;
+    background: rgba(5, 8, 21, 0.9);
+}
+
+.atlas-stage .leaflet-control-zoom a:hover,
+.atlas-stage .leaflet-control-zoom a:focus {
+    color: #fff;
+    background: rgba(61, 40, 103, 0.95);
+}
+
+.atlas-stage .leaflet-control-scale-line {
+    border-color: rgba(255, 255, 255, 0.72);
+    color: #fff;
+    background: rgba(3, 6, 15, 0.72);
+    text-shadow: 0 1px 2px #000;
+}
+
+.atlas-stage .leaflet-popup-content-wrapper,
+.atlas-stage .leaflet-popup-tip {
+    color: var(--text);
+    background: rgba(5, 8, 20, 0.97);
+}
+
+.atlas-stage .leaflet-popup-content-wrapper {
+    border: 1px solid rgba(181, 166, 255, 0.24);
+    box-shadow: 0 18px 46px rgba(0, 0, 0, 0.55);
+}
+
+.atlas-stage .leaflet-popup-close-button { color: var(--faint); }
+.atlas-region-popup { display: grid; gap: 8px; min-width: 230px; }
+.atlas-region-popup strong { color: #fff; font-size: 0.95rem; }
+.atlas-region-popup p { margin: 0; color: var(--muted); font-size: 0.75rem; line-height: 1.45; }
+.atlas-region-popup small { color: var(--faint); font-size: 0.65rem; }
+.atlas-region-popup a { color: var(--cyan); font-weight: 700; font-size: 0.73rem; }
+
+.atlas-region-contour {
+    transition: fill-opacity 140ms ease, stroke-width 140ms ease;
+}
+
+.atlas-region-contour:hover {
+    fill-opacity: 0.28;
+    stroke-width: 2.5px;
+}
+
+.atlas-region-draft {
+    fill: rgba(217, 108, 255, 0.2);
+    stroke: #f1c4ff;
+    stroke-width: 2px;
+    stroke-dasharray: 7 5;
+}
+
+.atlas-edit-handle {
+    border: 0;
+    background: transparent;
+}
+
+.atlas-edit-handle span {
+    display: block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid #07101b;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7), 0 0 14px rgba(115, 231, 245, 0.75);
+}
+
+.atlas-edit-handle--first span {
+    width: 16px;
+    height: 16px;
+    margin: -1px;
+    background: #f1c4ff;
+    box-shadow: 0 0 0 3px rgba(217, 108, 255, 0.45), 0 0 16px rgba(217, 108, 255, 0.9);
+}
+
+.atlas-point-marker {
+    border: 0;
+    background: transparent;
+}
+
+.atlas-point-marker span {
+    display: block;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    background: rgba(115, 231, 245, 0.42);
+    box-shadow: 0 0 0 3px rgba(3, 6, 15, 0.75), 0 0 18px rgba(115, 231, 245, 0.85);
+}
+
+.atlas-celestial {
+    fill: none;
+    stroke-width: 1.2px;
+    stroke-dasharray: 5 6;
+    pointer-events: none;
+}
+
+.atlas-celestial--star { stroke: rgba(255, 240, 163, 0.85); }
+.atlas-celestial--ympha { stroke: rgba(239, 102, 143, 0.88); }
+.atlas-celestial-label {
+    border: 0;
+    color: #fff;
+    background: transparent;
+    font-size: 0.64rem;
+    font-weight: 800;
+    line-height: 24px;
+    white-space: nowrap;
+    text-shadow: 0 1px 3px #000, 0 0 8px #000;
+}
+.atlas-celestial-label span {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 6px;
+    border-radius: 50%;
+}
+.atlas-celestial-label--star span { background: #fff2a1; box-shadow: 0 0 9px #ffe78a; }
+.atlas-celestial-label--ympha span { background: #e34272; box-shadow: 0 0 9px #d1265c; }
+
+.atlas-cursor-coordinates,
+.atlas-zoom-label {
+    color: #dce8ff;
+    background: rgba(3, 6, 15, 0.75);
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 0.68rem;
+}
+
+.atlas-zoom-label {
+    display: inline-flex;
+    min-width: 38px;
+    min-height: 34px;
+    padding: 7px 9px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+}
+
+.atlas-cursor-coordinates {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    z-index: 820;
+    padding: 6px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 7px;
+    pointer-events: none;
+}
+
+.atlas-stage .map-draw-status {
+    bottom: 46px;
+    z-index: 820;
+}
+
+.atlas-stage .map-hover-tooltip {
+    z-index: 830;
+}
+
+.atlas-map-error {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    z-index: 850;
+    max-width: min(520px, calc(100% - 110px));
+    padding: 9px 12px;
+    border: 1px solid rgba(255, 116, 111, 0.5);
+    border-radius: 9px;
+    color: #ffd5d3;
+    background: rgba(58, 10, 16, 0.92);
+    font-size: 0.72rem;
+    transform: translateX(-50%);
+}
+
+.atlas-map-error[hidden] { display: none; }
+
+.atlas-point-inspector {
+    position: absolute;
+    top: 60px;
+    right: 12px;
+    z-index: 840;
+    width: min(320px, calc(100% - 24px));
+    max-height: calc(100% - 120px);
+    padding: 14px;
+    overflow: auto;
+    border: 1px solid rgba(115, 231, 245, 0.28);
+    border-radius: 11px;
+    color: var(--text);
+    background: rgba(3, 6, 15, 0.94);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.58);
+    backdrop-filter: blur(12px);
+}
+
+.atlas-point-inspector[hidden] { display: none; }
+.atlas-point-inspector__close {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    width: 28px;
+    min-height: 28px;
+    padding: 0;
+    border: 0;
+    color: var(--faint);
+    background: transparent;
+    box-shadow: none;
+    font-size: 1.15rem;
+}
+.atlas-point-inspector h3 { margin: 0 28px 12px 0; font-size: 1rem; }
+.atlas-point-inspector h4 { margin: 13px 0 6px; color: var(--cyan); font-size: 0.68rem; letter-spacing: 0.07em; text-transform: uppercase; }
+.atlas-point-inspector p { color: var(--faint); font-size: 0.72rem; line-height: 1.45; }
+.atlas-point-inspector dl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 10px; margin: 0; font-size: 0.7rem; }
+.atlas-point-inspector dt { color: var(--faint); }
+.atlas-point-inspector dd { margin: 0; color: #fff; text-align: right; }
+
+.world-map-panel:fullscreen .atlas-stage {
+    display: block;
+    height: auto;
+    min-height: 0;
+    flex: 1;
+}
+
+.world-map-panel:fullscreen .fardecosmia-leaflet-map {
+    min-height: 0;
 }
 
 .region-placement-list {

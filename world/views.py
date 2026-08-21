@@ -2,23 +2,37 @@ import json
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.views.decorators.http import require_GET, require_http_methods
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from campaigns.models import Campaign, CampaignMembership
+from campaigns.models import Campaign
 from campaigns.time_controls import TIME_ADVANCE_UNITS
 from world.biomes import BIOME_PALETTE
-from world.forms import MapLayerPaintForm, RegionMapForm, RegionPlacementForm
-from world.models import AtmosphericConfig, Region
+from world.forms import (
+    CampaignOverrideForm,
+    MapLayerPaintForm,
+    RegionMapForm,
+    RegionPlacementForm,
+    WorldEntryForm,
+)
+from world.models import AtmosphericConfig, Region, WorldEntry
+from world.services.access import (
+    can_manage_global_canon,
+    require_campaign_gm,
+    require_global_atlas_viewer,
+    require_global_canon_editor,
+)
 from world.services.astronomy import (
     build_light_bands,
     celestial_positions,
     describe_region_sky,
 )
 from world.services.map_geometry import polygon_center, polygon_svg_points
+from world.services.atlas import build_atlas_config
+from world.services.map_inspection import inspect_map_point
 from world.services.map_layers import (
     MAP_GRID_HEIGHT,
     MAP_GRID_WIDTH,
@@ -40,6 +54,18 @@ from world.services.region_weather import (
     latest_current_area_weather,
     latest_current_point_weather,
 )
+from world.services.canon import (
+    create_campaign_world_entry,
+    create_global_world_entry,
+    delete_campaign_world_entry,
+    delete_global_world_entry,
+    remove_campaign_override,
+    set_campaign_override,
+    set_campaign_suppression,
+    update_campaign_world_entry,
+    update_global_world_entry,
+)
+from world.services.overrides import effective_world_entries, resolve_for_campaign
 
 
 SEASON_CODES = {
@@ -50,12 +76,7 @@ SEASON_CODES = {
 }
 def _gm_campaign_or_403(user, campaign_id):
     campaign = get_object_or_404(Campaign, pk=campaign_id)
-    is_gm = campaign.memberships.filter(
-        user=user,
-        role=CampaignMembership.Role.GM,
-    ).exists()
-    if not is_gm:
-        raise PermissionDenied("Карта объективного состояния мира доступна только мастеру.")
+    require_campaign_gm(user, campaign)
     return campaign
 
 
@@ -64,6 +85,10 @@ def _biome_palette():
         {"value": value, "label": label, "color": BIOME_PALETTE[value]}
         for value, label in Region.Biome.choices
     ]
+
+
+def _global_atlas_or_403(user):
+    require_global_atlas_viewer(user)
 
 
 @login_required
@@ -89,15 +114,13 @@ def region_climate_preview(request, campaign_id):
 
 
 @login_required
+@require_GET
 def global_world_map(request):
-    can_view_objective_layers = request.user.campaign_memberships.filter(
-        role=CampaignMembership.Role.GM,
-    ).exists()
-    if not can_view_objective_layers:
-        raise PermissionDenied(
-            "Общий объективный атлас доступен только мастеру хотя бы одной кампании."
-        )
-    layer_state = get_global_map_layer() if can_view_objective_layers else None
+    _global_atlas_or_403(request.user)
+    can_view_objective_layers = True
+    layer_state = get_global_map_layer()
+    global_biomes = land_only_biome_cells(layer_state.biome_cells) if layer_state else {}
+    palette = _biome_palette()
     return render(
         request,
         "world/global_world_map.html",
@@ -105,10 +128,304 @@ def global_world_map(request):
             "can_view_objective_layers": can_view_objective_layers,
             "map_grid_width": MAP_GRID_WIDTH,
             "map_grid_height": MAP_GRID_HEIGHT,
-            "biome_cells": land_only_biome_cells(layer_state.biome_cells) if layer_state else {},
-            "biome_palette": _biome_palette(),
+            "biome_cells": global_biomes,
+            "biome_palette": palette,
+            "atlas_config": build_atlas_config(
+                inspect_url=reverse("world:global_point_inspection"),
+                global_biome_cells=global_biomes,
+                biome_palette=palette,
+                active_layer=request.GET.get("mode") or "base",
+            ),
         },
     )
+
+
+@login_required
+@require_GET
+def global_world_entry_list(request):
+    require_global_atlas_viewer(request.user)
+    entries = WorldEntry.objects.filter(scope=WorldEntry.Scope.GLOBAL).order_by(
+        "kind", "title", "pk"
+    )
+    return render(
+        request,
+        "world/global_world_entry_list.html",
+        {
+            "entries": entries,
+            "can_manage_global_canon": can_manage_global_canon(request.user),
+        },
+    )
+
+
+@login_required
+@require_GET
+def global_world_entry_detail(request, entry_id):
+    require_global_atlas_viewer(request.user)
+    entry = get_object_or_404(
+        WorldEntry,
+        pk=entry_id,
+        scope=WorldEntry.Scope.GLOBAL,
+    )
+    return render(
+        request,
+        "world/global_world_entry_detail.html",
+        {
+            "entry": entry,
+            "can_manage_global_canon": can_manage_global_canon(request.user),
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def global_world_entry_create(request):
+    require_global_canon_editor(request.user)
+    form = WorldEntryForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            entry = create_global_world_entry(actor=request.user, **form.cleaned_data)
+        except ValidationError as error:
+            form.add_error(None, error)
+        else:
+            messages.success(request, "Глобальная запись канона создана.")
+            return redirect("world:global_world_entry_detail", entry_id=entry.pk)
+    return render(
+        request,
+        "world/world_entry_form.html",
+        {"form": form, "form_title": "Новая запись глобального канона", "is_global_form": True},
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def global_world_entry_edit(request, entry_id):
+    require_global_canon_editor(request.user)
+    entry = get_object_or_404(
+        WorldEntry,
+        pk=entry_id,
+        scope=WorldEntry.Scope.GLOBAL,
+    )
+    form = WorldEntryForm(request.POST or None, instance=entry)
+    if request.method == "POST" and form.is_valid():
+        try:
+            entry = update_global_world_entry(
+                actor=request.user,
+                entry=entry,
+                **form.cleaned_data,
+            )
+        except ValidationError as error:
+            form.add_error(None, error)
+        else:
+            messages.success(request, "Глобальный канон обновлён.")
+            return redirect("world:global_world_entry_detail", entry_id=entry.pk)
+    return render(
+        request,
+        "world/world_entry_form.html",
+        {"form": form, "form_title": f"Изменить: {entry.title}", "entry": entry, "is_global_form": True},
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def global_world_entry_delete(request, entry_id):
+    require_global_canon_editor(request.user)
+    entry = get_object_or_404(
+        WorldEntry,
+        pk=entry_id,
+        scope=WorldEntry.Scope.GLOBAL,
+    )
+    error_message = None
+    if request.method == "POST":
+        try:
+            delete_global_world_entry(actor=request.user, entry=entry)
+        except ValidationError as error:
+            error_message = "; ".join(error.messages)
+        else:
+            messages.success(request, "Глобальная запись удалена.")
+            return redirect("world:global_world_entry_list")
+    return render(
+        request,
+        "world/world_entry_confirm_delete.html",
+        {"entry": entry, "error_message": error_message, "is_global_form": True},
+        status=400 if error_message else 200,
+    )
+
+
+@login_required
+@require_GET
+def campaign_world_entry_list(request, campaign_id):
+    campaign = _gm_campaign_or_403(request.user, campaign_id)
+    return render(
+        request,
+        "world/campaign_world_entry_list.html",
+        {
+            "campaign": campaign,
+            "entries": effective_world_entries(campaign, include_suppressed=True),
+            "time_advance_units": TIME_ADVANCE_UNITS,
+            "can_advance_time": True,
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def campaign_world_entry_create(request, campaign_id):
+    campaign = _gm_campaign_or_403(request.user, campaign_id)
+    form = WorldEntryForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            create_campaign_world_entry(
+                actor=request.user,
+                campaign=campaign,
+                **form.cleaned_data,
+            )
+        except ValidationError as error:
+            form.add_error(None, error)
+        else:
+            messages.success(request, "Запись только этой кампании создана.")
+            return redirect("world:campaign_world_entry_list", campaign_id=campaign.pk)
+    return render(
+        request,
+        "world/world_entry_form.html",
+        {"campaign": campaign, "form": form, "form_title": "Новая запись кампании", "time_advance_units": TIME_ADVANCE_UNITS, "can_advance_time": True},
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def campaign_world_entry_edit(request, campaign_id, entry_id):
+    campaign = _gm_campaign_or_403(request.user, campaign_id)
+    entry = get_object_or_404(
+        WorldEntry,
+        pk=entry_id,
+        scope=WorldEntry.Scope.CAMPAIGN,
+        campaign=campaign,
+    )
+    form = WorldEntryForm(request.POST or None, instance=entry)
+    if request.method == "POST" and form.is_valid():
+        try:
+            update_campaign_world_entry(
+                actor=request.user,
+                campaign=campaign,
+                entry=entry,
+                **form.cleaned_data,
+            )
+        except ValidationError as error:
+            form.add_error(None, error)
+        else:
+            messages.success(request, "Campaign-запись обновлена.")
+            return redirect("world:campaign_world_entry_list", campaign_id=campaign.pk)
+    return render(
+        request,
+        "world/world_entry_form.html",
+        {"campaign": campaign, "form": form, "entry": entry, "form_title": f"Изменить: {entry.title}", "time_advance_units": TIME_ADVANCE_UNITS, "can_advance_time": True},
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def campaign_world_entry_delete(request, campaign_id, entry_id):
+    campaign = _gm_campaign_or_403(request.user, campaign_id)
+    entry = get_object_or_404(
+        WorldEntry,
+        pk=entry_id,
+        scope=WorldEntry.Scope.CAMPAIGN,
+        campaign=campaign,
+    )
+    if request.method == "POST":
+        delete_campaign_world_entry(
+            actor=request.user,
+            campaign=campaign,
+            entry=entry,
+        )
+        messages.success(request, "Campaign-запись удалена.")
+        return redirect("world:campaign_world_entry_list", campaign_id=campaign.pk)
+    return render(
+        request,
+        "world/world_entry_confirm_delete.html",
+        {"campaign": campaign, "entry": entry, "time_advance_units": TIME_ADVANCE_UNITS, "can_advance_time": True},
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def campaign_world_entry_override(request, campaign_id, entry_id):
+    campaign = _gm_campaign_or_403(request.user, campaign_id)
+    entry = get_object_or_404(
+        WorldEntry,
+        pk=entry_id,
+        scope=WorldEntry.Scope.GLOBAL,
+    )
+    resolved = resolve_for_campaign(entry, campaign)
+    initial = {} if resolved.override is None else resolved.override.patch
+    form = CampaignOverrideForm(request.POST or None, initial=initial)
+    if request.method == "POST" and form.is_valid():
+        set_campaign_override(
+            actor=request.user,
+            campaign=campaign,
+            target=entry,
+            patch=form.patch(),
+            is_suppressed=resolved.is_suppressed,
+        )
+        messages.success(request, "Отличия кампании сохранены.")
+        return redirect("world:campaign_world_entry_list", campaign_id=campaign.pk)
+    return render(
+        request,
+        "world/campaign_world_entry_override.html",
+        {"campaign": campaign, "entry": entry, "resolved": resolved, "form": form, "time_advance_units": TIME_ADVANCE_UNITS, "can_advance_time": True},
+    )
+
+
+@login_required
+@require_POST
+def campaign_world_entry_override_action(request, campaign_id, entry_id):
+    campaign = _gm_campaign_or_403(request.user, campaign_id)
+    entry = get_object_or_404(
+        WorldEntry,
+        pk=entry_id,
+        scope=WorldEntry.Scope.GLOBAL,
+    )
+    action = request.POST.get("action")
+    if action == "suppress":
+        set_campaign_suppression(
+            actor=request.user,
+            campaign=campaign,
+            target=entry,
+            is_suppressed=True,
+        )
+        messages.success(request, "Глобальная запись скрыта в этой кампании.")
+    elif action == "restore":
+        set_campaign_suppression(
+            actor=request.user,
+            campaign=campaign,
+            target=entry,
+            is_suppressed=False,
+        )
+        messages.success(request, "Глобальная запись возвращена в кампанию.")
+    elif action == "remove":
+        remove_campaign_override(
+            actor=request.user,
+            campaign=campaign,
+            target=entry,
+        )
+        messages.success(request, "Override удалён; снова наследуется глобальный канон.")
+    else:
+        raise ValidationError("Неизвестное действие override.")
+    return redirect("world:campaign_world_entry_list", campaign_id=campaign.pk)
+
+
+@login_required
+@require_GET
+def global_point_inspection(request):
+    _global_atlas_or_403(request.user)
+    try:
+        payload = inspect_map_point(
+            float(request.GET["latitude"]),
+            float(request.GET["longitude"]),
+        )
+    except (KeyError, TypeError, ValueError, ValidationError) as error:
+        return JsonResponse({"error": str(error)}, status=400)
+    return JsonResponse(payload)
 
 
 def _latest_weather(region, world_minutes):
@@ -153,6 +470,8 @@ def _region_shapes(regions, campaign):
         if not region.map_polygon:
             continue
         weather = _latest_weather(region, campaign.world_minutes)
+        area_weather = latest_current_area_weather(region, campaign.world_minutes)
+        area_summary = build_region_area_weather_summary(area_weather)
         shapes.append(
             {
                 "id": region.pk,
@@ -161,6 +480,32 @@ def _region_shapes(regions, campaign):
                 "points": polygon_svg_points(region.map_polygon),
                 "temperature": weather.temperature if weather else None,
                 "temperature_color": _temperature_color(weather),
+                "detail_url": reverse(
+                    "world:region_detail",
+                    kwargs={"campaign_id": campaign.pk, "region_id": region.pk},
+                ),
+                "area_summary": (
+                    None if area_summary is None else area_summary.description
+                ),
+                "area_weather": (
+                    None
+                    if area_weather is None
+                    else {
+                        "world_minutes": area_weather.world_minutes,
+                        "age_minutes": max(
+                            0,
+                            int(campaign.world_minutes) - int(area_weather.world_minutes),
+                        ),
+                        "is_stale": (
+                            int(campaign.world_minutes) - int(area_weather.world_minutes)
+                            > int(region.weather_update_interval_minutes)
+                        ),
+                        "sampling_mode": area_weather.sampling_mode,
+                        "temperature_p10_c": area_weather.temperature_p10_c,
+                        "temperature_p90_c": area_weather.temperature_p90_c,
+                        "precipitating_area_fraction": area_weather.precipitating_area_fraction,
+                    }
+                ),
             }
         )
     return shapes
@@ -241,6 +586,9 @@ def world_map(request, campaign_id):
     campaign_biomes = (
         land_only_biome_cells(campaign_layer.biome_cells) if campaign_layer else {}
     )
+    palette = _biome_palette()
+    light_bands = build_light_bands(campaign, campaign.world_minutes)
+    celestial = celestial_positions(campaign, campaign.world_minutes)
     return render(
         request,
         "world/world_map.html",
@@ -250,8 +598,8 @@ def world_map(request, campaign_id):
             "placement_form": placement_form,
             "regions": regions,
             "region_shapes": shapes,
-            "light_bands": build_light_bands(campaign, campaign.world_minutes),
-            "celestial": celestial_positions(campaign, campaign.world_minutes),
+            "light_bands": light_bands,
+            "celestial": celestial,
             "layer_form": layer_form,
             "map_grid_width": MAP_GRID_WIDTH,
             "map_grid_height": MAP_GRID_HEIGHT,
@@ -259,11 +607,40 @@ def world_map(request, campaign_id):
             "global_biome_cells": global_biomes,
             "campaign_biome_cells": campaign_biomes,
             "elevation_cells": layer_state.elevation_cells if layer_state else {},
-            "biome_palette": _biome_palette(),
+            "biome_palette": palette,
+            "atlas_config": build_atlas_config(
+                campaign=campaign,
+                inspect_url=reverse(
+                    "world:campaign_point_inspection",
+                    kwargs={"campaign_id": campaign.pk},
+                ),
+                region_shapes=shapes,
+                global_biome_cells=global_biomes,
+                campaign_biome_cells=campaign_biomes,
+                biome_palette=palette,
+                light_bands=light_bands,
+                celestial=celestial,
+                active_layer=request.GET.get("mode") or "light",
+            ),
             "time_advance_units": TIME_ADVANCE_UNITS,
             "can_advance_time": True,
         },
     )
+
+
+@login_required
+@require_GET
+def campaign_point_inspection(request, campaign_id):
+    campaign = _gm_campaign_or_403(request.user, campaign_id)
+    try:
+        payload = inspect_map_point(
+            float(request.GET["latitude"]),
+            float(request.GET["longitude"]),
+            campaign=campaign,
+        )
+    except (KeyError, TypeError, ValueError, ValidationError) as error:
+        return JsonResponse({"error": str(error)}, status=400)
+    return JsonResponse(payload)
 
 
 @login_required

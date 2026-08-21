@@ -1,12 +1,30 @@
 from django import forms
 
-from world.models import AtmosphericConfig, Region
+from world.models import AtmosphericConfig, Region, WorldEntry
 from world.services.map_geometry import validate_map_polygon
 from world.services.map_layers import validate_layer_cells
 
 
+MAX_REGION_CONTOUR_JSON_BYTES = 64 * 1024
+MAX_MAP_LAYER_JSON_BYTES = 4 * 1024 * 1024
+
+
+class BoundedJSONField(forms.JSONField):
+    def __init__(self, *args, max_bytes, **kwargs):
+        self.max_bytes = max_bytes
+        super().__init__(*args, **kwargs)
+
+    def to_python(self, value):
+        if isinstance(value, str) and len(value.encode("utf-8")) > self.max_bytes:
+            raise forms.ValidationError("Переданные данные карты слишком велики.")
+        return super().to_python(value)
+
+
 class RegionMapForm(forms.ModelForm):
-    map_polygon = forms.JSONField(widget=forms.HiddenInput)
+    map_polygon = BoundedJSONField(
+        max_bytes=MAX_REGION_CONTOUR_JSON_BYTES,
+        widget=forms.HiddenInput,
+    )
 
     class Meta:
         model = Region
@@ -121,7 +139,10 @@ class RegionMapForm(forms.ModelForm):
 
 class RegionPlacementForm(forms.Form):
     region_id = forms.IntegerField(min_value=1)
-    map_polygon = forms.JSONField(widget=forms.HiddenInput)
+    map_polygon = BoundedJSONField(
+        max_bytes=MAX_REGION_CONTOUR_JSON_BYTES,
+        widget=forms.HiddenInput,
+    )
 
     def clean_map_polygon(self):
         return validate_map_polygon(
@@ -134,7 +155,10 @@ class MapLayerPaintForm(forms.Form):
     layer_type = forms.ChoiceField(
         choices=(("biome", "Локальные замены биомов"),),
     )
-    layer_cells = forms.JSONField(widget=forms.HiddenInput)
+    layer_cells = BoundedJSONField(
+        max_bytes=MAX_MAP_LAYER_JSON_BYTES,
+        widget=forms.HiddenInput,
+    )
 
     def clean(self):
         cleaned = super().clean()
@@ -208,3 +232,48 @@ class AtmosphericConfigForm(forms.ModelForm):
                     "После первого снимка нельзя неявно менять: " + ", ".join(changed) + "."
                 )
         return cleaned
+
+
+class WorldEntryForm(forms.ModelForm):
+    class Meta:
+        model = WorldEntry
+        fields = ("kind", "slug", "title", "summary", "body")
+        labels = {
+            "kind": "Тип записи",
+            "slug": "Стабильный идентификатор",
+            "title": "Название",
+            "summary": "Краткое описание",
+            "body": "Полное описание",
+        }
+        widgets = {
+            "summary": forms.Textarea(attrs={"rows": 3}),
+            "body": forms.Textarea(attrs={"rows": 10}),
+        }
+
+
+class CampaignOverrideForm(forms.Form):
+    title = forms.CharField(
+        label="Название в кампании",
+        required=False,
+        max_length=240,
+        help_text="Оставьте пустым, чтобы наследовать глобальное название.",
+    )
+    summary = forms.CharField(
+        label="Краткое описание в кампании",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Оставьте пустым, чтобы наследовать глобальное описание.",
+    )
+    body = forms.CharField(
+        label="Полное описание в кампании",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 10}),
+        help_text="Оставьте пустым, чтобы наследовать глобальный текст.",
+    )
+
+    def patch(self):
+        return {
+            name: value
+            for name, value in self.cleaned_data.items()
+            if value != ""
+        }

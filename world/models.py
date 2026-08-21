@@ -1,5 +1,8 @@
 import math
 
+from django.conf import settings
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -264,6 +267,150 @@ class CampaignWorldMapOverride(models.Model):
 
     def __str__(self):
         return f"Локальные биомы: {self.campaign}"
+
+
+class WorldEntry(models.Model):
+    """A small encyclopedic record with explicit global/campaign scope.
+
+    This is deliberately not a universal JSON container for future structured
+    world entities.  Countries, settlements and other domains retain their own
+    future models.
+    """
+
+    class Scope(models.TextChoices):
+        GLOBAL = "global", "Глобальный канон"
+        CAMPAIGN = "campaign", "Только кампания"
+
+    scope = models.CharField(max_length=20, choices=Scope.choices)
+    campaign = models.ForeignKey(
+        "campaigns.Campaign",
+        on_delete=models.CASCADE,
+        related_name="world_entries",
+        null=True,
+        blank=True,
+    )
+    kind = models.SlugField(
+        max_length=80,
+        help_text="Техническое пространство имён, например lore или concept.",
+    )
+    slug = models.SlugField(max_length=160)
+    title = models.CharField(max_length=240)
+    summary = models.TextField(blank=True)
+    body = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="created_world_entries",
+        null=True,
+        blank=True,
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="updated_world_entries",
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    revision = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["kind", "title", "pk"]
+        permissions = [
+            ("manage_global_canon", "Can manage global Fardecosmia canon"),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(scope="global", campaign__isnull=True)
+                    | models.Q(scope="campaign", campaign__isnull=False)
+                ),
+                name="world_entry_scope_campaign_consistent",
+            ),
+            models.UniqueConstraint(
+                fields=["kind", "slug"],
+                condition=models.Q(scope="global"),
+                name="unique_global_world_entry_identity",
+            ),
+            models.UniqueConstraint(
+                fields=["campaign", "kind", "slug"],
+                condition=models.Q(scope="campaign"),
+                name="unique_campaign_world_entry_identity",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["scope"], name="world_entry_scope_idx"),
+            models.Index(fields=["campaign", "kind"], name="world_entry_campaign_kind_idx"),
+            models.Index(fields=["kind", "slug"], name="world_entry_kind_slug_idx"),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.scope == self.Scope.GLOBAL and self.campaign_id is not None:
+            raise ValidationError({"campaign": "Глобальная запись не принадлежит кампании."})
+        if self.scope == self.Scope.CAMPAIGN and self.campaign_id is None:
+            raise ValidationError({"campaign": "Для campaign-записи требуется кампания."})
+
+    def __str__(self):
+        return self.title
+
+
+class CampaignEntityOverride(models.Model):
+    """A sparse, whitelist-validated campaign patch over global canon."""
+
+    campaign = models.ForeignKey(
+        "campaigns.Campaign",
+        on_delete=models.CASCADE,
+        related_name="entity_overrides",
+    )
+    content_type = models.ForeignKey(ContentType, on_delete=models.PROTECT)
+    object_id = models.CharField(max_length=64)
+    target = GenericForeignKey("content_type", "object_id")
+    patch = models.JSONField(default=dict, blank=True)
+    is_suppressed = models.BooleanField(default=False)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="created_campaign_entity_overrides",
+        null=True,
+        blank=True,
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="updated_campaign_entity_overrides",
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    revision = models.PositiveIntegerField(default=1)
+    base_revision_at_creation = models.PositiveIntegerField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["campaign_id", "content_type_id", "object_id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["campaign", "content_type", "object_id"],
+                name="unique_campaign_entity_override",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["campaign"], name="world_override_campaign_idx"),
+            models.Index(
+                fields=["content_type", "object_id"],
+                name="world_override_target_idx",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        if not isinstance(self.patch, dict):
+            raise ValidationError({"patch": "Override patch должен быть JSON-объектом."})
+
+    def __str__(self):
+        return f"{self.campaign}: {self.content_type} #{self.object_id}"
 
 
 class AtmosphericConfig(models.Model):

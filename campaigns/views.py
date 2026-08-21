@@ -2,7 +2,6 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
 from django.db import OperationalError
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
@@ -10,7 +9,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from .forms import TimeSimulationSettingsForm
-from .models import Campaign, CampaignMembership
+from .models import Campaign
 from world.forms import AtmosphericConfigForm
 from world.models import AtmosphericConfig
 from world.services.astronomy import calculate_local_sky, describe_region_sky
@@ -19,15 +18,13 @@ from world.services.atmosphere.forcing import CampaignSkyForcing
 from world.services.calendar import minutes_for_time_step
 from world.services.region_weather import latest_current_point_weather
 from world.services.time import advance_world
+from world.services.access import require_campaign_gm
 
 from .time_controls import TIME_ADVANCE_LIMITS, TIME_ADVANCE_UNITS
 
 
 def _gm_membership_or_403(user, campaign):
-    membership = campaign.memberships.filter(user=user).first()
-    if not membership or membership.role != CampaignMembership.Role.GM:
-        raise PermissionDenied("Доступ только для мастера этой кампании.")
-    return membership
+    return require_campaign_gm(user, campaign)
 
 
 @login_required

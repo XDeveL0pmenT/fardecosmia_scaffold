@@ -4,6 +4,7 @@
             <span class="campaign-quickbar__name">{{ campaign.name }}</span>
             <a href="{% url 'campaigns:gm_dashboard' campaign.id %}">Панель</a>
             <a href="{% url 'world:world_map' campaign.id %}">Регионы кампании</a>
+            <a href="{% url 'world:campaign_world_entry_list' campaign.id %}">Канон кампании</a>
         </div>
         <form class="quick-time-control" method="post" action="{% url 'campaigns:advance_time' campaign.id %}" data-time-control>
             {% csrf_token %}

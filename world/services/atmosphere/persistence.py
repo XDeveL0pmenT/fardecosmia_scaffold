@@ -43,6 +43,19 @@ class AtmosphericAdvanceResult:
     numerical_diagnostics: dict | None = None
 
 
+@dataclass(frozen=True)
+class CampaignEnvironmentSample:
+    point: object
+    snapshot_world_minutes: int
+    requested_world_minutes: int
+    solver_version: int
+    input_fingerprint: str
+
+    @property
+    def age_minutes(self):
+        return max(0, self.requested_world_minutes - self.snapshot_world_minutes)
+
+
 def grid_from_snapshot(snapshot):
     if snapshot.format_version != ATMOSPHERIC_FORMAT_VERSION:
         raise ValueError("Версия формата атмосферного снимка не поддерживается.")
@@ -588,6 +601,26 @@ def sample_campaign_environment_at(
 ):
     """Read a compatible C4 state at coordinates without requiring Region."""
 
+    result = sample_campaign_environment_state_at(
+        campaign,
+        latitude,
+        longitude,
+        world_minutes=world_minutes,
+        config=config,
+    )
+    return None if result is None else result.point
+
+
+def sample_campaign_environment_state_at(
+    campaign,
+    latitude,
+    longitude,
+    *,
+    world_minutes=None,
+    config=None,
+):
+    """Return a read-only point sample together with snapshot provenance."""
+
     if config is None:
         try:
             config = campaign.atmospheric_config
@@ -597,7 +630,7 @@ def sample_campaign_environment_at(
         return None
     settings = AtmosphericSettings.from_model(config, campaign)
     fingerprint = atmospheric_input_fingerprint(campaign, config)
-    target = campaign.world_minutes if world_minutes is None else world_minutes
+    target = int(campaign.world_minutes if world_minutes is None else world_minutes)
     snapshot = _latest_compatible_snapshot(
         campaign,
         settings,
@@ -607,11 +640,18 @@ def sample_campaign_environment_at(
     if snapshot is None:
         return None
     local_elevation_m = WorldData().elevation_at(latitude, longitude)
-    return sample_environment_at(
+    point = sample_environment_at(
         grid_from_snapshot(snapshot),
         cached_static_world_grid(settings),
         settings,
         latitude,
         longitude,
         local_elevation_m=local_elevation_m,
+    )
+    return CampaignEnvironmentSample(
+        point=point,
+        snapshot_world_minutes=int(snapshot.world_minutes),
+        requested_world_minutes=target,
+        solver_version=int(snapshot.solver_version),
+        input_fingerprint=snapshot.input_fingerprint,
     )

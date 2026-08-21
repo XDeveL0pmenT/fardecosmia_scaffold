@@ -20,6 +20,10 @@ campaign state.
 - Campaign-specific role belongs to `campaigns.CampaignMembership`.
 - A user may be GM in one campaign and player in another.
 - All campaign objects must be access-controlled through campaign membership.
+- Global canon writes require the centralized `world.manage_global_canon`
+  permission (or superuser); campaign GM status does not grant it.
+- Campaign-effective canon must be read through the registered override resolver.
+  Campaign overrides never mutate the global base object.
 
 ## Roll20 integration
 - The group uses Roll20 **D&D 5E Classic / Legacy D&D 5E (2014)**.

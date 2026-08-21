@@ -1,13 +1,17 @@
-from campaigns.models import CampaignMembership, TimeAdvanceReport
+from campaigns.models import TimeAdvanceReport
+from world.services.access import can_manage_global_canon, can_view_global_atlas
 
 
 def campaign_permissions(request):
     if not request.user.is_authenticated:
-        return {"can_view_global_atlas": False, "time_advance_report": None}
+        return {
+            "can_view_global_atlas": False,
+            "can_manage_global_canon": False,
+            "time_advance_report": None,
+        }
     context = {
-        "can_view_global_atlas": request.user.campaign_memberships.filter(
-            role=CampaignMembership.Role.GM,
-        ).exists()
+        "can_view_global_atlas": can_view_global_atlas(request.user),
+        "can_manage_global_canon": can_manage_global_canon(request.user),
     }
     try:
         report_id = int(request.GET.get("advance_report", ""))

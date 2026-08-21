@@ -35,17 +35,20 @@ class WorldMapViewTests(TestCase):
             kwargs={"campaign_id": self.campaign.pk},
         )
 
-    def test_map_renders_canonical_image_and_drawing_ui(self):
+    def test_map_renders_leaflet_atlas_and_drawing_ui(self):
         response = self.client.get(self.map_url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "fardecosmia-world-map.webp")
+        self.assertContains(response, "data-leaflet-map")
+        self.assertContains(response, "vendor/leaflet/1.9.4/dist/leaflet.css")
+        self.assertContains(response, "vendor/leaflet/1.9.4/dist/leaflet.js")
+        self.assertContains(response, "js/atlas/fardecosmia_map.js")
+        self.assertContains(response, 'id="fardecosmia-atlas-config"')
+        self.assertContains(response, '"world_pixel_size_zoom_zero": [512, 256]')
+        self.assertContains(response, '"max_zoom": 10')
         self.assertContains(response, "Новый контур")
-        self.assertContains(response, "Звезда · пик света")
-        self.assertContains(response, "fardecosmia-temperature-map.webp")
         self.assertContains(response, "На весь экран")
         self.assertContains(response, "Средняя температура")
-        self.assertContains(response, "fardecosmia-elevation-map.webp")
         self.assertContains(response, "data-map-tooltip")
 
     def test_map_get_does_not_generate_weather(self):
@@ -96,6 +99,14 @@ class WorldMapViewTests(TestCase):
             name="Существующий регион",
             biome=Region.Biome.TUNDRA,
         )
+        old_weather = WeatherState.objects.create(
+            region=region,
+            world_minutes=-360,
+            temperature=5,
+            humidity=60,
+            condition=WeatherState.Condition.CLEAR,
+            region_weather_revision=0,
+        )
 
         response = self.client.post(
             self.map_url,
@@ -110,6 +121,8 @@ class WorldMapViewTests(TestCase):
         region.refresh_from_db()
         self.assertEqual(region.map_polygon, self.polygon)
         self.assertIsNotNone(region.map_longitude)
+        self.assertEqual(region.weather_geometry_revision, 1)
+        self.assertTrue(WeatherState.objects.filter(pk=old_weather.pk).exists())
 
     def test_gm_can_save_sparse_biome_layer(self):
         land_index = load_land_mask()["values"].index(1)
@@ -174,8 +187,10 @@ class WorldMapViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Общий атлас Фардекосмии")
-        self.assertContains(response, "fardecosmia-temperature-map.webp")
-        self.assertContains(response, "fardecosmia-elevation-map.webp")
+        self.assertContains(response, "data-leaflet-map")
+        self.assertContains(response, '"campaign": null')
+        self.assertContains(response, '"temperature": {"available": true')
+        self.assertContains(response, '"elevation": {"available": true')
 
     def test_global_atlas_is_not_exposed_to_player(self):
         player = get_user_model().objects.create_user(

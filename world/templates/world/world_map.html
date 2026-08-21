@@ -1,13 +1,16 @@
 {% extends "base.html" %}
 {% load static %}
 {% block title %}Регионы — {{ campaign.name }}{% endblock %}
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'vendor/leaflet/1.9.4/dist/leaflet.css' %}">
+{% endblock %}
 {% block content %}
 <div class="page-heading world-map-heading">
     <div class="page-heading__title">
         <a class="back-link" href="{% url 'campaigns:gm_dashboard' campaign.id %}"><span aria-hidden="true">←</span> Мастерская панель</a>
         <p class="eyebrow">Объективное состояние мира · GM</p>
         <h1>Карта регионов кампании</h1>
-        <p class="lead">Регионы и свет рассчитаны для этой кампании. Температура и высота берутся из общего атласа, а биомы наследуют его с возможными локальными заменами GM.</p>
+        <p class="lead">Регионы и свет относятся к этой кампании. Температура и высота берутся из общего атласа, а биомы наследуются с локальными заменами GM.</p>
     </div>
     <div class="map-time panel">
         <span>Игровая минута</span>
@@ -17,77 +20,34 @@
 </div>
 
 <div class="world-map-layout">
-    <section class="panel world-map-panel" data-map-panel>
+    <section
+        class="panel world-map-panel"
+        data-fardecosmia-atlas
+        data-map-panel
+        data-climate-preview-url="{% url 'world:region_climate_preview' campaign.id %}"
+    >
         <div class="world-map-toolbar">
             <div>
-                <p class="panel-kicker">Планетарная проекция</p>
+                <p class="panel-kicker">Leaflet · equirectangular</p>
                 <h2 data-mode-title>Свет сейчас</h2>
             </div>
             <div class="map-view-actions" aria-label="Управление картой">
-                <button type="button" class="map-tool-button" data-zoom-out title="Отдалить">−</button>
-                <button type="button" class="map-tool-button" data-zoom-reset>100%</button>
-                <button type="button" class="map-tool-button" data-zoom-in title="Приблизить">+</button>
-                <button type="button" class="map-tool-button" data-pan-toggle>Рука</button>
+                <button type="button" class="map-tool-button is-active" data-draw-cancel data-atlas-interaction-mode="view">Просмотр</button>
+                <button type="button" class="map-tool-button" data-inspect-toggle data-atlas-interaction-mode="inspect" aria-pressed="false">Инспекция точки</button>
+                <button type="button" class="map-tool-button" data-zoom-reset>Весь мир</button>
+                <span class="atlas-zoom-label" data-zoom-label>z1</span>
                 <button type="button" class="map-tool-button" data-fullscreen>На весь экран</button>
             </div>
         </div>
 
-        <div class="map-mode-switcher" role="tablist" aria-label="Режим карты">
+        <div class="map-mode-switcher" role="tablist" aria-label="Слой карты">
             <button type="button" role="tab" data-map-mode="light">Свет сейчас</button>
             <button type="button" role="tab" data-map-mode="temperature">Средняя температура</button>
             <button type="button" role="tab" data-map-mode="elevation">Высота</button>
             <button type="button" role="tab" data-map-mode="biome">Биомы</button>
         </div>
 
-        <div class="world-map-stage" data-map-stage data-map-mode-active="light">
-            <svg viewBox="0 0 1000 500" role="img" aria-label="Глобальная карта Фардекосмии" data-world-map>
-                <defs>
-                    <filter id="soft-terminator" x="-5%" y="-5%" width="110%" height="110%">
-                        <feGaussianBlur stdDeviation="4"></feGaussianBlur>
-                    </filter>
-                </defs>
-                <image class="map-base-layer" href="{% static 'images/fardecosmia-world-map.webp' %}" x="0" y="0" width="1000" height="500" preserveAspectRatio="none"></image>
-                <image class="map-data-layer map-data-layer--temperature" href="{% static 'images/fardecosmia-temperature-map.webp' %}" x="0" y="0" width="1000" height="500" preserveAspectRatio="none"></image>
-                <image class="map-data-layer map-data-layer--elevation" href="{% static 'images/fardecosmia-elevation-map.webp' %}" x="0" y="0" width="1000" height="500" preserveAspectRatio="none"></image>
-                <image class="map-data-layer map-data-layer--elevation map-data-layer--override" data-grid-image="elevation" x="0" y="0" width="1000" height="500" preserveAspectRatio="none"></image>
-                <image class="map-data-layer map-data-layer--biome" data-grid-image="biome" x="0" y="0" width="1000" height="500" preserveAspectRatio="none"></image>
-
-                <g class="map-light-layer map-light-layer--star" filter="url(#soft-terminator)" aria-hidden="true">
-                    {% for band in light_bands %}<rect x="{{ band.x }}" y="0" width="{{ band.width }}" height="500" fill="#fff0ad" opacity="{{ band.star_opacity }}"></rect>{% endfor %}
-                </g>
-                <g class="map-light-layer map-light-layer--darkness" filter="url(#soft-terminator)" aria-hidden="true">
-                    {% for band in light_bands %}<rect x="{{ band.x }}" y="0" width="{{ band.width }}" height="500" fill="#000106" opacity="{{ band.darkness_opacity }}"></rect>{% endfor %}
-                </g>
-                <g class="map-light-layer map-light-layer--ympha" filter="url(#soft-terminator)" aria-hidden="true">
-                    {% for band in light_bands %}<rect x="{{ band.x }}" y="0" width="{{ band.width }}" height="500" fill="#b51f4d" opacity="{{ band.ympha_opacity }}"></rect>{% endfor %}
-                </g>
-
-                <g class="celestial-marker celestial-marker--star" transform="translate({{ celestial.star_x }} 0)" aria-hidden="true">
-                    <line y1="0" y2="500"></line><circle cy="24" r="7"></circle>
-                    <text x="{{ celestial.star_label_x }}" y="28" text-anchor="{{ celestial.star_text_anchor }}">Звезда · пик света</text>
-                </g>
-                <g class="celestial-marker celestial-marker--ympha" transform="translate({{ celestial.ympha_x }} 0)" aria-hidden="true">
-                    <line y1="0" y2="500"></line><circle cy="50" r="6"></circle>
-                    <text x="{{ celestial.ympha_label_x }}" y="54" text-anchor="{{ celestial.ympha_text_anchor }}">Ympha · пик Лика</text>
-                </g>
-
-                <g class="map-regions">
-                    {% for shape in region_shapes %}
-                        <a href="{% url 'world:region_detail' campaign.id shape.id %}" aria-label="Открыть регион {{ shape.name }}">
-                            <polygon points="{{ shape.points }}" data-region-polygon="{{ shape.id }}">
-                                <title>{{ shape.name }}{% if shape.temperature is not None %}: сейчас {{ shape.temperature|floatformat:1 }}°C{% endif %}</title>
-                            </polygon>
-                        </a>
-                    {% endfor %}
-                </g>
-                <polygon class="map-draft-polygon" points="" data-draft-polygon></polygon>
-                <polyline class="map-draft-line" points="" data-draft-line></polyline>
-                <g data-draft-points></g>
-                <rect class="map-interaction-surface" x="0" y="0" width="1000" height="500" data-interaction-surface></rect>
-            </svg>
-            <div class="map-hover-tooltip" data-map-tooltip hidden></div>
-            <div class="map-draw-status" data-draw-status role="status" tabindex="0" aria-label="Подсказка карты">Колесо мыши меняет масштаб. Включите «Руку», чтобы перетаскивать карту.</div>
-        </div>
+        {% include "world/_atlas_stage.html" with initial_map_mode="light" map_aria_label="Глобальная карта Фардекосмии и регионы кампании" %}
 
         <div class="map-layer-editor" data-layer-editor hidden>
             <form method="post" data-layer-form>
@@ -99,7 +59,7 @@
                 {{ layer_form.layer_type.errors }}
                 {{ layer_form.layer_cells.errors }}
                 <div class="map-layer-editor__controls">
-                    <label data-biome-control>Биом
+                    <label>Биом
                         <select data-biome-brush>
                             {% for biome in biome_palette %}<option value="{{ biome.value }}">{{ biome.label }}</option>{% endfor %}
                         </select>
@@ -114,9 +74,10 @@
             </form>
         </div>
 
-        <div class="map-drawing-actions">
-            <button type="button" class="map-tool-button" data-draw-new>Новый контур региона</button>
-            <button type="button" class="map-tool-button" data-edit-layer hidden>Редактировать слой</button>
+        <div class="map-drawing-actions" aria-label="Редактор карты">
+            <button type="button" class="map-tool-button" data-draw-new data-atlas-interaction-mode="draw">Новый контур региона</button>
+            <button type="button" class="map-tool-button" data-edit-layer hidden>Редактировать биомы</button>
+            <button type="button" class="map-tool-button" data-draw-finish disabled>Завершить контур</button>
             <button type="button" class="map-tool-button" data-draw-undo disabled>Убрать точку</button>
             <button type="button" class="map-tool-button" data-draw-reset disabled>Очистить контур</button>
         </div>
@@ -127,17 +88,17 @@
             <span data-legend-mode="light"><i class="legend-swatch legend-swatch--dark"></i>Чёрная ночь</span>
             <span data-legend-mode="temperature" hidden><i class="legend-swatch legend-swatch--temperature"></i>−97.2°C … +74.6°C по карте GM</span>
             <span data-legend-mode="elevation" hidden><i class="legend-swatch legend-swatch--elevation"></i>−29 м … 6365 м по карте GM</span>
-            <span data-legend-mode="biome" hidden><i class="legend-swatch legend-swatch--biome"></i>Общий атлас + локальные замены этой кампании</span>
-            <span><i class="legend-swatch legend-swatch--region"></i>Белый контур — регион</span>
+            <span data-legend-mode="biome" hidden><i class="legend-swatch legend-swatch--biome"></i>Общий атлас + локальные замены кампании</span>
+            <span><i class="legend-swatch legend-swatch--region"></i>Векторный контур региона</span>
         </div>
-        <p class="map-model-note" data-mode-note>Тень Звезды и красный свет Ympha рассчитаны для текущей минуты. Направления и начальные меридианы настраиваются GM.</p>
+        <p class="map-model-note" data-mode-note>Тень Звезды и красный свет Ympha рассчитаны для текущей минуты серверной моделью.</p>
     </section>
 
     <aside class="map-sidebar">
         <section class="panel map-sidebar-card">
             <p class="panel-kicker">Новый регион</p>
             <h2>Нарисовать и создать</h2>
-            <p class="map-help">Поставьте минимум три точки. Температура и высота считываются с общих карт; биом — с общего слоя GM, если он задан в центре контура.</p>
+            <p class="map-help">Нажмите «Новый контур региона», поставьте минимум три вершины и замкните контур. Сервер заново рассчитает центр и данные World Data при сохранении.</p>
             <form method="post" class="stacked-form map-region-form" data-create-region-form>
                 {% csrf_token %}
                 <input type="hidden" name="action" value="create">
@@ -154,54 +115,26 @@
                 <small class="field-help">{{ create_form.use_manual_climate_overrides.help_text }}</small>
                 {{ create_form.use_manual_climate_overrides.errors }}
                 <div class="map-world-data-fields" data-world-data-fields>
-                    <p>
-                        {{ create_form.biome.label_tag }}{{ create_form.biome }}
-                        <small class="field-help">{{ create_form.biome.help_text }}</small>
-                        {{ create_form.biome.errors }}
-                    </p>
-                    <p>
-                        {{ create_form.base_temperature.label_tag }}{{ create_form.base_temperature }}
-                        <small class="field-help">{{ create_form.base_temperature.help_text }}</small>
-                        {{ create_form.base_temperature.errors }}
-                    </p>
-                    <p>
-                        {{ create_form.humidity.label_tag }}{{ create_form.humidity }}
-                        <small class="field-help">{{ create_form.humidity.help_text }}</small>
-                        {{ create_form.humidity.errors }}
-                    </p>
-                    <p>
-                        {{ create_form.elevation.label_tag }}{{ create_form.elevation }}
-                        <small class="field-help">{{ create_form.elevation.help_text }}</small>
-                        {{ create_form.elevation.errors }}
-                    </p>
+                    <p>{{ create_form.biome.label_tag }}{{ create_form.biome }}<small class="field-help">{{ create_form.biome.help_text }}</small>{{ create_form.biome.errors }}</p>
+                    <p>{{ create_form.base_temperature.label_tag }}{{ create_form.base_temperature }}<small class="field-help">{{ create_form.base_temperature.help_text }}</small>{{ create_form.base_temperature.errors }}</p>
+                    <p>{{ create_form.humidity.label_tag }}{{ create_form.humidity }}<small class="field-help">{{ create_form.humidity.help_text }}</small>{{ create_form.humidity.errors }}</p>
+                    <p>{{ create_form.elevation.label_tag }}{{ create_form.elevation }}<small class="field-help">{{ create_form.elevation.help_text }}</small>{{ create_form.elevation.errors }}</p>
                 </div>
                 <details class="map-legacy-settings" data-manual-climate-settings>
                     <summary>Дополнительные / legacy-настройки</summary>
-                    <p class="map-physics-note">AtmosphericGrid v5 не использует эти три значения. Они сохранены только для legacy weather-v2.</p>
-                    <p>
-                        {{ create_form.seasonal_amplitude.label_tag }}{{ create_form.seasonal_amplitude }}
-                        <small class="field-help">{{ create_form.seasonal_amplitude.help_text }}</small>
-                        {{ create_form.seasonal_amplitude.errors }}
-                    </p>
-                    <p>
-                        {{ create_form.weather_volatility.label_tag }}{{ create_form.weather_volatility }}
-                        <small class="field-help">{{ create_form.weather_volatility.help_text }}</small>
-                        {{ create_form.weather_volatility.errors }}
-                    </p>
-                    <p>
-                        {{ create_form.precipitation_bias.label_tag }}{{ create_form.precipitation_bias }}
-                        <small class="field-help">{{ create_form.precipitation_bias.help_text }}</small>
-                        {{ create_form.precipitation_bias.errors }}
-                    </p>
+                    <p class="map-physics-note">AtmosphericGrid не использует эти значения; они сохранены только для legacy weather-v2.</p>
+                    <p>{{ create_form.seasonal_amplitude.label_tag }}{{ create_form.seasonal_amplitude }}<small class="field-help">{{ create_form.seasonal_amplitude.help_text }}</small>{{ create_form.seasonal_amplitude.errors }}</p>
+                    <p>{{ create_form.weather_volatility.label_tag }}{{ create_form.weather_volatility }}<small class="field-help">{{ create_form.weather_volatility.help_text }}</small>{{ create_form.weather_volatility.errors }}</p>
+                    <p>{{ create_form.precipitation_bias.label_tag }}{{ create_form.precipitation_bias }}<small class="field-help">{{ create_form.precipitation_bias.help_text }}</small>{{ create_form.precipitation_bias.errors }}</p>
                 </details>
-                <div class="map-auto-fill" data-auto-fill-status>Нарисуйте контур, чтобы получить доступные значения карты.</div>
+                <div class="map-auto-fill" data-auto-fill-status>Нарисуйте контур, чтобы получить значения карты.</div>
                 <button type="submit" class="button button--wide">Создать регион</button>
             </form>
         </section>
 
         <section class="panel map-sidebar-card">
             <p class="panel-kicker">Существующие регионы</p>
-            <h2>Размещение</h2>
+            <h2>Контуры</h2>
             <form method="post" data-placement-form>
                 {% csrf_token %}
                 <input type="hidden" name="action" value="place">
@@ -213,9 +146,9 @@
                 <div class="region-placement-list">
                     {% for region in regions %}
                         <div class="region-placement-row">
-                            <button type="button" class="region-placement-item" data-place-region="{{ region.id }}">
+                            <button type="button" class="region-placement-item" data-place-region="{{ region.id }}" data-region-name="{{ region.name }}">
                                 <span>{{ region.name }}</span>
-                                <small>{% if region.map_polygon %}перерисовать{% else %}нанести на карту{% endif %}</small>
+                                <small>{% if region.map_polygon %}изменить контур{% else %}нанести на карту{% endif %}</small>
                             </button>
                             <a class="region-placement-open" href="{% url 'world:region_detail' campaign.id region.id %}" aria-label="Открыть регион {{ region.name }}">Открыть</a>
                         </div>
@@ -227,490 +160,9 @@
     </aside>
 </div>
 
-{{ region_shapes|json_script:"region-map-data" }}
-{{ biome_cells|json_script:"biome-layer-data" }}
-{{ global_biome_cells|json_script:"global-biome-layer-data" }}
-{{ campaign_biome_cells|json_script:"campaign-biome-layer-data" }}
-{{ elevation_cells|json_script:"elevation-layer-data" }}
-{{ biome_palette|json_script:"biome-palette-data" }}
-<script>
-(() => {
-    const svg = document.querySelector("[data-world-map]");
-    if (!svg) return;
-    const panel = document.querySelector("[data-map-panel]");
-    const stage = document.querySelector("[data-map-stage]");
-    const surface = svg.querySelector("[data-interaction-surface]");
-    const polygon = svg.querySelector("[data-draft-polygon]");
-    const line = svg.querySelector("[data-draft-line]");
-    const pointLayer = svg.querySelector("[data-draft-points]");
-    const status = document.querySelector("[data-draw-status]");
-    const undo = document.querySelector("[data-draw-undo]");
-    const reset = document.querySelector("[data-draw-reset]");
-    const savePlacement = document.querySelector("[data-save-placement]");
-    const placementRegion = document.querySelector("[name='placement-region_id']");
-    const placementPolygon = document.querySelector("[name='placement-map_polygon']");
-    const createPolygon = document.querySelector("[name='create-map_polygon']");
-    const createTemperature = document.querySelector("[name='create-base_temperature']");
-    const createHumidity = document.querySelector("[name='create-humidity']");
-    const createElevation = document.querySelector("[name='create-elevation']");
-    const createBiome = document.querySelector("[name='create-biome']");
-    const manualClimateToggle = document.querySelector("[name='create-use_manual_climate_overrides']");
-    const manualClimateSettings = document.querySelector("[data-manual-climate-settings]");
-    const autoFillStatus = document.querySelector("[data-auto-fill-status]");
-    const editLayerButton = document.querySelector("[data-edit-layer]");
-    const layerEditor = document.querySelector("[data-layer-editor]");
-    const layerForm = document.querySelector("[data-layer-form]");
-    const layerTypeField = document.querySelector("[name='layer-layer_type']");
-    const layerCellsField = document.querySelector("[name='layer-layer_cells']");
-    const biomeControl = document.querySelector("[data-biome-control]");
-    const biomeBrush = document.querySelector("[data-biome-brush]");
-    const brushSize = document.querySelector("[data-brush-size]");
-    const tooltip = document.querySelector("[data-map-tooltip]");
-    const shapes = JSON.parse(document.getElementById("region-map-data").textContent);
-    const biomePalette = JSON.parse(document.getElementById("biome-palette-data").textContent);
-    const globalBiomeLayer = JSON.parse(document.getElementById("global-biome-layer-data").textContent);
-    const originalBiomeOverrides = JSON.parse(document.getElementById("campaign-biome-layer-data").textContent);
-    let biomeOverrides = {...originalBiomeOverrides};
-    const originalLayers = {
-        biome: JSON.parse(document.getElementById("biome-layer-data").textContent),
-        elevation: JSON.parse(document.getElementById("elevation-layer-data").textContent),
-    };
-    const layers = {
-        biome: {...originalLayers.biome},
-        elevation: {...originalLayers.elevation},
-    };
-    const gridWidth = {{ map_grid_width }};
-    const gridHeight = {{ map_grid_height }};
-    const modeTitles = {
-        light: "Свет сейчас",
-        temperature: "Средняя температура",
-        elevation: "Высота",
-        biome: "Биомы",
-    };
-    const modeNotes = {
-        light: "Тень Звезды и красный свет Ympha рассчитаны для текущей минуты. В Чёрную глубокую ночь карта действительно уходит во тьму.",
-        temperature: "Канонический растровый слой предоставлен GM. Числа для регионов считываются из его собственной шкалы −97.2…+74.6°C.",
-        elevation: "Высота считывается с предоставленной GM карты. Нарисованные поправки отображаются поверх неё.",
-        biome: "Базовые биомы наследуются из общего атласа. Кисть создаёт замену только для этой кампании, а ластик возвращает наследуемое значение.",
-    };
-    let points = [];
-    let drawing = false;
-    let placementMode = false;
-    let painting = false;
-    let paintDown = false;
-    let erasing = false;
-    let panning = false;
-    let panDown = false;
-    let lastPanPoint = null;
-    let currentMode = "light";
-    let temperatureData = null;
-    let elevationData = null;
-    let landMask = null;
-    let viewBox = {x: 0, y: 0, width: 1000, height: 500};
-    let climatePreviewRequest = 0;
-
-    const applyViewBox = () => {
-        svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
-        document.querySelector("[data-zoom-reset]").textContent = `${Math.round(1000 / viewBox.width * 100)}%`;
-    };
-    const zoom = (factor, centerX = viewBox.x + viewBox.width / 2, centerY = viewBox.y + viewBox.height / 2) => {
-        const width = Math.max(125, Math.min(1000, viewBox.width * factor));
-        const height = width / 2;
-        const ratioX = (centerX - viewBox.x) / viewBox.width;
-        const ratioY = (centerY - viewBox.y) / viewBox.height;
-        viewBox.x = Math.max(0, Math.min(1000 - width, centerX - width * ratioX));
-        viewBox.y = Math.max(0, Math.min(500 - height, centerY - height * ratioY));
-        viewBox.width = width;
-        viewBox.height = height;
-        applyViewBox();
-    };
-    const pointerInMap = event => {
-        const matrix = svg.getScreenCTM();
-        if (!matrix) return null;
-        return new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
-    };
-    const dataCellAt = (point, payload) => {
-        const x = Math.max(0, Math.min(payload.width - 1, Math.floor(point.x / 1000 * payload.width)));
-        const y = Math.max(0, Math.min(payload.height - 1, Math.floor(point.y / 500 * payload.height)));
-        return y * payload.width + x;
-    };
-    const coordinateText = point => {
-        const longitude = point.x / 1000 * 360 - 180;
-        const latitude = 90 - point.y / 500 * 180;
-        return `${Math.abs(latitude).toFixed(1)}°${latitude < 0 ? "S" : "N"} · ${Math.abs(longitude).toFixed(1)}°${longitude < 0 ? "W" : "E"}`;
-    };
-    const biomeLabels = Object.fromEntries(biomePalette.map(item => [item.value, item.label]));
-    const updateTooltip = event => {
-        const point = pointerInMap(event);
-        if (!point || point.x < 0 || point.x > 1000 || point.y < 0 || point.y > 500 || panDown) {
-            tooltip.hidden = true;
-            return;
-        }
-        let value = null;
-        if (currentMode === "temperature") {
-            const sample = temperatureData?.values[dataCellAt(point, temperatureData)];
-            value = sample === undefined ? "Температура загружается…" : `${Number(sample).toFixed(1)}°C`;
-        } else if (currentMode === "elevation") {
-            const authored = layers.elevation[String(cellAt({x: point.x / 1000, y: point.y / 500}))];
-            const sample = authored ?? elevationData?.values[dataCellAt(point, elevationData)];
-            const elevationIndex = elevationData ? dataCellAt(point, elevationData) : null;
-            value = sample === undefined
-                ? "Высота загружается…"
-                : (sample === null
-                    ? (landMask?.[elevationIndex] ? "Высота не читается: участок закрыт легендой источника" : "Океан · высота суши не применяется")
-                    : `${sample} м`);
-        } else if (currentMode === "biome") {
-            const key = String(cellAt({x: point.x / 1000, y: point.y / 500}));
-            const biome = layers.biome[key];
-            const source = Object.hasOwn(biomeOverrides, key) ? " · локальная замена" : " · общий атлас";
-            value = biome ? `${biomeLabels[biome] || biome}${source}` : "Биом не задан";
-        }
-        if (!value) {
-            tooltip.hidden = true;
-            return;
-        }
-        tooltip.innerHTML = `<strong>${value}</strong><span>${coordinateText(point)}</span>`;
-        const bounds = stage.getBoundingClientRect();
-        tooltip.style.left = `${Math.min(bounds.width - 225, Math.max(8, event.clientX - bounds.left + 14))}px`;
-        tooltip.style.top = `${Math.min(bounds.height - 64, Math.max(8, event.clientY - bounds.top + 14))}px`;
-        tooltip.hidden = false;
-    };
-
-    const colorElevation = (value, minimum, maximum) => {
-        const ratio = maximum === minimum ? 0.5 : (value - minimum) / (maximum - minimum);
-        const hue = 215 - Math.max(0, Math.min(1, ratio)) * 185;
-        return `hsla(${hue}, 78%, 56%, .78)`;
-    };
-    const renderGridLayer = layerType => {
-        const canvas = document.createElement("canvas");
-        canvas.width = gridWidth;
-        canvas.height = gridHeight;
-        const context = canvas.getContext("2d");
-        const values = Object.values(layers[layerType]).map(Number);
-        const minimum = values.length ? Math.min(...values) : 0;
-        const maximum = values.length ? Math.max(...values) : 0;
-        const colors = Object.fromEntries(biomePalette.map(item => [item.value, item.color]));
-        Object.entries(layers[layerType]).forEach(([rawIndex, value]) => {
-            const index = Number(rawIndex);
-            const x = index % gridWidth;
-            const y = Math.floor(index / gridWidth);
-            context.fillStyle = layerType === "biome" ? colors[value] : colorElevation(Number(value), minimum, maximum);
-            context.fillRect(x, y, 1, 1);
-        });
-        svg.querySelector(`[data-grid-image='${layerType}']`).setAttribute("href", canvas.toDataURL("image/png"));
-    };
-    renderGridLayer("biome");
-    renderGridLayer("elevation");
-
-    const setMode = mode => {
-        if (!modeTitles[mode]) mode = "light";
-        if (painting && mode !== currentMode) stopPainting(true);
-        currentMode = mode;
-        stage.dataset.mapModeActive = mode;
-        document.querySelector("[data-mode-title]").textContent = modeTitles[mode];
-        document.querySelector("[data-mode-note]").textContent = modeNotes[mode];
-        document.querySelectorAll("[data-map-mode]").forEach(button => {
-            const active = button.dataset.mapMode === mode;
-            button.classList.toggle("is-active", active);
-            button.setAttribute("aria-selected", String(active));
-        });
-        document.querySelectorAll("[data-legend-mode]").forEach(item => {
-            item.hidden = item.dataset.legendMode !== mode;
-        });
-        editLayerButton.hidden = mode !== "biome";
-    };
-    document.querySelectorAll("[data-map-mode]").forEach(button => {
-        button.addEventListener("click", () => setMode(button.dataset.mapMode));
-    });
-
-    const normalizedJson = () => JSON.stringify(points.map(([x, y]) => [x / 1000, y / 500]));
-    const polygonCenter = () => {
-        const angles = points.map(([x]) => x / 1000 * Math.PI * 2);
-        const meanSin = angles.reduce((sum, value) => sum + Math.sin(value), 0) / angles.length;
-        const meanCos = angles.reduce((sum, value) => sum + Math.cos(value), 0) / angles.length;
-        let centerX = Math.atan2(meanSin, meanCos) / (Math.PI * 2);
-        if (centerX < 0) centerX += 1;
-        const centerY = points.reduce((sum, point) => sum + point[1] / 500, 0) / points.length;
-        return {x: centerX, y: centerY};
-    };
-    const cellAt = ({x, y}) => {
-        const cellX = Math.max(0, Math.min(gridWidth - 1, Math.floor(x * gridWidth)));
-        const cellY = Math.max(0, Math.min(gridHeight - 1, Math.floor(y * gridHeight)));
-        return cellY * gridWidth + cellX;
-    };
-    const syncManualClimateMode = () => {
-        const manual = Boolean(manualClimateToggle?.checked);
-        if (createBiome) createBiome.disabled = !manual;
-        [createTemperature, createHumidity, createElevation].forEach(field => {
-            if (field) field.readOnly = !manual;
-        });
-        if (manualClimateSettings) {
-            manualClimateSettings.hidden = !manual;
-            manualClimateSettings.querySelectorAll("input, select").forEach(field => {
-                field.disabled = !manual;
-            });
-        }
-        document.querySelector("[data-world-data-fields]")?.classList.toggle("is-manual", manual);
-    };
-    const applyMapSuggestions = async () => {
-        if (placementMode || points.length < 3) return;
-        const requestId = ++climatePreviewRequest;
-        autoFillStatus.textContent = "Читаю климатические данные World Data…";
-        const query = new URLSearchParams({polygon: normalizedJson()});
-        try {
-            const response = await fetch(`{% url 'world:region_climate_preview' campaign.id %}?${query}`);
-            const data = await response.json();
-            if (requestId !== climatePreviewRequest) return;
-            if (!response.ok) throw new Error(data.error || "preview failed");
-            const manual = Boolean(manualClimateToggle?.checked);
-            if (!manual) {
-                if (createTemperature) createTemperature.value = data.base_temperature;
-                if (createHumidity) createHumidity.value = data.humidity;
-                if (createElevation) createElevation.value = data.elevation ?? "";
-                if (createBiome) createBiome.value = data.biome || "";
-            }
-            const biomeSource = data.biome_source === "campaign_override"
-                ? "локальная замена кампании"
-                : (data.biome_source === "global_atlas" ? "общий атлас" : "не задан");
-            const elevation = data.elevation === null ? "неизвестна" : `${data.elevation} м`;
-            const prefix = manual ? "World Data для сравнения" : "Автоматически заполнено";
-            autoFillStatus.textContent = `${prefix}: ${data.surface_label}; биом — ${data.biome_label} (${biomeSource}); температура ${data.base_temperature}°C; влажность ${data.humidity}%; высота ${elevation}.`;
-        } catch (error) {
-            if (requestId === climatePreviewRequest) {
-                autoFillStatus.textContent = "Не удалось получить климатические данные от сервера.";
-            }
-        }
-    };
-    manualClimateToggle?.addEventListener("change", () => {
-        syncManualClimateMode();
-        applyMapSuggestions();
-    });
-    syncManualClimateMode();
-    Promise.all([
-        fetch("{% static 'data/fardecosmia-average-temperature-grid.json' %}").then(response => response.ok ? response.json() : Promise.reject()),
-        fetch("{% static 'data/fardecosmia-elevation-grid.json' %}").then(response => response.ok ? response.json() : Promise.reject()),
-        fetch("{% static 'data/fardecosmia-land-mask.json' %}").then(response => response.ok ? response.json() : Promise.reject()),
-    ]).then(([temperature, elevation, mask]) => {
-        temperatureData = temperature;
-        elevationData = elevation;
-        landMask = mask.values;
-        Object.keys(layers.biome).forEach(key => {
-            if (!landMask[Number(key)]) delete layers.biome[key];
-        });
-        Object.keys(originalLayers.biome).forEach(key => {
-            if (!landMask[Number(key)]) delete originalLayers.biome[key];
-        });
-        Object.keys(globalBiomeLayer).forEach(key => {
-            if (!landMask[Number(key)]) delete globalBiomeLayer[key];
-        });
-        Object.keys(biomeOverrides).forEach(key => {
-            if (!landMask[Number(key)]) delete biomeOverrides[key];
-        });
-        renderGridLayer("biome");
-        applyMapSuggestions();
-    }).catch(() => { autoFillStatus.textContent = "Не удалось загрузить один из общих слоёв карты."; });
-
-    const syncFields = () => {
-        const value = normalizedJson();
-        if (createPolygon) createPolygon.value = value;
-        if (placementPolygon) placementPolygon.value = value;
-        if (savePlacement) savePlacement.disabled = !(placementMode && points.length >= 3);
-    };
-    const renderPolygon = () => {
-        const value = points.map(point => point.join(",")).join(" ");
-        line.setAttribute("points", value);
-        polygon.setAttribute("points", points.length >= 3 ? value : "");
-        pointLayer.replaceChildren(...points.map(([x, y]) => {
-            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-            circle.setAttribute("cx", x);
-            circle.setAttribute("cy", y);
-            circle.setAttribute("r", "4");
-            circle.setAttribute("class", "map-draft-point");
-            return circle;
-        }));
-        undo.disabled = points.length === 0;
-        reset.disabled = points.length === 0;
-        if (drawing) status.textContent = `Точек: ${points.length}. ${points.length < 3 ? "Нужно минимум три." : "Контур готов; параметры считаны из центра."}`;
-        syncFields();
-        applyMapSuggestions();
-    };
-    const startDrawing = (initial = [], isPlacement = false) => {
-        stopPainting(true);
-        panning = false;
-        points = initial.map(([x, y]) => [x * 1000, y * 500]);
-        drawing = true;
-        placementMode = isPlacement;
-        svg.classList.add("is-drawing");
-        svg.classList.remove("is-panning");
-        renderPolygon();
-    };
-    document.querySelector("[data-draw-new]").addEventListener("click", () => {
-        if (placementRegion) placementRegion.value = "";
-        startDrawing([], false);
-    });
-    document.querySelectorAll("[data-place-region]").forEach(button => {
-        button.addEventListener("click", () => {
-            const id = Number(button.dataset.placeRegion);
-            const shape = shapes.find(item => item.id === id);
-            placementRegion.value = id;
-            startDrawing(shape ? shape.polygon : [], true);
-            status.textContent = `Рисуется новый контур: ${button.querySelector("span").textContent}.`;
-        });
-    });
-    undo.addEventListener("click", () => { points.pop(); renderPolygon(); });
-    reset.addEventListener("click", () => { points = []; renderPolygon(); });
-
-    const paintAt = event => {
-        const point = pointerInMap(event);
-        if (!point) return;
-        const cellX = Math.floor(point.x / 1000 * gridWidth);
-        const cellY = Math.floor(point.y / 500 * gridHeight);
-        const radius = Number(brushSize.value) - 1;
-        for (let y = cellY - radius; y <= cellY + radius; y += 1) {
-            for (let x = cellX - radius; x <= cellX + radius; x += 1) {
-                if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight) continue;
-                if ((x - cellX) ** 2 + (y - cellY) ** 2 > radius ** 2 + 0.5) continue;
-                const key = String(y * gridWidth + x);
-                if (currentMode === "biome" && !landMask?.[Number(key)]) continue;
-                if (currentMode === "biome") {
-                    if (erasing) delete biomeOverrides[key];
-                    else biomeOverrides[key] = biomeBrush.value;
-                    layers.biome = {...globalBiomeLayer, ...biomeOverrides};
-                }
-            }
-        }
-        renderGridLayer(currentMode);
-    };
-    function stopPainting(restore = false) {
-        if (restore && painting) {
-            if (currentMode === "biome") {
-                biomeOverrides = {...originalBiomeOverrides};
-                layers.biome = {...globalBiomeLayer, ...biomeOverrides};
-            } else {
-                layers[currentMode] = {...originalLayers[currentMode]};
-            }
-            renderGridLayer(currentMode);
-        }
-        painting = false;
-        paintDown = false;
-        svg.classList.remove("is-painting");
-        layerEditor.hidden = true;
-        erasing = false;
-        document.querySelector("[data-eraser]").classList.remove("is-active");
-    }
-    editLayerButton.addEventListener("click", () => {
-        drawing = false;
-        panning = false;
-        svg.classList.remove("is-drawing", "is-panning");
-        painting = true;
-        svg.classList.add("is-painting");
-        layerEditor.hidden = false;
-        biomeControl.hidden = currentMode !== "biome";
-        layerTypeField.value = currentMode;
-        status.textContent = `Редактирование слоя «${modeTitles[currentMode]}»: ведите кистью по карте.`;
-    });
-    document.querySelector("[data-eraser]").addEventListener("click", event => {
-        erasing = !erasing;
-        event.currentTarget.classList.toggle("is-active", erasing);
-    });
-    document.querySelector("[data-layer-cancel]").addEventListener("click", () => {
-        stopPainting(true);
-        status.textContent = "Изменения слоя отменены.";
-    });
-    layerForm.addEventListener("submit", () => {
-        layerTypeField.value = currentMode;
-        layerCellsField.value = JSON.stringify(currentMode === "biome" ? biomeOverrides : layers[currentMode]);
-    });
-
-    surface.addEventListener("pointerdown", event => {
-        if (drawing) {
-            const point = pointerInMap(event);
-            if (!point) return;
-            points.push([
-                Math.max(0, Math.min(1000, Number(point.x.toFixed(3)))),
-                Math.max(0, Math.min(500, Number(point.y.toFixed(3)))),
-            ]);
-            renderPolygon();
-        } else if (painting) {
-            paintDown = true;
-            surface.setPointerCapture(event.pointerId);
-            paintAt(event);
-        } else if (panning) {
-            panDown = true;
-            lastPanPoint = {x: event.clientX, y: event.clientY};
-            surface.setPointerCapture(event.pointerId);
-        }
-    });
-    surface.addEventListener("pointermove", event => {
-        updateTooltip(event);
-        if (painting && paintDown) paintAt(event);
-        if (panning && panDown) {
-            const box = svg.getBoundingClientRect();
-            const dx = (event.clientX - lastPanPoint.x) * viewBox.width / box.width;
-            const dy = (event.clientY - lastPanPoint.y) * viewBox.height / box.height;
-            viewBox.x = Math.max(0, Math.min(1000 - viewBox.width, viewBox.x - dx));
-            viewBox.y = Math.max(0, Math.min(500 - viewBox.height, viewBox.y - dy));
-            lastPanPoint = {x: event.clientX, y: event.clientY};
-            applyViewBox();
-        }
-    });
-    const releasePointer = () => { paintDown = false; panDown = false; };
-    surface.addEventListener("pointerup", releasePointer);
-    surface.addEventListener("pointercancel", releasePointer);
-    svg.addEventListener("pointermove", updateTooltip);
-    svg.addEventListener("pointerleave", () => { tooltip.hidden = true; });
-
-    document.querySelector("[data-pan-toggle]").addEventListener("click", event => {
-        if (drawing || painting) return;
-        panning = !panning;
-        svg.classList.toggle("is-panning", panning);
-        event.currentTarget.classList.toggle("is-active", panning);
-        status.textContent = panning ? "Режим руки: тяните карту указателем." : "Режим руки выключен.";
-    });
-    document.querySelector("[data-zoom-in]").addEventListener("click", () => zoom(0.72));
-    document.querySelector("[data-zoom-out]").addEventListener("click", () => zoom(1.38));
-    document.querySelector("[data-zoom-reset]").addEventListener("click", () => {
-        viewBox = {x: 0, y: 0, width: 1000, height: 500};
-        applyViewBox();
-    });
-    stage.addEventListener("wheel", event => {
-        event.preventDefault();
-        const point = pointerInMap(event);
-        if (point) zoom(event.deltaY < 0 ? 0.86 : 1.16, point.x, point.y);
-    }, {passive: false});
-    const fullscreenButton = document.querySelector("[data-fullscreen]");
-    fullscreenButton.addEventListener("click", async () => {
-        try {
-            if (!document.fullscreenElement) await panel.requestFullscreen();
-            else await document.exitFullscreen();
-        } catch (_) {
-            fullscreenButton.textContent = "На весь экран";
-        }
-    });
-    document.addEventListener("fullscreenchange", () => {
-        fullscreenButton.textContent = document.fullscreenElement ? "Выйти из полного экрана" : "На весь экран";
-    });
-
-    [document.querySelector("[data-create-region-form]"), document.querySelector("[data-placement-form]")].forEach(form => {
-        if (!form) return;
-        form.addEventListener("submit", event => {
-            if (points.length < 3) {
-                event.preventDefault();
-                drawing = true;
-                svg.classList.add("is-drawing");
-                status.textContent = "Нужно поставить минимум три точки контура.";
-                status.scrollIntoView({behavior: "smooth", block: "center"});
-            }
-        });
-    });
-    try {
-        const initial = JSON.parse(createPolygon?.value || "[]");
-        if (initial.length) startDrawing(initial, false);
-    } catch (_) {}
-    const requestedMode = new URLSearchParams(window.location.search).get("mode");
-    setMode(requestedMode || "light");
-    renderPolygon();
-    applyViewBox();
-})();
-</script>
+{{ atlas_config|json_script:"fardecosmia-atlas-config" }}
+{% endblock %}
+{% block extra_scripts %}
+    <script src="{% static 'vendor/leaflet/1.9.4/dist/leaflet.js' %}"></script>
+    <script type="module" src="{% static 'js/atlas/fardecosmia_map.js' %}?v=m1-leaflet-atlas"></script>
 {% endblock %}

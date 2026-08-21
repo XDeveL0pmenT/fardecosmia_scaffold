@@ -4,13 +4,13 @@ from django.db import transaction
 
 from campaigns.models import (
     Campaign,
-    CampaignMembership,
     TimeAdvanceReport,
 )
 from world.models import AtmosphericConfig, WorldEvent
 from world.services.atmosphere.persistence import advance_atmosphere_for_period
 from world.services.time_reports import build_time_advance_summary
 from world.services.weather import update_weather_for_period
+from world.services.access import can_manage_campaign
 
 
 @dataclass
@@ -77,10 +77,7 @@ def advance_world(
         raise ValueError("Мир можно продвигать только на положительное число минут.")
 
     campaign = Campaign.objects.select_for_update().get(pk=campaign_id)
-    if advanced_by is not None and not campaign.memberships.filter(
-        user=advanced_by,
-        role=CampaignMembership.Role.GM,
-    ).exists():
+    if advanced_by is not None and not can_manage_campaign(advanced_by, campaign):
         raise ValueError("Отчёт о продвижении времени может создать только GM кампании.")
     old_time = campaign.world_minutes
     new_time = old_time + minutes

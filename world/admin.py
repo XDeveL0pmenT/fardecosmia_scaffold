@@ -3,14 +3,17 @@ from django.contrib import admin
 from .models import (
     AtmosphericConfig,
     AtmosphericSnapshot,
+    CampaignEntityOverride,
     CampaignWorldMapOverride,
     GlobalWorldMapLayer,
     Region,
     RegionAreaWeatherState,
     WeatherState,
+    WorldEntry,
     WorldEvent,
     WorldMapLayer,
 )
+from world.services.access import can_manage_global_canon
 
 
 @admin.register(Region)
@@ -79,11 +82,126 @@ class GlobalWorldMapLayerAdmin(admin.ModelAdmin):
     list_display = ("slug", "grid_width", "grid_height", "updated_at")
     readonly_fields = ("grid_width", "grid_height", "updated_at")
 
+    def has_module_permission(self, request):
+        return can_manage_global_canon(request.user)
+
+    def has_view_permission(self, request, obj=None):
+        return can_manage_global_canon(request.user)
+
+    def has_add_permission(self, request):
+        return can_manage_global_canon(request.user)
+
+    def has_change_permission(self, request, obj=None):
+        return can_manage_global_canon(request.user)
+
+    def has_delete_permission(self, request, obj=None):
+        return can_manage_global_canon(request.user)
+
 
 @admin.register(CampaignWorldMapOverride)
 class CampaignWorldMapOverrideAdmin(admin.ModelAdmin):
     list_display = ("campaign", "grid_width", "grid_height", "updated_at")
     readonly_fields = ("grid_width", "grid_height", "updated_at")
+
+    def has_module_permission(self, request):
+        return request.user.is_superuser
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_add_permission(self, request):
+        return request.user.is_superuser
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+
+@admin.register(WorldEntry)
+class WorldEntryAdmin(admin.ModelAdmin):
+    list_display = ("title", "kind", "slug", "revision", "updated_at")
+    search_fields = ("title", "kind", "slug", "summary", "body")
+    fields = ("kind", "slug", "title", "summary", "body", "revision", "created_by", "updated_by", "created_at", "updated_at")
+    readonly_fields = ("revision", "created_by", "updated_by", "created_at", "updated_at")
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if request.user.is_superuser:
+            return queryset.filter(scope=WorldEntry.Scope.GLOBAL)
+        if can_manage_global_canon(request.user):
+            return queryset.filter(scope=WorldEntry.Scope.GLOBAL)
+        return queryset.none()
+
+    def has_module_permission(self, request):
+        return can_manage_global_canon(request.user)
+
+    def has_view_permission(self, request, obj=None):
+        return can_manage_global_canon(request.user) and (
+            obj is None or obj.scope == WorldEntry.Scope.GLOBAL
+        )
+
+    def has_add_permission(self, request):
+        return can_manage_global_canon(request.user)
+
+    def has_change_permission(self, request, obj=None):
+        return can_manage_global_canon(request.user) and (
+            obj is None or obj.scope == WorldEntry.Scope.GLOBAL
+        )
+
+    def has_delete_permission(self, request, obj=None):
+        return can_manage_global_canon(request.user) and (
+            obj is None or obj.scope == WorldEntry.Scope.GLOBAL
+        )
+
+    def save_model(self, request, obj, form, change):
+        obj.scope = WorldEntry.Scope.GLOBAL
+        obj.campaign = None
+        if change and form.changed_data:
+            obj.revision += 1
+        if obj.pk:
+            obj.updated_by = request.user
+        else:
+            obj.created_by = request.user
+            obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+
+    def delete_model(self, request, obj):
+        from world.services.canon import delete_global_world_entry
+
+        delete_global_world_entry(actor=request.user, entry=obj)
+
+    def delete_queryset(self, request, queryset):
+        from world.services.canon import delete_global_world_entry
+
+        for entry in queryset:
+            delete_global_world_entry(actor=request.user, entry=entry)
+
+
+@admin.register(CampaignEntityOverride)
+class CampaignEntityOverrideAdmin(admin.ModelAdmin):
+    list_display = ("campaign", "content_type", "object_id", "is_suppressed", "revision")
+    readonly_fields = (
+        "campaign", "content_type", "object_id", "patch", "is_suppressed",
+        "created_by", "updated_by", "created_at", "updated_at", "revision",
+        "base_revision_at_creation",
+    )
+
+    def has_module_permission(self, request):
+        return request.user.is_superuser
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
 
 
 @admin.register(AtmosphericConfig)
