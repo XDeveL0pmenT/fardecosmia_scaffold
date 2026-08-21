@@ -2,16 +2,18 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db import OperationalError
+from django.db import OperationalError, transaction
+from django.db.models import Q
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from .forms import TimeSimulationSettingsForm
 from .models import Campaign
 from world.forms import AtmosphericConfigForm
-from world.models import AtmosphericConfig
+from world.models import ApprovalRequest, AtmosphericConfig
 from world.services.astronomy import calculate_local_sky, describe_region_sky
 from world.services.atmosphere.config import AtmosphericSettings
 from world.services.atmosphere.forcing import CampaignSkyForcing
@@ -19,6 +21,12 @@ from world.services.calendar import minutes_for_time_step
 from world.services.region_weather import latest_current_point_weather
 from world.services.time import advance_world
 from world.services.access import require_campaign_gm
+from world.services.audit import (
+    changed_fields,
+    record_audit,
+    serialize_atmospheric_config,
+    serialize_time_simulation_settings,
+)
 
 from .time_controls import TIME_ADVANCE_LIMITS, TIME_ADVANCE_UNITS
 
@@ -83,6 +91,15 @@ def _gm_dashboard_context(campaign, *, atmosphere_form=None, time_settings_form=
     latest_atmospheric_snapshot = (
         campaign.atmospheric_snapshots.order_by("-world_minutes").first()
     )
+    pending_approval_requests = (
+        ApprovalRequest.objects.filter(
+            campaign=campaign,
+            status=ApprovalRequest.Status.PENDING,
+        )
+        .filter(Q(expires_at__isnull=True) | Q(expires_at__gt=timezone.now()))
+        .select_related("requester")
+        .order_by("requested_at", "id")[:5]
+    )
     return {
         "campaign": campaign,
         "calendar": calendar,
@@ -98,6 +115,7 @@ def _gm_dashboard_context(campaign, *, atmosphere_form=None, time_settings_form=
         "atmospheric_snapshot_count": campaign.atmospheric_snapshots.count(),
         "latest_atmospheric_snapshot": latest_atmospheric_snapshot,
         "orbital_diagnostics": orbital_diagnostics,
+        "pending_approval_requests": pending_approval_requests,
     }
 
 
@@ -114,16 +132,36 @@ def gm_dashboard(request, campaign_id):
 
 @login_required
 @require_POST
+@transaction.atomic
 def configure_atmosphere_view(request, campaign_id):
     campaign = get_object_or_404(Campaign, pk=campaign_id)
     _gm_membership_or_403(request.user, campaign)
     existing = AtmosphericConfig.objects.filter(campaign=campaign).first()
+    before_state = None if existing is None else serialize_atmospheric_config(existing)
     form = AtmosphericConfigForm(
         request.POST,
         instance=existing or AtmosphericConfig(campaign=campaign),
     )
     if form.is_valid():
-        form.save()
+        config = form.save()
+        after_state = serialize_atmospheric_config(config)
+        if before_state != after_state:
+            record_audit(
+                action="campaign.atmosphere_configured",
+                actor=request.user,
+                campaign=campaign,
+                target=config,
+                summary=f"Обновлена конфигурация атмосферы кампании «{campaign.name}».",
+                before_state=before_state,
+                after_state=after_state,
+                metadata={
+                    "changed_fields": (
+                        sorted(after_state)
+                        if before_state is None
+                        else changed_fields(before_state, after_state)
+                    )
+                },
+            )
         state = "включена" if form.instance.enabled else "выключена"
         messages.success(request, f"Глобальная атмосфера {state}.")
         return redirect("campaigns:gm_dashboard", campaign_id=campaign.pk)
@@ -137,12 +175,26 @@ def configure_atmosphere_view(request, campaign_id):
 
 @login_required
 @require_POST
+@transaction.atomic
 def configure_time_simulation_view(request, campaign_id):
     campaign = get_object_or_404(Campaign, pk=campaign_id)
     _gm_membership_or_403(request.user, campaign)
+    before_state = serialize_time_simulation_settings(campaign)
     form = TimeSimulationSettingsForm(request.POST, instance=campaign)
     if form.is_valid():
-        form.save()
+        campaign = form.save()
+        after_state = serialize_time_simulation_settings(campaign)
+        if before_state != after_state:
+            record_audit(
+                action="campaign.time_simulation_configured",
+                actor=request.user,
+                campaign=campaign,
+                target=campaign,
+                summary=f"Обновлён режим времени кампании «{campaign.name}».",
+                before_state=before_state,
+                after_state=after_state,
+                metadata={"changed_fields": changed_fields(before_state, after_state)},
+            )
         messages.success(request, "Режим продвижения времени обновлён.")
         return redirect("campaigns:gm_dashboard", campaign_id=campaign.pk)
     return render(

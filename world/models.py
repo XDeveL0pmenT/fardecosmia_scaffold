@@ -1,4 +1,5 @@
 import math
+import uuid
 
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -6,6 +7,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 from world.atmosphere_defaults import (
     ATMOSPHERIC_DEFAULT_HEIGHT,
@@ -16,6 +18,296 @@ from world.atmosphere_defaults import (
     default_atmospheric_parameters,
 )
 from world.biomes import Biome as RegionBiome
+
+
+class AuditLogQuerySet(models.QuerySet):
+    """Keep audit history append-only through the normal ORM surface."""
+
+    def update(self, **kwargs):
+        raise ValidationError("AuditLog является неизменяемой историей.")
+
+    def delete(self):
+        raise ValidationError("AuditLog нельзя удалять через приложение.")
+
+
+class AuditLogManager(models.Manager.from_queryset(AuditLogQuerySet)):
+    pass
+
+
+class AuditLog(models.Model):
+    """Durable, append-only history of meaningful authored actions."""
+
+    class Source(models.TextChoices):
+        USER = "USER", "Пользователь"
+        SYSTEM = "SYSTEM", "Система"
+        INTEGRATION = "INTEGRATION", "Интеграция"
+        IMPORT = "IMPORT", "Импорт"
+
+    occurred_at = models.DateTimeField(auto_now_add=True)
+    source = models.CharField(
+        max_length=20,
+        choices=Source.choices,
+        default=Source.USER,
+    )
+    action = models.CharField(max_length=120)
+    campaign = models.ForeignKey(
+        "campaigns.Campaign",
+        on_delete=models.SET_NULL,
+        related_name="audit_logs",
+        null=True,
+        blank=True,
+    )
+    campaign_id_snapshot = models.CharField(max_length=64, null=True, blank=True)
+    campaign_label_snapshot = models.CharField(max_length=240, blank=True)
+    world_minutes = models.BigIntegerField(null=True, blank=True)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="audit_logs",
+        null=True,
+        blank=True,
+    )
+    actor_label_snapshot = models.CharField(max_length=240, blank=True)
+    target_content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    target_object_id = models.CharField(max_length=128, blank=True)
+    target_label = models.CharField(max_length=500, blank=True)
+    target = GenericForeignKey("target_content_type", "target_object_id")
+    summary = models.CharField(max_length=500)
+    before_state = models.JSONField(null=True, blank=True)
+    after_state = models.JSONField(null=True, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    operation_id = models.UUIDField(default=uuid.uuid4, db_index=True)
+
+    objects = AuditLogManager()
+
+    class Meta:
+        ordering = ["-occurred_at", "-id"]
+        indexes = [
+            models.Index(
+                fields=["campaign", "occurred_at"],
+                name="audit_campaign_time_idx",
+            ),
+            models.Index(
+                fields=["campaign", "world_minutes"],
+                name="audit_campaign_world_idx",
+            ),
+            models.Index(
+                fields=["actor", "occurred_at"],
+                name="audit_actor_time_idx",
+            ),
+            models.Index(fields=["action"], name="audit_action_idx"),
+            models.Index(fields=["source"], name="audit_source_idx"),
+            models.Index(
+                fields=["target_content_type", "target_object_id"],
+                name="audit_target_idx",
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise ValidationError("AuditLog является неизменяемой историей.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("AuditLog нельзя удалять через приложение.")
+
+    def __str__(self):
+        return f"{self.action}: {self.summary}"
+
+
+class ApprovalRequest(models.Model):
+    """A campaign-scoped, registered intent waiting for a human decision.
+
+    The payload is data for a whitelisted handler, never an arbitrary model
+    command.  Normal lifecycle mutations belong to ``services.approvals``.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Ожидает решения"
+        APPROVED = "APPROVED", "Одобрено"
+        REJECTED = "REJECTED", "Отклонено"
+        CANCELLED = "CANCELLED", "Отменено"
+        EXPIRED = "EXPIRED", "Истекло"
+
+    TERMINAL_STATUSES = frozenset(
+        {Status.APPROVED, Status.REJECTED, Status.CANCELLED, Status.EXPIRED}
+    )
+    IMMUTABLE_FIELDS = (
+        "campaign_id",
+        "request_type",
+        "requester_id",
+        "requester_label_snapshot",
+        "requested_world_minutes",
+        "title",
+        "summary",
+        "target_content_type_id",
+        "target_object_id",
+        "target_label",
+        "payload",
+        "payload_version",
+        "dedupe_key",
+        "expires_at",
+        "operation_id",
+    )
+
+    campaign = models.ForeignKey(
+        "campaigns.Campaign",
+        on_delete=models.CASCADE,
+        related_name="approval_requests",
+    )
+    request_type = models.CharField(max_length=120)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    requester = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="approval_requests",
+        null=True,
+        blank=True,
+    )
+    requester_label_snapshot = models.CharField(max_length=240)
+    requested_at = models.DateTimeField(auto_now_add=True)
+    requested_world_minutes = models.BigIntegerField()
+    title = models.CharField(max_length=240)
+    summary = models.TextField()
+    target_content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    target_object_id = models.CharField(max_length=128, blank=True)
+    target_label = models.CharField(max_length=500, blank=True)
+    target = GenericForeignKey("target_content_type", "target_object_id")
+    payload = models.JSONField(default=dict)
+    payload_version = models.PositiveSmallIntegerField(default=1)
+    dedupe_key = models.CharField(max_length=240, null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="resolved_approval_requests",
+        null=True,
+        blank=True,
+    )
+    resolved_by_label_snapshot = models.CharField(max_length=240, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_world_minutes = models.BigIntegerField(null=True, blank=True)
+    resolution_note = models.TextField(blank=True)
+    result = models.JSONField(default=dict, blank=True)
+    operation_id = models.UUIDField(default=uuid.uuid4, db_index=True)
+
+    class Meta:
+        ordering = ["-requested_at", "-id"]
+        indexes = [
+            models.Index(
+                fields=["campaign", "status", "requested_at"],
+                name="approval_campaign_status_idx",
+            ),
+            models.Index(
+                fields=["requester", "requested_at"],
+                name="approval_requester_time_idx",
+            ),
+            models.Index(fields=["request_type"], name="approval_type_idx"),
+            models.Index(fields=["status"], name="approval_status_idx"),
+            models.Index(fields=["expires_at"], name="approval_expires_idx"),
+            models.Index(
+                fields=["target_content_type", "target_object_id"],
+                name="approval_target_idx",
+            ),
+        ]
+
+    @property
+    def is_effectively_expired(self):
+        return bool(
+            self.status == self.Status.PENDING
+            and self.expires_at is not None
+            and self.expires_at <= timezone.now()
+        )
+
+    @property
+    def effective_status(self):
+        if self.is_effectively_expired:
+            return self.Status.EXPIRED
+        return self.status
+
+    @property
+    def effective_status_label(self):
+        return dict(self.Status.choices)[self.effective_status]
+
+    def clean(self):
+        super().clean()
+        if not isinstance(self.payload, dict):
+            raise ValidationError({"payload": "Payload запроса должен быть JSON-объектом."})
+        if not isinstance(self.result, dict):
+            raise ValidationError({"result": "Result запроса должен быть JSON-объектом."})
+        if bool(self.target_content_type_id) != bool(self.target_object_id):
+            raise ValidationError("Тип и ID цели должны быть указаны вместе.")
+
+        if self.status == self.Status.PENDING:
+            if any(
+                (
+                    self.resolved_by_id,
+                    self.resolved_by_label_snapshot,
+                    self.resolved_at,
+                    self.resolved_world_minutes is not None,
+                    self.resolution_note,
+                    self.result,
+                )
+            ):
+                raise ValidationError("Ожидающий запрос не может содержать решение.")
+            return
+
+        if self.status not in self.TERMINAL_STATUSES:
+            raise ValidationError({"status": "Неизвестный статус запроса."})
+        if self.resolved_at is None or self.resolved_world_minutes is None:
+            raise ValidationError("Завершённый запрос должен хранить время решения.")
+        if self.status in {self.Status.APPROVED, self.Status.REJECTED, self.Status.CANCELLED}:
+            if self.resolved_by_id is None or not self.resolved_by_label_snapshot:
+                raise ValidationError("Решение должно хранить автора и его подпись.")
+        if self.status != self.Status.APPROVED and self.result:
+            raise ValidationError("Structured result допустим только для одобренного запроса.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        if self._state.adding:
+            if self.status != self.Status.PENDING:
+                raise ValidationError("Новый ApprovalRequest должен начинаться в PENDING.")
+        else:
+            previous = type(self).objects.get(pk=self.pk)
+            for field_name in self.IMMUTABLE_FIELDS:
+                if getattr(previous, field_name) != getattr(self, field_name):
+                    raise ValidationError(
+                        f"Поле {field_name} ApprovalRequest неизменяемо после создания."
+                    )
+            if previous.status in self.TERMINAL_STATUSES:
+                changed = any(
+                    getattr(previous, field.attname) != getattr(self, field.attname)
+                    for field in self._meta.concrete_fields
+                    if field.name != "id"
+                )
+                if changed:
+                    raise ValidationError("Завершённый ApprovalRequest неизменяем.")
+            elif previous.status == self.Status.PENDING:
+                if self.status not in {self.Status.PENDING, *self.TERMINAL_STATUSES}:
+                    raise ValidationError("Недопустимый переход статуса ApprovalRequest.")
+            else:
+                raise ValidationError("Недопустимый исходный статус ApprovalRequest.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("ApprovalRequest нельзя удалять через приложение.")
+
+    def __str__(self):
+        return self.title
 
 
 class Region(models.Model):

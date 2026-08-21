@@ -1,8 +1,11 @@
 import math
 
 from django.core.exceptions import ValidationError
+from django.db import transaction
 
 from world.models import CampaignWorldMapOverride, GlobalWorldMapLayer, Region
+from world.services.access import require_campaign_gm, require_global_canon_editor
+from world.services.audit import compact_biome_change, record_audit
 from world.services.world_data import (
     MAP_GRID_HEIGHT,
     MAP_GRID_WIDTH,
@@ -113,3 +116,90 @@ def validate_layer_cells(cells, layer_type, *, width=MAP_GRID_WIDTH, height=MAP_
         else:
             raise ValidationError("Неизвестный тип слоя карты.")
     return normalized
+
+
+@transaction.atomic
+def update_campaign_biome_layer(*, actor, campaign, cells):
+    """Replace one campaign's sparse biome overlay and audit only its compact diff."""
+
+    require_campaign_gm(actor, campaign)
+    cells = validate_layer_cells(cells, "biome")
+    layer = (
+        CampaignWorldMapOverride.objects.select_for_update()
+        .filter(campaign=campaign)
+        .first()
+    )
+    if layer is None:
+        layer = CampaignWorldMapOverride(campaign=campaign)
+        before_cells = {}
+        is_new = True
+    else:
+        before_cells = dict(layer.biome_cells or {})
+        is_new = False
+    if before_cells == cells and not is_new:
+        return layer
+    layer.biome_cells = cells
+    layer.full_clean()
+    layer.save()
+    compact = compact_biome_change(
+        scope="campaign",
+        before_cells=before_cells,
+        after_cells=cells,
+        width=layer.grid_width,
+        height=layer.grid_height,
+    )
+    record_audit(
+        action="campaign_biome.updated",
+        actor=actor,
+        campaign=campaign,
+        target=layer,
+        summary=(
+            "Обновлены локальные биомы кампании: "
+            f"{compact['metadata']['changed_cell_count']} ячеек."
+        ),
+        **compact,
+    )
+    return layer
+
+
+@transaction.atomic
+def update_global_biome_layer(*, actor, cells):
+    """Replace the shared objective biome layer through the canon permission."""
+
+    require_global_canon_editor(actor)
+    cells = validate_layer_cells(cells, "biome")
+    layer = (
+        GlobalWorldMapLayer.objects.select_for_update()
+        .filter(slug=GlobalWorldMapLayer.FARDECOSMIA_SLUG)
+        .first()
+    )
+    if layer is None:
+        layer = GlobalWorldMapLayer(slug=GlobalWorldMapLayer.FARDECOSMIA_SLUG)
+        before_cells = {}
+        is_new = True
+    else:
+        before_cells = dict(layer.biome_cells or {})
+        is_new = False
+    if before_cells == cells and not is_new:
+        return layer
+    layer.biome_cells = cells
+    layer.full_clean()
+    layer.save()
+    compact = compact_biome_change(
+        scope="global",
+        before_cells=before_cells,
+        after_cells=cells,
+        width=layer.grid_width,
+        height=layer.grid_height,
+    )
+    record_audit(
+        action="global_biome.updated",
+        actor=actor,
+        target=layer,
+        summary=(
+            "Обновлены глобальные биомы: "
+            f"{compact['metadata']['changed_cell_count']} ячеек."
+        ),
+        **compact,
+    )
+    return layer

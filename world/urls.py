@@ -13,6 +13,12 @@ urlpatterns = [
         name="global_point_inspection",
     ),
     path("world-canon/", views.global_world_entry_list, name="global_world_entry_list"),
+    path("world-audit/", views.global_audit_list, name="global_audit_list"),
+    path(
+        "world-audit/<int:audit_id>/",
+        views.global_audit_detail,
+        name="global_audit_detail",
+    ),
     path("world-canon/new/", views.global_world_entry_create, name="global_world_entry_create"),
     path("world-canon/<int:entry_id>/", views.global_world_entry_detail, name="global_world_entry_detail"),
     path("world-canon/<int:entry_id>/edit/", views.global_world_entry_edit, name="global_world_entry_edit"),
@@ -21,6 +27,46 @@ urlpatterns = [
         "campaign/<uuid:campaign_id>/gm/world-canon/",
         views.campaign_world_entry_list,
         name="campaign_world_entry_list",
+    ),
+    path(
+        "campaign/<uuid:campaign_id>/gm/audit/",
+        views.campaign_audit_list,
+        name="campaign_audit_list",
+    ),
+    path(
+        "campaign/<uuid:campaign_id>/gm/audit/<int:audit_id>/",
+        views.campaign_audit_detail,
+        name="campaign_audit_detail",
+    ),
+    path(
+        "campaign/<uuid:campaign_id>/gm/approvals/",
+        views.campaign_approval_queue,
+        name="campaign_approval_queue",
+    ),
+    path(
+        "campaign/<uuid:campaign_id>/approvals/mine/",
+        views.my_approval_requests,
+        name="my_approval_requests",
+    ),
+    path(
+        "campaign/<uuid:campaign_id>/approvals/<int:request_id>/",
+        views.approval_request_detail,
+        name="approval_request_detail",
+    ),
+    path(
+        "campaign/<uuid:campaign_id>/approvals/<int:request_id>/approve/",
+        views.approve_approval_request,
+        name="approve_approval_request",
+    ),
+    path(
+        "campaign/<uuid:campaign_id>/approvals/<int:request_id>/reject/",
+        views.reject_approval_request,
+        name="reject_approval_request",
+    ),
+    path(
+        "campaign/<uuid:campaign_id>/approvals/<int:request_id>/cancel/",
+        views.cancel_approval_request,
+        name="cancel_approval_request",
     ),
     path(
         "campaign/<uuid:campaign_id>/gm/world-canon/new/",

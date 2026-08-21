@@ -55,6 +55,25 @@ campaign state.
 - Keep integration boundaries versioned and testable.
 - Do not store external API/device secrets in plaintext; store hashes where possible.
 - Validate external JSON payloads before changing campaign state.
+- Meaningful user-authored world/campaign mutations must call the centralized
+  `world.services.audit.record_audit()` inside the same database transaction.
+- Audit history is append-only application data: do not update/delete rows or add
+  purge/pruning UI. Generated weather, snapshots and solver timesteps are not
+  individual audit actions.
+- Audit payloads use explicit domain serializers. Never copy request payloads or
+  technical secrets into `before_state`, `after_state` or `metadata`; oversized
+  payloads must fail explicitly rather than being silently truncated.
+- Campaign approvals use the registered intent handlers in
+  `world.services.approvals`; an `ApprovalRequest` is never an arbitrary command
+  queue or a substitute for `WorldEvent`.
+- Every approval handler must validate and version its payload, provide a
+  human-readable presenter with consequences, revalidate current state before
+  applying, and enforce campaign-scoped permissions.
+- Approval, domain mutation, structured result and P3 audit rows must commit in
+  one transaction. `APPROVED` means the domain action succeeded; otherwise the
+  request remains pending (or enters the appropriate non-approved terminal state).
+- Resolved approval requests are immutable through normal application paths.
+  Never add a raw JSON approval-creation UI.
 
 ## After changes
 Run, when available:

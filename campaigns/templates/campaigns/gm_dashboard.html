@@ -150,6 +150,18 @@
 </section>
 
 <div class="dashboard-grid">
+    <section class="panel dashboard-card dashboard-card--approvals">
+        <div class="panel__glow" aria-hidden="true"></div>
+        <header class="dashboard-card__header">
+            <span class="dashboard-card__symbol" aria-hidden="true">✓</span>
+            <div><p class="panel-kicker">Решения мастера</p><h2>Запросы на одобрение</h2></div>
+        </header>
+        {% for approval in pending_approval_requests %}
+            <a class="row approval-dashboard-row" href="{% url 'world:approval_request_detail' campaign.id approval.id %}"><strong>{{ approval.title }}</strong><span class="row__meta">{{ approval.requester_label_snapshot|default:"Система" }}</span></a>
+        {% empty %}<p class="empty-copy">Сейчас нет запросов, ожидающих решения.</p>{% endfor %}
+        <a class="button button--ghost button--small" href="{% url 'world:campaign_approval_queue' campaign.id %}">Открыть очередь</a>
+    </section>
+
     <section class="panel dashboard-card dashboard-card--weather">
         <div class="panel__glow" aria-hidden="true"></div>
         <header class="dashboard-card__header">

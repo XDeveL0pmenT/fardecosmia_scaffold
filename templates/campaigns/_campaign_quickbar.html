@@ -5,6 +5,9 @@
             <a href="{% url 'campaigns:gm_dashboard' campaign.id %}">Панель</a>
             <a href="{% url 'world:world_map' campaign.id %}">Регионы кампании</a>
             <a href="{% url 'world:campaign_world_entry_list' campaign.id %}">Канон кампании</a>
+            <a href="{% url 'world:campaign_approval_queue' campaign.id %}">Запросы</a>
+            <a href="{% url 'world:my_approval_requests' campaign.id %}">Мои запросы</a>
+            <a href="{% url 'world:campaign_audit_list' campaign.id %}">История</a>
         </div>
         <form class="quick-time-control" method="post" action="{% url 'campaigns:advance_time' campaign.id %}" data-time-control>
             {% csrf_token %}

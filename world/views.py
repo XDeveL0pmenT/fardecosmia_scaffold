@@ -3,9 +3,13 @@ import json
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
+from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from campaigns.models import Campaign
@@ -18,12 +22,24 @@ from world.forms import (
     RegionPlacementForm,
     WorldEntryForm,
 )
-from world.models import AtmosphericConfig, Region, WorldEntry
+from world.models import ApprovalRequest, AtmosphericConfig, AuditLog, Region, WorldEntry
 from world.services.access import (
+    can_manage_campaign,
     can_manage_global_canon,
+    require_campaign_member,
     require_campaign_gm,
     require_global_atlas_viewer,
     require_global_canon_editor,
+)
+from world.services.approvals import (
+    ApprovalWorkflowError,
+    approval_type_label,
+    approve_request,
+    cancel_request,
+    can_user_approve_request,
+    can_user_cancel_request,
+    presentation_for,
+    reject_request,
 )
 from world.services.astronomy import (
     build_light_bands,
@@ -41,8 +57,9 @@ from world.services.map_layers import (
     get_global_map_layer,
     land_only_biome_cells,
     map_defaults_at,
+    update_campaign_biome_layer,
 )
-from world.services.region_climate import apply_region_climate, region_climate_at
+from world.services.region_climate import region_climate_at
 from world.services.weather_display import build_weather_summary
 from world.services.environment_summary import build_environment_summary
 from world.services.atmosphere.config import AtmosphericSettings
@@ -50,9 +67,15 @@ from world.services.atmosphere.forcing import CampaignSkyForcing
 from world.services.atmosphere.persistence import latest_atmospheric_cell_diagnostics
 from world.services.atmosphere.region_area import build_region_area_weather_summary
 from world.services.region_weather import (
-    initialize_region_weather,
     latest_current_area_weather,
     latest_current_point_weather,
+)
+from world.services.regions import (
+    automatic_climate_changes,
+    create_region,
+    delete_region as delete_region_service,
+    placement_changes,
+    update_region,
 )
 from world.services.canon import (
     create_campaign_world_entry,
@@ -65,6 +88,7 @@ from world.services.canon import (
     update_campaign_world_entry,
     update_global_world_entry,
 )
+from world.services.calendar import describe_campaign_time
 from world.services.overrides import effective_world_entries, resolve_for_campaign
 
 
@@ -80,6 +104,12 @@ def _gm_campaign_or_403(user, campaign_id):
     return campaign
 
 
+def _member_campaign_or_403(user, campaign_id):
+    campaign = get_object_or_404(Campaign, pk=campaign_id)
+    require_campaign_member(user, campaign)
+    return campaign
+
+
 def _biome_palette():
     return [
         {"value": value, "label": label, "color": BIOME_PALETTE[value]}
@@ -89,6 +119,348 @@ def _biome_palette():
 
 def _global_atlas_or_403(user):
     require_global_atlas_viewer(user)
+
+
+def _filtered_audit_queryset(request, queryset, *, campaign_scope):
+    action = request.GET.get("action", "").strip()
+    actor = request.GET.get("actor", "").strip()
+    target_type = request.GET.get("target_type", "").strip().lower()
+    source = request.GET.get("source", "").strip().upper()
+    if action:
+        queryset = queryset.filter(action=action)
+    if actor:
+        queryset = queryset.filter(actor_label_snapshot__icontains=actor)
+    if "." in target_type:
+        app_label, model = target_type.split(".", 1)
+        queryset = queryset.filter(
+            target_content_type__app_label=app_label,
+            target_content_type__model=model,
+        )
+    if source in AuditLog.Source.values:
+        queryset = queryset.filter(source=source)
+    if campaign_scope:
+        for parameter, lookup in (
+            ("world_from", "world_minutes__gte"),
+            ("world_to", "world_minutes__lte"),
+        ):
+            try:
+                value = int(request.GET.get(parameter, ""))
+            except (TypeError, ValueError):
+                continue
+            queryset = queryset.filter(**{lookup: value})
+    else:
+        for parameter, lookup in (
+            ("date_from", "occurred_at__date__gte"),
+            ("date_to", "occurred_at__date__lte"),
+        ):
+            value = parse_date(request.GET.get(parameter, ""))
+            if value is not None:
+                queryset = queryset.filter(**{lookup: value})
+    return queryset
+
+
+def _audit_list_context(request, queryset, *, campaign=None):
+    queryset = _filtered_audit_queryset(
+        request,
+        queryset.select_related(
+            "campaign",
+            "actor",
+            "target_content_type",
+        ),
+        campaign_scope=campaign is not None,
+    ).order_by("-occurred_at", "-id")
+    page_obj = Paginator(queryset, 50).get_page(request.GET.get("page"))
+    query = request.GET.copy()
+    query.pop("page", None)
+    return {
+        "campaign": campaign,
+        "page_obj": page_obj,
+        "audit_rows": page_obj.object_list,
+        "audit_sources": AuditLog.Source.choices,
+        "filter_query": query.urlencode(),
+        "filters": request.GET,
+        "time_advance_units": TIME_ADVANCE_UNITS,
+        "can_advance_time": campaign is not None,
+    }
+
+
+@login_required
+@require_GET
+def global_audit_list(request):
+    require_global_canon_editor(request.user)
+    return render(
+        request,
+        "world/audit_list.html",
+        _audit_list_context(
+            request,
+            AuditLog.objects.filter(
+                campaign__isnull=True,
+                campaign_id_snapshot__isnull=True,
+            ),
+        ),
+    )
+
+
+@login_required
+@require_GET
+def global_audit_detail(request, audit_id):
+    require_global_canon_editor(request.user)
+    audit = get_object_or_404(
+        AuditLog.objects.select_related(
+            "campaign",
+            "actor",
+            "target_content_type",
+        ),
+        pk=audit_id,
+        campaign__isnull=True,
+        campaign_id_snapshot__isnull=True,
+    )
+    return render(request, "world/audit_detail.html", {"audit": audit})
+
+
+@login_required
+@require_GET
+def campaign_audit_list(request, campaign_id):
+    campaign = _gm_campaign_or_403(request.user, campaign_id)
+    return render(
+        request,
+        "world/audit_list.html",
+        _audit_list_context(
+            request,
+            AuditLog.objects.filter(campaign=campaign),
+            campaign=campaign,
+        ),
+    )
+
+
+@login_required
+@require_GET
+def campaign_audit_detail(request, campaign_id, audit_id):
+    campaign = _gm_campaign_or_403(request.user, campaign_id)
+    audit = get_object_or_404(
+        AuditLog.objects.select_related(
+            "campaign",
+            "actor",
+            "target_content_type",
+        ),
+        pk=audit_id,
+        campaign=campaign,
+    )
+    return render(
+        request,
+        "world/audit_detail.html",
+        {
+            "campaign": campaign,
+            "audit": audit,
+            "time_advance_units": TIME_ADVANCE_UNITS,
+            "can_advance_time": True,
+        },
+    )
+
+
+def _filter_approval_queryset(request, queryset, *, default_status):
+    selected_status = request.GET.get("status", default_status).strip().upper()
+    now = timezone.now()
+    if selected_status == ApprovalRequest.Status.PENDING:
+        queryset = queryset.filter(status=ApprovalRequest.Status.PENDING).filter(
+            Q(expires_at__isnull=True) | Q(expires_at__gt=now)
+        )
+    elif selected_status == ApprovalRequest.Status.EXPIRED:
+        queryset = queryset.filter(
+            Q(status=ApprovalRequest.Status.EXPIRED)
+            | Q(status=ApprovalRequest.Status.PENDING, expires_at__lte=now)
+        )
+    elif selected_status in ApprovalRequest.Status.values:
+        queryset = queryset.filter(status=selected_status)
+    elif selected_status != "ALL":
+        selected_status = default_status
+        if default_status == ApprovalRequest.Status.PENDING:
+            queryset = queryset.filter(status=ApprovalRequest.Status.PENDING).filter(
+                Q(expires_at__isnull=True) | Q(expires_at__gt=now)
+            )
+
+    request_type = request.GET.get("request_type", "").strip()
+    if request_type:
+        queryset = queryset.filter(request_type=request_type)
+    requester = request.GET.get("requester", "").strip()
+    if requester:
+        queryset = queryset.filter(requester_label_snapshot__icontains=requester)
+    return queryset, selected_status, request_type, requester
+
+
+def _approval_type_choices(queryset):
+    request_types = queryset.order_by().values_list("request_type", flat=True).distinct()
+    return [(request_type, approval_type_label(request_type)) for request_type in request_types]
+
+
+def _approval_list_context(request, *, campaign, mine):
+    base_queryset = ApprovalRequest.objects.filter(campaign=campaign)
+    if mine:
+        base_queryset = base_queryset.filter(requester=request.user)
+    type_choices = _approval_type_choices(base_queryset)
+    queryset, selected_status, request_type, requester = _filter_approval_queryset(
+        request,
+        base_queryset.select_related("requester", "resolved_by"),
+        default_status="ALL" if mine else ApprovalRequest.Status.PENDING,
+    )
+    page_obj = Paginator(queryset.order_by("-requested_at", "-id"), 50 if not mine else 25).get_page(
+        request.GET.get("page")
+    )
+    query = request.GET.copy()
+    query.pop("page", None)
+    rows = [
+        {
+            "request": approval,
+            "type_label": approval_type_label(approval.request_type),
+            "requested_time": describe_campaign_time(
+                campaign,
+                approval.requested_world_minutes,
+            ),
+        }
+        for approval in page_obj.object_list
+    ]
+    return {
+        "campaign": campaign,
+        "mine": mine,
+        "approval_rows": rows,
+        "page_obj": page_obj,
+        "approval_statuses": ApprovalRequest.Status.choices,
+        "approval_type_choices": type_choices,
+        "selected_status": selected_status,
+        "selected_request_type": request_type,
+        "selected_requester": requester,
+        "filter_query": query.urlencode(),
+        "time_advance_units": TIME_ADVANCE_UNITS,
+        "can_advance_time": can_manage_campaign(request.user, campaign),
+    }
+
+
+@login_required
+@require_GET
+def campaign_approval_queue(request, campaign_id):
+    campaign = _gm_campaign_or_403(request.user, campaign_id)
+    return render(
+        request,
+        "world/approval_list.html",
+        _approval_list_context(request, campaign=campaign, mine=False),
+    )
+
+
+@login_required
+@require_GET
+def my_approval_requests(request, campaign_id):
+    campaign = _member_campaign_or_403(request.user, campaign_id)
+    return render(
+        request,
+        "world/approval_list.html",
+        _approval_list_context(request, campaign=campaign, mine=True),
+    )
+
+
+def _approval_detail_or_404(user, campaign, request_id):
+    queryset = ApprovalRequest.objects.select_related(
+        "campaign",
+        "requester",
+        "resolved_by",
+        "target_content_type",
+    ).filter(campaign=campaign)
+    if not can_manage_campaign(user, campaign):
+        queryset = queryset.filter(requester=user)
+    return get_object_or_404(queryset, pk=request_id)
+
+
+@login_required
+@require_GET
+def approval_request_detail(request, campaign_id, request_id):
+    campaign = _member_campaign_or_403(request.user, campaign_id)
+    approval = _approval_detail_or_404(request.user, campaign, request_id)
+    requested_time = describe_campaign_time(campaign, approval.requested_world_minutes)
+    resolved_time = (
+        describe_campaign_time(campaign, approval.resolved_world_minutes)
+        if approval.resolved_world_minutes is not None
+        else None
+    )
+    approval_history = AuditLog.objects.filter(
+        campaign=campaign,
+        operation_id=approval.operation_id,
+        action__startswith="approval_request.",
+    ).order_by("occurred_at", "id")
+    return render(
+        request,
+        "world/approval_detail.html",
+        {
+            "campaign": campaign,
+            "approval": approval,
+            "presentation": presentation_for(approval),
+            "requested_time": requested_time,
+            "resolved_time": resolved_time,
+            "approval_history": approval_history,
+            "can_approve_request": can_user_approve_request(request.user, approval),
+            "can_cancel_request": can_user_cancel_request(request.user, approval),
+            "time_advance_units": TIME_ADVANCE_UNITS,
+            "can_advance_time": can_manage_campaign(request.user, campaign),
+        },
+    )
+
+
+def _decision_error_message(error):
+    if isinstance(error, ValidationError):
+        return " ".join(error.messages)
+    return str(error)
+
+
+def _approval_transition_view(request, *, campaign_id, request_id, transition):
+    campaign = _member_campaign_or_403(request.user, campaign_id)
+    note = request.POST.get("resolution_note", "")
+    try:
+        transition(
+            campaign=campaign,
+            request_id=request_id,
+            actor=request.user,
+            resolution_note=note,
+        )
+    except (ApprovalWorkflowError, ValidationError) as error:
+        messages.error(request, _decision_error_message(error))
+    else:
+        messages.success(request, "Решение сохранено.")
+    return redirect(
+        "world:approval_request_detail",
+        campaign_id=campaign.pk,
+        request_id=request_id,
+    )
+
+
+@login_required
+@require_POST
+def approve_approval_request(request, campaign_id, request_id):
+    return _approval_transition_view(
+        request,
+        campaign_id=campaign_id,
+        request_id=request_id,
+        transition=approve_request,
+    )
+
+
+@login_required
+@require_POST
+def reject_approval_request(request, campaign_id, request_id):
+    return _approval_transition_view(
+        request,
+        campaign_id=campaign_id,
+        request_id=request_id,
+        transition=reject_request,
+    )
+
+
+@login_required
+@require_POST
+def cancel_approval_request(request, campaign_id, request_id):
+    return _approval_transition_view(
+        request,
+        campaign_id=campaign_id,
+        request_id=request_id,
+        transition=cancel_request,
+    )
 
 
 @login_required
@@ -525,21 +897,19 @@ def world_map(request, campaign_id):
                 pk=placement_form.cleaned_data["region_id"],
             )
             polygon = placement_form.cleaned_data["map_polygon"]
-            longitude, latitude = polygon_center(polygon)
-            region.map_polygon = polygon
-            region.map_longitude = longitude
-            region.map_latitude = latitude
-            climate = region_climate_at(campaign, latitude, longitude)
-            climate_fields = apply_region_climate(region, climate)
-            region.save(
-                update_fields=[
-                    "map_polygon",
-                    "map_longitude",
-                    "map_latitude",
-                    *climate_fields,
-                ]
+            result = update_region(
+                actor=request.user,
+                campaign=campaign,
+                region=region,
+                changes=placement_changes(
+                    campaign=campaign,
+                    region=region,
+                    polygon=polygon,
+                ),
+                initialize_weather=True,
+                summary=f"Изменён контур региона «{region.name}».",
             )
-            initialize_region_weather(region)
+            region = result.region
             return redirect(
                 "world:region_detail",
                 campaign_id=campaign.pk,
@@ -550,9 +920,11 @@ def world_map(request, campaign_id):
         layer_form = MapLayerPaintForm(request.POST, prefix="layer")
         if layer_form.is_valid():
             layer_type = layer_form.cleaned_data["layer_type"]
-            layer_state = get_campaign_map_override(campaign, create=True)
-            layer_state.biome_cells = layer_form.cleaned_data["layer_cells"]
-            layer_state.save(update_fields=["biome_cells", "updated_at"])
+            update_campaign_biome_layer(
+                actor=request.user,
+                campaign=campaign,
+                cells=layer_form.cleaned_data["layer_cells"],
+            )
             url = reverse("world:world_map", kwargs={"campaign_id": campaign.pk})
             return redirect(f"{url}?mode={layer_type}")
         create_form = RegionMapForm(campaign=campaign, prefix="create")
@@ -560,16 +932,12 @@ def world_map(request, campaign_id):
         create_form = RegionMapForm(request.POST, campaign=campaign, prefix="create")
         if create_form.is_valid():
             region = create_form.save(commit=False)
-            region.campaign = campaign
-            longitude, latitude = polygon_center(region.map_polygon)
-            region.map_longitude = longitude
-            region.map_latitude = latitude
-            apply_region_climate(
-                region,
-                region_climate_at(campaign, latitude, longitude),
+            result = create_region(
+                actor=request.user,
+                campaign=campaign,
+                region=region,
             )
-            region.save()
-            initialize_region_weather(region)
+            region = result.region
             return redirect(
                 "world:region_detail",
                 campaign_id=campaign.pk,
@@ -667,19 +1035,19 @@ def region_detail(request, campaign_id, region_id):
                 "Ручные климатические поправки включены; World Data их не перезаписывает.",
             )
         else:
-            region.use_manual_climate_overrides = False
-            updated = apply_region_climate(
-                region,
-                region_climate_at(
-                    campaign,
-                    region.map_latitude,
-                    region.map_longitude,
+            result = update_region(
+                actor=request.user,
+                campaign=campaign,
+                region=region,
+                changes=automatic_climate_changes(
+                    campaign=campaign,
+                    region=region,
                 ),
+                initialize_weather=True,
+                summary=f"Обновлён климат региона «{region.name}» из World Data.",
             )
-            region.save(
-                update_fields=["use_manual_climate_overrides", *updated]
-            )
-            initialization = initialize_region_weather(region)
+            region = result.region
+            initialization = result.initialization
             if initialization.pending:
                 messages.info(
                     request,
@@ -812,7 +1180,11 @@ def region_delete(request, campaign_id, region_id):
 
     if request.method == "POST":
         region_name = region.name
-        region.delete()
+        delete_region_service(
+            actor=request.user,
+            campaign=campaign,
+            region=region,
+        )
         messages.success(request, f"Регион «{region_name}» удалён.")
         return redirect("world:world_map", campaign_id=campaign.pk)
 

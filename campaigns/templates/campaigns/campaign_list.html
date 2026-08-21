@@ -22,11 +22,12 @@
             <h2>{{ membership.campaign.name }}</h2>
             <p class="campaign-card__description">{{ membership.campaign.description|default:"Описание пока не добавлено." }}</p>
             {% if membership.role == "gm" %}
-                <a class="button" href="{% url 'campaigns:gm_dashboard' membership.campaign.id %}">
-                    Открыть панель <span aria-hidden="true">→</span>
-                </a>
+                <div class="campaign-card__actions">
+                    <a class="button" href="{% url 'campaigns:gm_dashboard' membership.campaign.id %}">Открыть панель <span aria-hidden="true">→</span></a>
+                    <a class="button button--ghost" href="{% url 'world:my_approval_requests' membership.campaign.id %}">Мои запросы</a>
+                </div>
             {% else %}
-                <span class="campaign-card__pending">Страница игрока готовится</span>
+                <a class="button button--ghost" href="{% url 'world:my_approval_requests' membership.campaign.id %}">Мои запросы</a>
             {% endif %}
         </article>
     {% empty %}

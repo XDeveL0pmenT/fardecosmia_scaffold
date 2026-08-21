@@ -11,6 +11,7 @@ from world.services.atmosphere.persistence import advance_atmosphere_for_period
 from world.services.time_reports import build_time_advance_summary
 from world.services.weather import update_weather_for_period
 from world.services.access import can_manage_campaign
+from world.services.audit import record_audit
 
 
 @dataclass
@@ -191,6 +192,28 @@ def advance_world(
             simulation_mode=plan.mode,
             coverage=plan.coverage,
             summary=summary,
+        )
+        record_audit(
+            action="campaign.time_advanced",
+            actor=advanced_by,
+            campaign=campaign,
+            world_minutes=new_time,
+            target=campaign,
+            summary=(
+                f"Время кампании продвинуто на {requested_amount} "
+                f"{requested_unit}."
+            ),
+            before_state={"world_minutes": old_time},
+            after_state={"world_minutes": new_time},
+            metadata={
+                "delta_minutes": minutes,
+                "requested_amount": requested_amount,
+                "requested_unit": requested_unit,
+                "simulation_mode": plan.mode,
+                "atmospheric_enabled": atmospheric_config is not None,
+                "coverage": [part["kind"] for part in plan.coverage],
+                "time_advance_report_id": report.pk,
+            },
         )
 
     return WorldAdvanceResult(
