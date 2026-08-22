@@ -268,12 +268,18 @@
 
 ## P5 — WorldEvent
 
-- [ ] Глобальные события.
-- [ ] Локальные события.
-- [ ] Начало/конец в world time.
-- [ ] Географическая область.
-- [ ] Публичность.
-- [ ] Effects/hooks.
+- [x] Campaign-scoped definition/schedule и отдельный immutable occurrence.
+- [x] MANUAL и WORLD_TIME one-shot triggers.
+- [x] Crossing `(old,new]`, exact/fast-forward parity и deterministic order.
+- [x] Durable Region/target/location snapshots для objective history.
+- [x] Registered/versioned safe effects boundary с atomic AuditLog group.
+- [x] TimeAdvanceReport integration и human-first GM UI.
+- [x] Player publication отделена до CharacterKnowledge.
+- [ ] События, общие сразу для нескольких кампаний.
+- [ ] Повторяющиеся/интервальные события и отдельная end-time semantics.
+- [ ] Полигональная географическая область события.
+- [ ] CharacterKnowledge/publication для игроков.
+- [ ] Simulation-coupled climate effects со split-at-event boundaries.
 - [ ] Связь с городами.
 - [ ] Связь со странами.
 - [ ] Связь с квестами.
@@ -454,6 +460,51 @@
 
 ---
 
+## E3 — Recurring Economy & Lifestyle
+
+> Будущий этап после Ledger / Inventory / Purchases. В scope P5 не входит.
+
+- [ ] Lifestyle definitions и enrollments.
+- [ ] Регулярная оплата выбранного уровня жизни.
+- [ ] Housing leases / аренда жилья как отдельная от Lifestyle предметная область.
+- [ ] Recurring services / subscriptions.
+- [ ] Billing строго по времени мира кампании (`Campaign.world_minutes`), а не по реальному или серверному времени.
+- [ ] При time skip обрабатывать каждую пересечённую дату платежа, а не только итоговую дату.
+- [ ] Явная обработка insufficient funds.
+- [ ] Просроченные обязательства не должны исчезать или считаться оплаченными молча.
+- [ ] Debt / liabilities foundation: долг является отдельным обязательством, а не просто отрицательным balance.
+- [ ] Финансовые предупреждения для GM.
+- [ ] Интеграция с Ledger и позднее с `TimeAdvanceReport` / `WorldEvent`.
+
+Архитектурные границы:
+
+- Ledger остаётся source of truth для денег.
+- Lifestyle и Housing — разные сущности и жизненные процессы.
+- Expense contracts и Job contracts — разные домены; общим у них может быть только recurrence/scheduling foundation.
+- Не считать календарный месяц равным 30 дням, пока месяцы Фардекосмии не определены канонически.
+- Неудачный платёж должен оставлять явное и доступное для обработки состояние.
+
+## E4 — Employment & Side Jobs
+
+> Будущий этап после E3 и после появления пригодного normalized Character state. В scope P5 не входит.
+
+- [ ] Recurring work contracts.
+- [ ] Периодическая зарплата.
+- [ ] Проверки качества работы.
+- [ ] Payout bands.
+- [ ] Доход через Ledger.
+- [ ] Обработка пропущенной работы.
+- [ ] Future hooks для Travel, activity и доступности по location.
+- [ ] Использование normalized Character state, а не raw Roll20 attributes.
+
+Архитектурные границы:
+
+- Job contracts не должны моделироваться как отрицательные expense contracts.
+- С расходными контрактами допускается разделять только общий recurrence/scheduling foundation.
+- Roll20 остаётся source of truth боевого листа, а E4 читает только стабильный normalized application-facing слой.
+
+---
+
 # 12. Travel Engine
 
 - [ ] Создание группы.
@@ -593,12 +644,14 @@
 - [x] **P3 — AuditLog foundation**
 - [x] **P4 — ApprovalRequest foundation**
 - [x] **P4.5 — Account Onboarding, Email & Campaign Lifecycle**
-- [ ] **P5 — WorldEvent**
+- [x] **P5 — WorldEvent foundation**
 - [ ] **CharacterKnowledge foundation**
 - [ ] **M2 — Countries / Settlements / Roads**
 - [ ] **Navigation + Encyclopedia shell + Search**
 - [ ] **CharacterSheet + Roll20 adapter**
 - [ ] **Ledger + Inventory + Purchases**
+- [ ] **E3 — Recurring Economy & Lifestyle**
+- [ ] **E4 — Employment & Side Jobs** — только после появления пригодного normalized Character state
 - [ ] **Quests + Local Events**
 - [ ] **M4/M5 — Player Map + Travel Engine**
 - [ ] **Races / Classes / Biomes / Spells / Items / Equipment / Weapons / Traits / Bestiary**

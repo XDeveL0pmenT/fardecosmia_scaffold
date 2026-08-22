@@ -1018,10 +1018,20 @@ class RegionAreaWeatherState(models.Model):
 
 
 class WorldEvent(models.Model):
+    """Campaign-scoped event definition/schedule.
+
+    This is the additive evolution of the original mixed WorldEvent table.
+    Historical facts belong to ``WorldEventOccurrence`` below.
+    """
+
     class Status(models.TextChoices):
         PLANNED = "planned", "Запланировано"
         TRIGGERED = "triggered", "Произошло"
         CANCELLED = "cancelled", "Отменено"
+
+    class TriggerType(models.TextChoices):
+        MANUAL = "MANUAL", "Вручную"
+        WORLD_TIME = "WORLD_TIME", "По мировому времени"
 
     campaign = models.ForeignKey(
         "campaigns.Campaign",
@@ -1037,13 +1047,234 @@ class WorldEvent(models.Model):
     )
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    trigger_at = models.BigIntegerField(help_text="Игровая минута запуска")
+    event_type = models.CharField(max_length=120, default="narrative.event")
+    trigger_type = models.CharField(
+        max_length=30,
+        choices=TriggerType.choices,
+        default=TriggerType.WORLD_TIME,
+    )
+    trigger_config = models.JSONField(default=dict, blank=True)
+    trigger_version = models.PositiveSmallIntegerField(default=1)
+    trigger_at = models.BigIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Игровая минута запуска для WORLD_TIME",
+    )
+    effect_type = models.CharField(max_length=120, null=True, blank=True)
+    effect_payload = models.JSONField(default=dict, blank=True)
+    effect_version = models.PositiveSmallIntegerField(null=True, blank=True)
+    enabled = models.BooleanField(default=True)
+    one_shot = models.BooleanField(default=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PLANNED)
+    # Retained only for safe migration/legacy compatibility. P5 objective
+    # visibility will be introduced later through CharacterKnowledge.
     visible_to_players = models.BooleanField(default=False)
     triggered_at = models.BigIntegerField(null=True, blank=True)
+    target_content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="world_event_definitions",
+    )
+    target_object_id = models.CharField(max_length=128, blank=True)
+    target_label = models.CharField(max_length=500, blank=True)
+    target = GenericForeignKey("target_content_type", "target_object_id")
+    latitude = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(-90), MaxValueValidator(90)],
+    )
+    longitude = models.FloatField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(-180), MaxValueValidator(180)],
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="created_world_event_definitions",
+        null=True,
+        blank=True,
+    )
+    created_by_label_snapshot = models.CharField(max_length=240, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    revision = models.PositiveIntegerField(default=1)
 
     class Meta:
-        ordering = ["trigger_at"]
+        ordering = ["trigger_at", "id"]
+        indexes = [
+            models.Index(
+                fields=["campaign", "enabled", "trigger_type", "trigger_at"],
+                name="event_due_lookup_idx",
+            ),
+            models.Index(
+                fields=["campaign", "event_type"],
+                name="event_campaign_type_idx",
+            ),
+        ]
+
+    @property
+    def scheduled_world_minutes(self):
+        return self.trigger_at
+
+    def clean(self):
+        super().clean()
+        if not isinstance(self.trigger_config, dict):
+            raise ValidationError({"trigger_config": "Trigger config должен быть JSON-объектом."})
+        if not isinstance(self.effect_payload, dict):
+            raise ValidationError({"effect_payload": "Effect payload должен быть JSON-объектом."})
+        if bool(self.target_content_type_id) != bool(self.target_object_id):
+            raise ValidationError("Тип и ID цели должны быть указаны вместе.")
+        if self.trigger_type == self.TriggerType.WORLD_TIME:
+            if self.trigger_at is None:
+                raise ValidationError({"trigger_at": "Укажите мировое время события."})
+        elif self.trigger_at is not None:
+            raise ValidationError({"trigger_at": "Ручное событие не имеет будущего времени."})
+        if bool(self.effect_type) != (self.effect_version is not None):
+            raise ValidationError("Тип и версия effect должны быть указаны вместе.")
+
+    def __str__(self):
+        return self.title
+
+
+class WorldEventOccurrenceQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        raise ValidationError("Факт мирового события неизменяем.")
+
+    def delete(self):
+        raise ValidationError("Историю мировых событий нельзя удалять.")
+
+
+class WorldEventOccurrenceManager(
+    models.Manager.from_queryset(WorldEventOccurrenceQuerySet)
+):
+    def _create_from_validated_event_service(self, **values):
+        """Insert a service-validated fact without per-row relational probes.
+
+        The P5 event service validates the complete snapshot and runs inside
+        the same transaction as the effect/audits. The database still enforces
+        the one-occurrence constraint. Normal ORM ``create`` continues through
+        ``save()`` and full model validation.
+        """
+
+        occurrence = self.model(**values)
+        models.Model.save(occurrence, force_insert=True, using=self.db)
+        return occurrence
+
+
+class WorldEventOccurrence(models.Model):
+    """Immutable objective fact that an event happened in a Campaign."""
+
+    class Source(models.TextChoices):
+        USER = "USER", "Game Master"
+        SYSTEM = "SYSTEM", "Система"
+
+    campaign = models.ForeignKey(
+        "campaigns.Campaign",
+        on_delete=models.CASCADE,
+        related_name="world_event_occurrences",
+    )
+    definition = models.ForeignKey(
+        WorldEvent,
+        on_delete=models.SET_NULL,
+        related_name="occurrences",
+        null=True,
+        blank=True,
+    )
+    definition_revision = models.PositiveIntegerField(default=1)
+    event_type_snapshot = models.CharField(max_length=120)
+    title = models.CharField(max_length=200)
+    summary = models.TextField(blank=True)
+    occurred_world_minutes = models.BigIntegerField()
+    scheduled_world_minutes = models.BigIntegerField(null=True, blank=True)
+    occurred_at = models.DateTimeField(auto_now_add=True)
+    source = models.CharField(max_length=20, choices=Source.choices)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="world_event_occurrences",
+        null=True,
+        blank=True,
+    )
+    actor_label_snapshot = models.CharField(max_length=240, blank=True)
+    trigger_type_snapshot = models.CharField(max_length=30)
+    trigger_snapshot = models.JSONField(default=dict, blank=True)
+    trigger_version_snapshot = models.PositiveSmallIntegerField(default=1)
+    target_content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="world_event_occurrences",
+    )
+    target_object_id = models.CharField(max_length=128, blank=True)
+    target_label = models.CharField(max_length=500, blank=True)
+    target = GenericForeignKey("target_content_type", "target_object_id")
+    region = models.ForeignKey(
+        Region,
+        on_delete=models.SET_NULL,
+        related_name="event_occurrences",
+        null=True,
+        blank=True,
+    )
+    region_label_snapshot = models.CharField(max_length=200, blank=True)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+    effect_type_snapshot = models.CharField(max_length=120, null=True, blank=True)
+    effect_version_snapshot = models.PositiveSmallIntegerField(null=True, blank=True)
+    effect_result = models.JSONField(default=dict, blank=True)
+    operation_id = models.UUIDField(default=uuid.uuid4, db_index=True)
+
+    objects = WorldEventOccurrenceManager()
+
+    class Meta:
+        ordering = ["-occurred_world_minutes", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["definition"],
+                condition=models.Q(definition__isnull=False),
+                name="unique_world_event_occurrence",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["campaign", "occurred_world_minutes"],
+                name="event_occ_campaign_time_idx",
+            ),
+            models.Index(
+                fields=["campaign", "event_type_snapshot"],
+                name="event_occ_campaign_type_idx",
+            ),
+            models.Index(
+                fields=["region", "occurred_world_minutes"],
+                name="event_occ_region_time_idx",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        if not isinstance(self.trigger_snapshot, dict):
+            raise ValidationError({"trigger_snapshot": "Trigger snapshot должен быть JSON-объектом."})
+        if not isinstance(self.effect_result, dict):
+            raise ValidationError({"effect_result": "Effect result должен быть JSON-объектом."})
+        if self.source == self.Source.USER and self.actor_id is None:
+            raise ValidationError("Ручное событие должно хранить автора.")
+        if self.source == self.Source.SYSTEM and self.actor_id is not None:
+            raise ValidationError("Системное событие не должно иметь fake actor.")
+        if bool(self.target_content_type_id) != bool(self.target_object_id):
+            raise ValidationError("Тип и ID цели должны быть указаны вместе.")
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise ValidationError("Факт мирового события неизменяем.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Историю мировых событий нельзя удалять.")
 
     def __str__(self):
         return self.title

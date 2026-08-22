@@ -39,11 +39,11 @@ from .services.memberships import (
     remove_campaign_member,
 )
 from world.forms import AtmosphericConfigForm
-from world.models import ApprovalRequest, AtmosphericConfig
+from world.models import ApprovalRequest, AtmosphericConfig, WorldEvent
 from world.services.astronomy import calculate_local_sky, describe_region_sky
 from world.services.atmosphere.config import AtmosphericSettings
 from world.services.atmosphere.forcing import CampaignSkyForcing
-from world.services.calendar import minutes_for_time_step
+from world.services.calendar import describe_campaign_time, minutes_for_time_step
 from world.services.region_weather import latest_current_point_weather
 from world.services.time import advance_world
 from world.services.access import require_campaign_gm, require_campaign_member
@@ -407,10 +407,23 @@ def _gm_dashboard_context(campaign, *, atmosphere_form=None, time_settings_form=
     )
     calendar = reference_sky.local_moment
 
-    upcoming_events = campaign.events.filter(
-        status="planned",
-        trigger_at__gte=campaign.world_minutes,
-    ).order_by("trigger_at")[:10]
+    upcoming_definitions = (
+        campaign.events.filter(
+            enabled=True,
+            trigger_type=WorldEvent.TriggerType.WORLD_TIME,
+            trigger_at__gt=campaign.world_minutes,
+            occurrences__isnull=True,
+        )
+        .select_related("region")
+        .order_by("trigger_at", "id")[:10]
+    )
+    upcoming_events = [
+        {
+            "definition": definition,
+            "time": describe_campaign_time(campaign, definition.trigger_at),
+        }
+        for definition in upcoming_definitions
+    ]
 
     atmospheric_config = AtmosphericConfig.objects.filter(campaign=campaign).first()
     atmosphere_settings = (

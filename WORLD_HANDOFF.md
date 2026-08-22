@@ -1414,5 +1414,39 @@ normal Campaign creation require a verified contact email. Staff/superuser
 compatibility is preserved for administration; it does not replace
 CampaignMembership authority.
 
-Current next named roadmap phase is P5 WorldEvent, but it must not be started
-without a separate explicit GM instruction.
+---
+
+# 46. P5 WorldEvent foundation
+
+P5 is completed. Campaign event planning and objective event history are now
+different data layers:
+
+- `WorldEvent` is the mutable campaign-scoped definition/schedule;
+- `WorldEventOccurrence` is the immutable objective fact that an event happened;
+- initial triggers are registered/versioned `MANUAL` and `WORLD_TIME`;
+- WORLD_TIME one-shot definitions fire exactly on `(old_world_minutes,
+  new_world_minutes]`, in deterministic `trigger_at, id` order;
+- exact simulation and fast-forward use the same high-level crossing query, so
+  skipped atmospheric detail cannot skip a safe narrative event;
+- an occurrence stores durable title/summary/time/source/location/target/effect
+  snapshots and remains readable after definition, Region or target removal;
+- automatic effects are allowed only through registered domain handlers. Effect,
+  occurrence and related P3 audits commit atomically under one `operation_id`;
+- failure of a due safe event rolls back the enclosing time advance;
+- `TimeAdvanceReport` stores compact occurrence references/snapshots and keeps
+  historical report JSON readable;
+- definition and occurrence pages are campaign-GM-only. The obsolete
+  `visible_to_players` field is retained only for migration compatibility and is
+  not a player-publication boundary.
+
+`WorldEventOccurrence` is not `AuditLog`, `ApprovalRequest`, `TimeAdvanceReport`,
+an application pub/sub bus or event sourcing. Objective event truth is still not
+player knowledge. Publication/propagation requires the future
+CharacterKnowledge layer.
+
+No simulation-coupled climate effect is active. Such effects require a future
+split-at-event-boundary design; the current high-level scheduler is safe only for
+effects that do not need to alter skipped atmospheric evolution.
+
+The next named roadmap foundation is CharacterKnowledge, but it must not be
+started without a separate explicit GM instruction.

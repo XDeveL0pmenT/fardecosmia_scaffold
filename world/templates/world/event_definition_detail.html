@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ definition.title }} — События мира{% endblock %}
+{% block content %}
+<article class="event-detail">
+    <header class="panel event-detail__hero">
+        <div class="event-card__topline"><span class="status-badge {% if definition.enabled %}status-badge--pending{% else %}status-badge--muted{% endif %}">{% if has_occurrence %}Произошло{% elif definition.enabled %}Активно{% else %}Отключено{% endif %}</span><span>{{ type_label }}</span></div>
+        <h1>{{ definition.title }}</h1>
+        <p class="panel-kicker">Что должно произойти</p>
+        <p class="lead">{{ definition.description|default:"Без дополнительного описания." }}</p>
+    </header>
+    <div class="event-detail__grid">
+        <section class="panel"><p class="panel-kicker">Когда и как</p><h2>Условие срабатывания</h2><p>{{ trigger_label }}</p>{% if scheduled_time %}<strong>{{ scheduled_time.label }}</strong><small class="event-detail__secondary">{{ remaining_label }}</small>{% endif %}</section>
+        <section class="panel"><p class="panel-kicker">Где</p><h2>Место</h2><p>{% if definition.region %}{{ definition.region.name }}{% elif definition.target_label %}{{ definition.target_label }}{% else %}Место не указано.{% endif %}</p>{% if definition.latitude != None %}<small class="event-detail__secondary">{{ definition.latitude|floatformat:3 }}°, {{ definition.longitude|floatformat:3 }}°</small>{% endif %}</section>
+        <section class="panel"><p class="panel-kicker">После срабатывания</p><h2>Последствия</h2><p>{{ effect_label }}</p></section>
+    </div>
+    <div class="event-detail__actions">
+        {% if definition.trigger_type == 'MANUAL' and definition.enabled and not has_occurrence %}<form method="post" action="{% url 'world:world_event_trigger_now' campaign.id definition.id %}">{% csrf_token %}<button class="button" type="submit">Запустить сейчас</button></form>{% endif %}
+        <a class="button button--ghost" href="{% url 'world:world_event_definition_edit' campaign.id definition.id %}">Изменить</a>
+        {% if definition.enabled and not has_occurrence %}<form method="post" action="{% url 'world:world_event_definition_disable' campaign.id definition.id %}">{% csrf_token %}<button class="button button--ghost" type="submit">Отключить</button></form>{% endif %}
+        <a class="button button--danger" href="{% url 'world:world_event_definition_remove' campaign.id definition.id %}">Удалить определение</a>
+    </div>
+    <section class="panel event-history"><p class="panel-kicker">Неизменяемая история</p><h2>Срабатывания</h2>{% for row in occurrence_rows %}<a class="row row--link" href="{% url 'world:world_event_occurrence_detail' campaign.id row.occurrence.id %}"><strong>{{ row.occurrence.title }}</strong><span class="row__meta">{{ row.occurred_time.label }}</span></a>{% empty %}<p class="empty-copy">Событие ещё не произошло.</p>{% endfor %}</section>
+    <details class="panel technical-details"><summary>Технические данные</summary><dl><div><dt>Event type</dt><dd>{{ definition.event_type }}</dd></div><div><dt>Trigger</dt><dd>{{ definition.trigger_type }} v{{ definition.trigger_version }}</dd></div><div><dt>Ревизия</dt><dd>{{ definition.revision }}</dd></div><div><dt>ID</dt><dd>{{ definition.id }}</dd></div></dl></details>
+</article>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% load audit_json %}
+{% block title %}{{ occurrence.title }} — История мира{% endblock %}
+{% block content %}
+<article class="event-detail event-detail--occurrence">
+    <header class="panel event-detail__hero"><div class="event-card__topline"><span class="status-badge status-badge--success">Произошло</span><span>{{ type_label }}</span></div><h1>{{ occurrence.title }}</h1><p class="panel-kicker">Что произошло</p><p class="lead">{{ occurrence.summary|default:"Без дополнительного описания." }}</p></header>
+    <div class="event-detail__grid">
+        <section class="panel"><p class="panel-kicker">Произошло</p><h2>{{ occurred_time.label }}</h2><p>Реальное время фиксации: {{ occurrence.occurred_at|date:"d.m.Y H:i" }}</p></section>
+        <section class="panel"><p class="panel-kicker">Место</p><h2>{{ occurrence.region_label_snapshot|default:occurrence.target_label|default:"Не указано" }}</h2>{% if occurrence.latitude != None %}<p>{{ occurrence.latitude|floatformat:3 }}°, {{ occurrence.longitude|floatformat:3 }}°</p>{% endif %}</section>
+        <section class="panel"><p class="panel-kicker">Почему</p><h2>Причина</h2><p>{{ cause_label }}</p></section>
+        <section class="panel"><p class="panel-kicker">Что изменилось</p><h2>Последствия</h2><p>{{ effect_label }}</p></section>
+        <section class="panel"><p class="panel-kicker">Источник</p><h2>{% if occurrence.source == 'SYSTEM' %}Система мирового времени{% else %}Game Master{% endif %}</h2><p>{% if occurrence.actor_label_snapshot %}{{ occurrence.actor_label_snapshot }}{% else %}Автоматическое срабатывание без fake-user.{% endif %}</p></section>
+    </div>
+    <section class="panel event-history"><p class="panel-kicker">Одна операция</p><h2>Связанные изменения</h2>{% for audit in audit_group %}<a class="row row--link" href="{% url 'world:campaign_audit_detail' campaign.id audit.id %}"><strong>{{ audit.summary }}</strong><span class="row__meta">{{ audit.occurred_at|date:"d.m.Y H:i:s" }}</span></a>{% empty %}<p class="empty-copy">Связанных записей AuditLog нет.</p>{% endfor %}</section>
+    <details class="panel technical-details"><summary>Технические данные</summary><dl><div><dt>Occurrence ID</dt><dd>{{ occurrence.id }}</dd></div><div><dt>Definition revision</dt><dd>{{ occurrence.definition_revision }}</dd></div><div><dt>Trigger</dt><dd>{{ occurrence.trigger_type_snapshot }} v{{ occurrence.trigger_version_snapshot }}</dd></div><div><dt>Operation ID</dt><dd>{{ occurrence.operation_id }}</dd></div></dl>{% if occurrence.effect_result %}<pre>{{ occurrence.effect_result|pretty_json }}</pre>{% endif %}</details>
+</article>
+{% endblock %}

@@ -153,7 +153,22 @@ currently visible
 
 # 7. WorldEvent
 
-Будущие:
+P5 foundation реализован:
+
+- `WorldEvent` — mutable campaign definition/schedule;
+- `WorldEventOccurrence` — immutable objective history;
+- WORLD_TIME one-shot crossing — строго `(old, new]` с deterministic order;
+- exact и fast-forward не пропускают safe scheduled events;
+- triggers/effects registered, versioned, bounded и secret-safe;
+- effect, occurrence и связанные audits атомарны и имеют общий `operation_id`;
+- failed effect не оставляет occurrence/partial mutation и откатывает advance;
+- objective occurrences GM-only до CharacterKnowledge publication.
+
+WorldEvent не является application event bus, event sourcing, AuditLog,
+ApprovalRequest или TimeAdvanceReport. Запрещены `eval`, arbitrary JSON field
+mutation и создание конкурирующей event architecture.
+
+Будущие расширения:
 
 - глобальные события;
 - локальные события;
@@ -164,9 +179,12 @@ currently visible
 
 будут объединены через `WorldEvent` или архитектурный эквивалент.
 
-C4 НЕ реализует WorldEvent.
+Simulation-coupled effects пока не подключены: если событие должно влиять на
+атмосферу внутри пропущенного периода, будущая фаза обязана разделить simulation
+на event boundaries. Нельзя молча применять такое effect только в конце advance.
 
-Однако solver должен позволять позже подключить external forcing/effect hooks.
+Solver должен позволять позже подключить явно спроектированные external
+forcing/effect hooks.
 
 Не создавать без необходимости множество permanent DB flags вида:
 

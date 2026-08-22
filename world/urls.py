@@ -44,6 +44,51 @@ urlpatterns = [
         name="campaign_approval_queue",
     ),
     path(
+        "campaign/<uuid:campaign_id>/gm/events/",
+        views.campaign_event_list,
+        name="campaign_event_list",
+    ),
+    path(
+        "campaign/<uuid:campaign_id>/gm/events/schedule/",
+        views.world_event_schedule,
+        name="world_event_schedule",
+    ),
+    path(
+        "campaign/<uuid:campaign_id>/gm/events/record-now/",
+        views.world_event_record_now,
+        name="world_event_record_now",
+    ),
+    path(
+        "campaign/<uuid:campaign_id>/gm/events/definitions/<int:definition_id>/",
+        views.world_event_definition_detail,
+        name="world_event_definition_detail",
+    ),
+    path(
+        "campaign/<uuid:campaign_id>/gm/events/definitions/<int:definition_id>/edit/",
+        views.world_event_definition_edit,
+        name="world_event_definition_edit",
+    ),
+    path(
+        "campaign/<uuid:campaign_id>/gm/events/definitions/<int:definition_id>/disable/",
+        views.world_event_definition_disable,
+        name="world_event_definition_disable",
+    ),
+    path(
+        "campaign/<uuid:campaign_id>/gm/events/definitions/<int:definition_id>/remove/",
+        views.world_event_definition_remove,
+        name="world_event_definition_remove",
+    ),
+    path(
+        "campaign/<uuid:campaign_id>/gm/events/definitions/<int:definition_id>/trigger/",
+        views.world_event_trigger_now,
+        name="world_event_trigger_now",
+    ),
+    path(
+        "campaign/<uuid:campaign_id>/gm/events/occurrences/<int:occurrence_id>/",
+        views.world_event_occurrence_detail,
+        name="world_event_occurrence_detail",
+    ),
+    path(
         "campaign/<uuid:campaign_id>/approvals/mine/",
         views.my_approval_requests,
         name="my_approval_requests",

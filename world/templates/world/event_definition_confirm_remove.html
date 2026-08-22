@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Удалить определение — {{ campaign.name }}{% endblock %}
+{% block content %}
+<section class="panel danger-confirmation">
+    <p class="eyebrow">Проверка действия</p>
+    <h1>Удалить определение «{{ definition.title }}»?</h1>
+    <p>Расписание и будущее срабатывание будут удалены. Уже произошедшие факты и AuditLog останутся читаемыми.</p>
+    <form method="post" class="form-actions">{% csrf_token %}<button class="button button--danger" type="submit">Удалить определение</button><a class="button button--ghost" href="{% url 'world:world_event_definition_detail' campaign.id definition.id %}">Отмена</a></form>
+</section>
+{% endblock %}

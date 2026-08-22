@@ -6,8 +6,9 @@ from campaigns.models import (
     Campaign,
     TimeAdvanceReport,
 )
-from world.models import AtmosphericConfig, WorldEvent
+from world.models import AtmosphericConfig
 from world.services.atmosphere.persistence import advance_atmosphere_for_period
+from world.services.events import execute_due_world_events
 from world.services.time_reports import build_time_advance_summary
 from world.services.weather import update_weather_for_period
 from world.services.access import can_manage_campaign
@@ -140,23 +141,14 @@ def advance_world(
         )
         weather_results.extend(atmospheric_result.weather_states)
 
-    triggered_events = list(
-        campaign.events.select_for_update()
-        .select_related("region")
-        .filter(
-            status=WorldEvent.Status.PLANNED,
-            trigger_at__gt=old_time,
-            trigger_at__lte=new_time,
-        )
+    # World-time events are evaluated once at the high-level interval boundary,
+    # independently from exact atmospheric steps or fast-forward coverage.
+    # A handler failure therefore rolls back the enclosing time transaction.
+    triggered_events = execute_due_world_events(
+        campaign=campaign,
+        start_world_minutes=old_time,
+        end_world_minutes=new_time,
     )
-    for event in triggered_events:
-        event.status = WorldEvent.Status.TRIGGERED
-        event.triggered_at = event.trigger_at
-    if triggered_events:
-        WorldEvent.objects.bulk_update(
-            triggered_events,
-            fields=["status", "triggered_at"],
-        )
 
     report = None
     if advanced_by is not None:

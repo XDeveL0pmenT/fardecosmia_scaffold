@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}События мира — {{ campaign.name }}{% endblock %}
+{% block content %}
+<header class="page-heading event-heading">
+    <div>
+        <p class="eyebrow">Объективная история кампании</p>
+        <h1>События мира</h1>
+        <p class="lead">Здесь GM планирует события и видит неизменяемую историю того, что реально произошло.</p>
+    </div>
+    <div class="event-heading__actions">
+        <a class="button" href="{% url 'world:world_event_schedule' campaign.id %}">Запланировать событие</a>
+        <a class="button button--ghost" href="{% url 'world:world_event_record_now' campaign.id %}">Записать событие сейчас</a>
+    </div>
+</header>
+
+<nav class="event-tabs" aria-label="Фильтр событий">
+    <a class="{% if selected_tab == 'upcoming' %}is-active{% endif %}" href="?tab=upcoming">Предстоящие</a>
+    <a class="{% if selected_tab == 'occurred' %}is-active{% endif %}" href="?tab=occurred">Произошедшие</a>
+    <a class="{% if selected_tab == 'disabled' %}is-active{% endif %}" href="?tab=disabled">Отключённые</a>
+    <a class="{% if selected_tab == 'all' %}is-active{% endif %}" href="?tab=all">Все</a>
+</nav>
+
+<section class="event-card-grid" aria-label="Определения событий">
+    {% for row in definition_rows %}
+        <article class="panel event-card">
+            <div class="event-card__topline">
+                <span class="status-badge {% if row.definition.enabled %}status-badge--pending{% else %}status-badge--muted{% endif %}">{% if not row.definition.enabled %}Отключено{% elif row.definition.trigger_type == 'MANUAL' %}Ожидает GM{% else %}Запланировано{% endif %}</span>
+                <span>{{ row.type_label }}</span>
+            </div>
+            <h2><a href="{% url 'world:world_event_definition_detail' campaign.id row.definition.id %}">{{ row.definition.title }}</a></h2>
+            <p>{{ row.definition.description|default:"Без дополнительного описания."|truncatechars:220 }}</p>
+            <dl class="event-card__facts">
+                {% if row.scheduled_time %}<div><dt>Когда</dt><dd>{{ row.scheduled_time.label }}<small>{{ row.remaining_label }}</small></dd></div>{% endif %}
+                <div><dt>Где</dt><dd>{% if row.definition.region %}{{ row.definition.region.name }}{% elif row.definition.target_label %}{{ row.definition.target_label }}{% else %}Место не указано{% endif %}</dd></div>
+                <div><dt>Последствие</dt><dd>{{ row.effect_label }}</dd></div>
+            </dl>
+        </article>
+    {% endfor %}
+
+    {% for row in occurrence_rows %}
+        <article class="panel event-card event-card--occurred">
+            <div class="event-card__topline"><span class="status-badge status-badge--success">Произошло</span><span>{{ row.type_label }}</span></div>
+            <h2><a href="{% url 'world:world_event_occurrence_detail' campaign.id row.occurrence.id %}">{{ row.occurrence.title }}</a></h2>
+            <p>{{ row.occurrence.summary|default:"Без дополнительного описания."|truncatechars:220 }}</p>
+            <dl class="event-card__facts">
+                <div><dt>Мировое время</dt><dd>{{ row.occurred_time.label }}</dd></div>
+                <div><dt>Место</dt><dd>{{ row.occurrence.region_label_snapshot|default:row.occurrence.target_label|default:"Не указано" }}</dd></div>
+                <div><dt>Причина</dt><dd>{{ row.cause_label }}</dd></div>
+            </dl>
+        </article>
+    {% endfor %}
+
+    {% if not definition_rows and not occurrence_rows %}
+        <div class="panel empty-state event-empty">
+            {% if selected_tab == 'occurred' %}<h2>В истории кампании пока нет событий мира.</h2>
+            {% elif selected_tab == 'disabled' %}<h2>Отключённых событий нет.</h2>
+            {% else %}<h2>Предстоящих событий пока нет.</h2>{% endif %}
+            <p>Можно запланировать будущее событие или зафиксировать то, что произошло сейчас.</p>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

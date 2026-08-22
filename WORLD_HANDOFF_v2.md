@@ -1994,9 +1994,28 @@ Travel checks should emerge from route conditions and configured game rules, not
 
 ---
 
-# 69. Future WorldEvent
+# 69. P5 WorldEvent foundation and future extensions
 
-WorldEvent or equivalent event engine should eventually connect:
+P5 is implemented. `WorldEvent` is the mutable campaign definition/schedule and
+`WorldEventOccurrence` is the immutable objective Campaign-history fact.
+Initial registered/versioned trigger types are `MANUAL` and `WORLD_TIME`.
+WORLD_TIME uses deterministic one-shot crossing `(old, new]`; exact and
+fast-forward call the same high-level due-event service. Occurrences snapshot
+their human description, exact scheduled/occurred world minute, source/actor,
+Region/location/target labels, definition revision and effect result.
+
+Registered effect handlers are the only automatic mutation boundary. Effect,
+occurrence and related P3 audits share one transaction and `operation_id`; a
+failure rolls back the time advance rather than committing past an unapplied
+safe event. `TimeAdvanceReport` stores compact occurrence references, not full
+payloads. Objective event pages remain GM-only until CharacterKnowledge provides
+explicit player publication.
+
+WorldEvent is not AuditLog, ApprovalRequest, TimeAdvanceReport, an application
+pub/sub bus or an event-sourcing store. Simulation-coupled effects are not wired:
+they require a future split-at-event-boundary simulation design.
+
+Future extensions may connect:
 
 ```text
 simulation
@@ -2538,9 +2557,12 @@ Completed:
 - P4 ApprovalRequest foundation.
 - P4.5 Account Onboarding, Email & Campaign Lifecycle.
 
-Any next phase requires a separate explicit GM instruction. P5,
+Completed additionally:
+- P5 WorldEvent foundation.
+
+Any next phase requires a separate explicit GM instruction.
 CharacterKnowledge, M2, Inventory/Purchases, Travel and C5 have not been started
-by P4.5.
+by P5.
 
 C5 is intentionally not started yet.
 
@@ -2747,6 +2769,11 @@ The essential truths:
   creation/invitations still derive authority only from CampaignMembership.
 - Verification, reset and invitation secrets are never plaintext persistence or
   world-audit data.
+- P5 separates mutable WorldEvent definitions from immutable objective
+  WorldEventOccurrence history; WORLD_TIME crosses `(old,new]` equally in exact
+  and fast-forward, and registered effects/audits commit atomically.
+- Objective event history is GM-only until a future CharacterKnowledge
+  publication layer explicitly makes a fact player-known.
 - Region legacy climate fields are not allowed to re-enter modern physics.
 - Fast-forward does not invent detailed skipped weather history.
 - Lumen, Noctis and Heat Corruption are world-specific concepts and must be treated according to canon.

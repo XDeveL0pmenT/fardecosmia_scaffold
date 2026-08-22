@@ -13,6 +13,7 @@ from .models import (
     WeatherState,
     WorldEntry,
     WorldEvent,
+    WorldEventOccurrence,
     WorldMapLayer,
 )
 from world.services.access import can_manage_global_canon
@@ -110,9 +111,56 @@ class RegionAreaWeatherStateAdmin(admin.ModelAdmin):
 
 @admin.register(WorldEvent)
 class WorldEventAdmin(admin.ModelAdmin):
-    list_display = ("title", "campaign", "region", "trigger_at", "status")
-    list_filter = ("campaign", "status", "visible_to_players")
+    """Diagnostic view; authored changes belong to the audited GM workflow."""
+
+    list_display = ("title", "campaign", "trigger_type", "trigger_at", "enabled", "revision")
+    list_filter = ("campaign", "trigger_type", "enabled", "event_type")
     search_fields = ("title", "description")
+    readonly_fields = tuple(field.name for field in WorldEvent._meta.fields)
+
+    def has_module_permission(self, request):
+        return request.user.is_superuser
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(WorldEventOccurrence)
+class WorldEventOccurrenceAdmin(admin.ModelAdmin):
+    list_display = (
+        "occurred_at",
+        "campaign",
+        "title",
+        "occurred_world_minutes",
+        "source",
+    )
+    list_filter = ("campaign", "source", "event_type_snapshot")
+    search_fields = ("title", "summary", "region_label_snapshot", "target_label")
+    readonly_fields = tuple(field.name for field in WorldEventOccurrence._meta.fields)
+
+    def has_module_permission(self, request):
+        return request.user.is_superuser
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(WorldMapLayer)

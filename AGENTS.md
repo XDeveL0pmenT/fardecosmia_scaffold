@@ -90,6 +90,24 @@ campaign state.
   this invariant transactionally.
 - Authentication secrets, verification codes, reset tokens and invitation
   tokens must never enter `AuditLog` payloads or summaries.
+- Audit an existing `WorldEvent` implementation and its data before changing its
+  schema; never replace or reinterpret stored event rows destructively.
+- A WorldEvent definition/schedule is mutable planning data. A
+  `WorldEventOccurrence` is immutable objective Campaign history. Neither is
+  player knowledge, an `AuditLog`, an `ApprovalRequest`, a generic application
+  event bus or an event-sourcing store.
+- WORLD_TIME one-shot events use the explicit crossing interval `(old, new]` and
+  must not be skipped by exact/fast-forward boundaries. Same-time events are
+  ordered deterministically by stored ID.
+- WorldEvent triggers/effects must be registered, versioned, bounded and
+  secret-safe. Never evaluate DB code or apply arbitrary JSON model mutations.
+- An event effect, its occurrence and all resulting domain/event audits share
+  one transaction and operation ID. A failed effect must leave none of them
+  committed.
+- Do not couple an effect to atmospheric state inside a skipped interval until
+  a future phase explicitly introduces split-at-event simulation boundaries.
+- Objective occurrences remain GM-only until a separate CharacterKnowledge or
+  publication layer grants player-safe knowledge.
 
 ## After changes
 Run, when available:

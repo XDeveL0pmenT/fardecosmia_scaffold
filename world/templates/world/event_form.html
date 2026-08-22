@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}{% if form_mode == 'schedule' %}Запланировать событие{% elif form_mode == 'now' %}Записать событие{% else %}Изменить событие{% endif %} — {{ campaign.name }}{% endblock %}
+{% block content %}
+<div class="event-form-layout">
+    <header class="page-heading">
+        <p class="eyebrow">{% if form_mode == 'now' %}История мира{% else %}Определение события{% endif %}</p>
+        <h1>{% if form_mode == 'schedule' %}Запланировать событие{% elif form_mode == 'now' %}Записать событие сейчас{% else %}Изменить событие{% endif %}</h1>
+        <p class="lead">{% if form_mode == 'schedule' %}Укажите, что должно произойти и через сколько игрового времени. {% elif form_mode == 'now' %}Запись сразу станет неизменяемым фактом на текущей мировой минуте. {% else %}Правка меняет определение, но не переписывает уже состоявшуюся историю.{% endif %}</p>
+    </header>
+    <section class="panel event-form-card">
+        <form method="post" class="stacked-form">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            {% for field in form %}
+                <p><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}{% if field.help_text %}<small class="helptext">{{ field.help_text }}</small>{% endif %}</p>
+            {% endfor %}
+            <div class="form-actions">
+                <button class="button" type="submit">{% if form_mode == 'schedule' %}Запланировать{% elif form_mode == 'now' %}Записать в историю{% else %}Сохранить{% endif %}</button>
+                <a class="button button--ghost" href="{% if definition %}{% url 'world:world_event_definition_detail' campaign.id definition.id %}{% else %}{% url 'world:campaign_event_list' campaign.id %}{% endif %}">Отмена</a>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}

@@ -36,6 +36,11 @@ ACTION_LABELS = {
     "approval_request.rejected": "Запрос отклонён",
     "approval_request.cancelled": "Запрос отменён",
     "approval_request.expired": "Срок запроса истёк",
+    "world_event_definition.created": "Событие запланировано",
+    "world_event_definition.updated": "Определение события изменено",
+    "world_event_definition.disabled": "Событие отключено",
+    "world_event_definition.removed": "Определение события удалено",
+    "world_event.occurred": "Событие мира произошло",
 }
 
 ACTION_DESCRIPTIONS = {
@@ -68,6 +73,11 @@ ACTION_DESCRIPTIONS = {
     "approval_request.rejected": "Мастер отклонил запрос без применения действия.",
     "approval_request.cancelled": "Автор отозвал запрос до принятия решения.",
     "approval_request.expired": "Срок принятия решения закончился.",
+    "world_event_definition.created": "Создано новое условие или расписание события кампании.",
+    "world_event_definition.updated": "Будущее поведение события изменено без переписывания истории.",
+    "world_event_definition.disabled": "Событие больше не будет срабатывать автоматически.",
+    "world_event_definition.removed": "Расписание удалено, но состоявшиеся факты остались в истории.",
+    "world_event.occurred": "В объективной истории кампании зафиксирован неизменяемый факт.",
 }
 
 FIELD_LABELS = {
@@ -117,6 +127,11 @@ FIELD_LABELS = {
     "expires_at": "Действует до",
     "status": "Состояние",
     "created_by": "Создал",
+    "event_type": "Тип события",
+    "trigger_type": "Условие срабатывания",
+    "scheduled_world_minutes": "Запланированное мировое время",
+    "occurred_world_minutes": "Мировое время события",
+    "effect_type": "Автоматическое последствие",
     "authored_cell_count": "Нарисовано ячеек",
     "digest": "Контрольная сумма слоя",
 }

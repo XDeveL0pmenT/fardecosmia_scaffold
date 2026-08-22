@@ -20,9 +20,20 @@ from world.forms import (
     MapLayerPaintForm,
     RegionMapForm,
     RegionPlacementForm,
+    WorldEventDefinitionEditForm,
+    WorldEventNowForm,
+    WorldEventScheduleForm,
     WorldEntryForm,
 )
-from world.models import ApprovalRequest, AtmosphericConfig, AuditLog, Region, WorldEntry
+from world.models import (
+    ApprovalRequest,
+    AtmosphericConfig,
+    AuditLog,
+    Region,
+    WorldEntry,
+    WorldEvent,
+    WorldEventOccurrence,
+)
 from world.services.access import (
     can_manage_campaign,
     can_manage_global_canon,
@@ -89,6 +100,19 @@ from world.services.canon import (
     update_global_world_entry,
 )
 from world.services.calendar import describe_campaign_time
+from world.services.events import (
+    WorldEventError,
+    create_world_event_definition,
+    disable_world_event_definition,
+    effect_presentation,
+    record_narrative_event_now,
+    remove_world_event_definition,
+    trigger_presentation,
+    trigger_type_label,
+    trigger_world_event_now,
+    update_world_event_definition,
+    world_event_type_label,
+)
 from world.services.overrides import effective_world_entries, resolve_for_campaign
 
 
@@ -428,6 +452,354 @@ def _approval_transition_view(request, *, campaign_id, request_id, transition):
         campaign_id=campaign.pk,
         request_id=request_id,
     )
+
+
+def _event_time_label(campaign, world_minutes):
+    moment = describe_campaign_time(campaign, world_minutes)
+    return {
+        "moment": moment,
+        "label": (
+            f"Год {moment.year} · Виток {moment.turn_of_year} · "
+            f"{moment.turn_clock} · {moment.season}"
+        ),
+    }
+
+
+def _event_remaining_label(campaign, scheduled_world_minutes):
+    remaining = max(0, scheduled_world_minutes - campaign.world_minutes)
+    if remaining == 0:
+        return "сейчас"
+    if remaining % campaign.calendar_minutes_per_turn == 0:
+        value = remaining // campaign.calendar_minutes_per_turn
+        return f"через {value} Виток(ов)"
+    if remaining % campaign.calendar_minutes_per_phase == 0:
+        value = remaining // campaign.calendar_minutes_per_phase
+        return f"через {value} фаз(ы) Витка"
+    if remaining % campaign.calendar_minutes_per_hour == 0:
+        value = remaining // campaign.calendar_minutes_per_hour
+        return f"через {value} час(ов) Витка"
+    return f"через {remaining} игровых минут"
+
+
+def _event_common_context(request, campaign):
+    return {
+        "campaign": campaign,
+        "time_advance_units": TIME_ADVANCE_UNITS,
+        "can_advance_time": can_manage_campaign(request.user, campaign),
+    }
+
+
+@login_required
+@require_GET
+def campaign_event_list(request, campaign_id):
+    campaign = _gm_campaign_or_403(request.user, campaign_id)
+    selected_tab = request.GET.get("tab", "upcoming")
+    if selected_tab not in {"upcoming", "occurred", "disabled", "all"}:
+        selected_tab = "upcoming"
+
+    definitions = (
+        WorldEvent.objects.filter(campaign=campaign)
+        .select_related("region", "created_by")
+        .prefetch_related("occurrences")
+    )
+    occurrences = WorldEventOccurrence.objects.filter(campaign=campaign).select_related(
+        "definition", "region", "actor"
+    )
+    if selected_tab == "upcoming":
+        definitions = definitions.filter(
+            enabled=True,
+            trigger_type=WorldEvent.TriggerType.WORLD_TIME,
+            trigger_at__gt=campaign.world_minutes,
+            occurrences__isnull=True,
+        )
+        occurrences = occurrences.none()
+    elif selected_tab == "occurred":
+        definitions = definitions.none()
+    elif selected_tab == "disabled":
+        definitions = definitions.filter(enabled=False, occurrences__isnull=True)
+        occurrences = occurrences.none()
+    else:
+        # Once a one-shot definition has fired, its immutable occurrence is the
+        # history row shown in the combined view. Avoid presenting the mutable
+        # schedule as a second copy of the same fact.
+        definitions = definitions.filter(occurrences__isnull=True)
+
+    definition_rows = [
+        {
+            "definition": definition,
+            "type_label": world_event_type_label(definition.event_type),
+            "scheduled_time": (
+                _event_time_label(campaign, definition.trigger_at)
+                if definition.trigger_at is not None
+                else None
+            ),
+            "remaining_label": (
+                _event_remaining_label(campaign, definition.trigger_at)
+                if definition.trigger_at is not None
+                else "запускается GM"
+            ),
+            "effect_label": effect_presentation(definition),
+        }
+        for definition in definitions.order_by("trigger_at", "id")[:100]
+    ]
+    occurrence_rows = [
+        {
+            "occurrence": occurrence,
+            "type_label": world_event_type_label(occurrence.event_type_snapshot),
+            "occurred_time": _event_time_label(
+                campaign,
+                occurrence.occurred_world_minutes,
+            ),
+            "cause_label": trigger_type_label(occurrence.trigger_type_snapshot),
+        }
+        for occurrence in occurrences.order_by("-occurred_world_minutes", "-id")[:100]
+    ]
+    context = _event_common_context(request, campaign)
+    context.update(
+        {
+            "selected_tab": selected_tab,
+            "definition_rows": definition_rows,
+            "occurrence_rows": occurrence_rows,
+        }
+    )
+    return render(request, "world/event_list.html", context)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def world_event_schedule(request, campaign_id):
+    campaign = _gm_campaign_or_403(request.user, campaign_id)
+    form = WorldEventScheduleForm(request.POST or None, campaign=campaign)
+    if request.method == "POST" and form.is_valid():
+        try:
+            definition = create_world_event_definition(
+                actor=request.user,
+                campaign=campaign,
+                title=form.cleaned_data["title"],
+                description=form.cleaned_data["description"],
+                scheduled_world_minutes=form.cleaned_data["scheduled_world_minutes"],
+                region=form.cleaned_data["region"],
+            )
+        except (ValidationError, WorldEventError) as error:
+            form.add_error(None, _decision_error_message(error))
+        else:
+            messages.success(request, f"Событие «{definition.title}» запланировано.")
+            return redirect(
+                "world:world_event_definition_detail",
+                campaign_id=campaign.pk,
+                definition_id=definition.pk,
+            )
+    context = _event_common_context(request, campaign)
+    context.update({"form": form, "form_mode": "schedule"})
+    return render(request, "world/event_form.html", context)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def world_event_record_now(request, campaign_id):
+    campaign = _gm_campaign_or_403(request.user, campaign_id)
+    form = WorldEventNowForm(request.POST or None, campaign=campaign)
+    if request.method == "POST" and form.is_valid():
+        try:
+            occurrence = record_narrative_event_now(
+                actor=request.user,
+                campaign=campaign,
+                title=form.cleaned_data["title"],
+                description=form.cleaned_data["description"],
+                region=form.cleaned_data["region"],
+            )
+        except (ValidationError, WorldEventError) as error:
+            form.add_error(None, _decision_error_message(error))
+        else:
+            messages.success(request, f"Событие «{occurrence.title}» добавлено в историю мира.")
+            return redirect(
+                "world:world_event_occurrence_detail",
+                campaign_id=campaign.pk,
+                occurrence_id=occurrence.pk,
+            )
+    context = _event_common_context(request, campaign)
+    context.update({"form": form, "form_mode": "now"})
+    return render(request, "world/event_form.html", context)
+
+
+def _world_event_definition_or_404(campaign, definition_id):
+    return get_object_or_404(
+        WorldEvent.objects.select_related("campaign", "region", "created_by", "target_content_type"),
+        pk=definition_id,
+        campaign=campaign,
+    )
+
+
+@login_required
+@require_GET
+def world_event_definition_detail(request, campaign_id, definition_id):
+    campaign = _gm_campaign_or_403(request.user, campaign_id)
+    definition = _world_event_definition_or_404(campaign, definition_id)
+    occurrences = list(definition.occurrences.select_related("region", "actor"))
+    occurrence_rows = [
+        {
+            "occurrence": occurrence,
+            "occurred_time": _event_time_label(
+                campaign,
+                occurrence.occurred_world_minutes,
+            ),
+        }
+        for occurrence in occurrences
+    ]
+    context = _event_common_context(request, campaign)
+    context.update(
+        {
+            "definition": definition,
+            "type_label": world_event_type_label(definition.event_type),
+            "trigger_label": trigger_presentation(definition),
+            "effect_label": effect_presentation(definition),
+            "scheduled_time": (
+                _event_time_label(campaign, definition.trigger_at)
+                if definition.trigger_at is not None
+                else None
+            ),
+            "remaining_label": (
+                _event_remaining_label(campaign, definition.trigger_at)
+                if definition.trigger_at is not None
+                else None
+            ),
+            "has_occurrence": bool(occurrences),
+            "occurrence_rows": occurrence_rows,
+        }
+    )
+    return render(request, "world/event_definition_detail.html", context)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def world_event_definition_edit(request, campaign_id, definition_id):
+    campaign = _gm_campaign_or_403(request.user, campaign_id)
+    definition = _world_event_definition_or_404(campaign, definition_id)
+    form = WorldEventDefinitionEditForm(
+        request.POST or None,
+        campaign=campaign,
+        initial={
+            "title": definition.title,
+            "description": definition.description,
+            "region": definition.region_id,
+        },
+    )
+    if request.method == "POST" and form.is_valid():
+        try:
+            definition = update_world_event_definition(
+                actor=request.user,
+                campaign=campaign,
+                definition=definition,
+                title=form.cleaned_data["title"],
+                description=form.cleaned_data["description"],
+                region=form.cleaned_data["region"],
+            )
+        except (ValidationError, WorldEventError) as error:
+            form.add_error(None, _decision_error_message(error))
+        else:
+            messages.success(request, "Определение события обновлено; прошлые срабатывания не изменены.")
+            return redirect(
+                "world:world_event_definition_detail",
+                campaign_id=campaign.pk,
+                definition_id=definition.pk,
+            )
+    context = _event_common_context(request, campaign)
+    context.update({"form": form, "form_mode": "edit", "definition": definition})
+    return render(request, "world/event_form.html", context)
+
+
+@login_required
+@require_POST
+def world_event_definition_disable(request, campaign_id, definition_id):
+    campaign = _gm_campaign_or_403(request.user, campaign_id)
+    definition = _world_event_definition_or_404(campaign, definition_id)
+    disable_world_event_definition(actor=request.user, campaign=campaign, definition=definition)
+    messages.success(request, f"Событие «{definition.title}» отключено.")
+    return redirect(
+        "world:world_event_definition_detail",
+        campaign_id=campaign.pk,
+        definition_id=definition.pk,
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def world_event_definition_remove(request, campaign_id, definition_id):
+    campaign = _gm_campaign_or_403(request.user, campaign_id)
+    definition = _world_event_definition_or_404(campaign, definition_id)
+    if request.method == "POST":
+        title = definition.title
+        remove_world_event_definition(actor=request.user, campaign=campaign, definition=definition)
+        messages.success(request, f"Определение «{title}» удалено; история сохранена.")
+        return redirect("world:campaign_event_list", campaign_id=campaign.pk)
+    context = _event_common_context(request, campaign)
+    context["definition"] = definition
+    return render(request, "world/event_definition_confirm_remove.html", context)
+
+
+@login_required
+@require_POST
+def world_event_trigger_now(request, campaign_id, definition_id):
+    campaign = _gm_campaign_or_403(request.user, campaign_id)
+    definition = _world_event_definition_or_404(campaign, definition_id)
+    try:
+        occurrence = trigger_world_event_now(
+            actor=request.user,
+            campaign=campaign,
+            definition=definition,
+        )
+    except (ValidationError, WorldEventError) as error:
+        messages.error(request, _decision_error_message(error))
+        return redirect(
+            "world:world_event_definition_detail",
+            campaign_id=campaign.pk,
+            definition_id=definition.pk,
+        )
+    return redirect(
+        "world:world_event_occurrence_detail",
+        campaign_id=campaign.pk,
+        occurrence_id=occurrence.pk,
+    )
+
+
+@login_required
+@require_GET
+def world_event_occurrence_detail(request, campaign_id, occurrence_id):
+    campaign = _gm_campaign_or_403(request.user, campaign_id)
+    occurrence = get_object_or_404(
+        WorldEventOccurrence.objects.select_related(
+            "definition", "region", "actor", "target_content_type"
+        ),
+        pk=occurrence_id,
+        campaign=campaign,
+    )
+    audit_group = AuditLog.objects.filter(
+        campaign=campaign,
+        operation_id=occurrence.operation_id,
+    ).order_by("occurred_at", "id")
+    context = _event_common_context(request, campaign)
+    context.update(
+        {
+            "occurrence": occurrence,
+            "type_label": world_event_type_label(occurrence.event_type_snapshot),
+            "occurred_time": _event_time_label(
+                campaign,
+                occurrence.occurred_world_minutes,
+            ),
+            "cause_label": (
+                "Событие было запланировано на это мировое время."
+                if occurrence.trigger_type_snapshot == WorldEvent.TriggerType.WORLD_TIME
+                else f"Событие зафиксировал Game Master {occurrence.actor_label_snapshot}."
+            ),
+            "effect_label": (
+                "Применено зарегистрированное доменное последствие."
+                if occurrence.effect_type_snapshot
+                else "Автоматических последствий не применялось. Факт добавлен в историю мира."
+            ),
+            "audit_group": audit_group,
+        }
+    )
+    return render(request, "world/event_occurrence_detail.html", context)
 
 
 @login_required

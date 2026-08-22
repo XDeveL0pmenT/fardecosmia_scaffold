@@ -4171,3 +4171,110 @@ button.region-placement-item {
     .approval-cancel { align-items: stretch; flex-direction: column; }
     .approval-history li { grid-template-columns: 1fr; gap: 5px; }
 }
+
+/* P5 — human-first WorldEvent definitions and immutable occurrences. */
+.event-heading {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 28px;
+}
+.event-heading__actions,
+.event-detail__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.event-detail__actions form { margin: 0; }
+.event-tabs {
+    display: flex;
+    gap: 8px;
+    margin: 22px 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+.event-tabs a {
+    flex: 0 0 auto;
+    padding: 10px 15px;
+    border: 1px solid rgba(157, 138, 205, 0.22);
+    border-radius: 999px;
+    color: var(--muted);
+    text-decoration: none;
+}
+.event-tabs a:hover,
+.event-tabs a.is-active {
+    border-color: rgba(178, 137, 255, 0.65);
+    color: #f2edff;
+    background: rgba(111, 72, 170, 0.2);
+}
+.event-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
+    gap: 16px;
+}
+.event-card { padding: 22px; }
+.event-card--occurred { border-color: rgba(86, 206, 181, 0.28); }
+.event-card h2 { margin: 13px 0 8px; font-size: 1.25rem; }
+.event-card h2 a { color: #f0ebff; text-decoration: none; }
+.event-card h2 a:hover { color: var(--violet-bright); }
+.event-card > p { color: #c0b9d4; line-height: 1.55; }
+.event-card__topline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--muted);
+    font-size: 0.82rem;
+}
+.event-card__facts { display: grid; gap: 12px; margin: 18px 0 0; }
+.event-card__facts div {
+    display: grid;
+    grid-template-columns: minmax(90px, .35fr) 1fr;
+    gap: 12px;
+    padding-top: 11px;
+    border-top: 1px solid rgba(157, 138, 205, 0.13);
+}
+.event-card__facts dt { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: .08em; }
+.event-card__facts dd { margin: 0; color: #e9e4f8; overflow-wrap: anywhere; }
+.event-card__facts small,
+.event-detail__secondary { display: block; margin-top: 4px; color: var(--muted); }
+.status-badge--pending { color: #e4c891; border-color: rgba(222, 183, 102, .38); background: rgba(132, 92, 27, .17); }
+.status-badge--success { color: #98e6d0; border-color: rgba(86, 206, 181, .38); background: rgba(31, 121, 102, .17); }
+.status-badge--muted { color: #a9a1ba; border-color: rgba(169, 161, 186, .28); background: rgba(90, 82, 104, .16); }
+.event-empty { grid-column: 1 / -1; padding: 36px; }
+.event-form-layout { max-width: 920px; margin-inline: auto; }
+.event-form-card { margin-top: 22px; padding: 26px; }
+.event-form-card select,
+.event-form-card textarea,
+.event-form-card input { width: 100%; }
+.event-detail { display: grid; gap: 16px; }
+.event-detail__hero { padding: clamp(24px, 4vw, 42px); }
+.event-detail__hero h1 { margin: 14px 0 8px; }
+.event-detail__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+.event-detail__grid > .panel { padding: 22px; }
+.event-detail__grid h2 { margin: 6px 0 10px; font-size: 1.15rem; }
+.event-history { padding: 22px; }
+.event-history .row--link { text-decoration: none; }
+.event-detail .technical-details { padding: 0; }
+.event-detail .technical-details > dl,
+.event-detail .technical-details > pre { margin: 0 22px 22px; }
+.event-detail .technical-details dl { display: grid; gap: 8px; }
+.event-detail .technical-details dl div { display: grid; grid-template-columns: minmax(140px, .35fr) 1fr; gap: 12px; }
+.event-detail .technical-details dt { color: var(--muted); }
+.event-detail .technical-details dd { margin: 0; overflow-wrap: anywhere; }
+
+@media (max-width: 760px) {
+    .event-heading { align-items: stretch; flex-direction: column; }
+    .event-heading__actions,
+    .event-detail__actions { display: grid; grid-template-columns: 1fr; }
+    .event-heading__actions .button,
+    .event-detail__actions .button { width: 100%; text-align: center; }
+    .event-card__facts div,
+    .event-detail .technical-details dl div { grid-template-columns: 1fr; gap: 4px; }
+    .event-detail__grid { grid-template-columns: 1fr; }
+    .event-form-card { padding: 19px; }
+}

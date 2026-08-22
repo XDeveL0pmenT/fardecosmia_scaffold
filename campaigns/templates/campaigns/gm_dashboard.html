@@ -199,9 +199,13 @@
             <span class="dashboard-card__symbol" aria-hidden="true">◇</span>
             <div><p class="panel-kicker">Временная линия</p><h2>Ближайшие события</h2></div>
         </header>
-        {% for event in upcoming_events %}
-            <div class="row"><strong>{{ event.title }}</strong><span class="row__meta">{{ event.trigger_at }} мин.</span></div>
+        {% for row in upcoming_events %}
+            <a class="row row--link" href="{% url 'world:world_event_definition_detail' campaign.id row.definition.id %}">
+                <strong>{{ row.definition.title }}</strong>
+                <span class="row__meta">Год {{ row.time.year }} · Виток {{ row.time.turn_of_year }} · {{ row.time.turn_clock }}{% if row.definition.region %}<small>{{ row.definition.region.name }}</small>{% endif %}</span>
+            </a>
         {% empty %}<p class="empty-copy">Нет запланированных событий.</p>{% endfor %}
+        <p class="dashboard-card__action"><a class="button button--ghost" href="{% url 'world:campaign_event_list' campaign.id %}">Открыть события мира</a></p>
     </section>
 
     <section class="panel dashboard-card dashboard-card--characters">

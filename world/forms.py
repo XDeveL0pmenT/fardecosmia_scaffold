@@ -1,12 +1,72 @@
 from django import forms
 
+from campaigns.time_controls import TIME_ADVANCE_UNITS
 from world.models import AtmosphericConfig, Region, WorldEntry
+from world.services.calendar import minutes_for_time_step
 from world.services.map_geometry import validate_map_polygon
 from world.services.map_layers import validate_layer_cells
 
 
 MAX_REGION_CONTOUR_JSON_BYTES = 64 * 1024
 MAX_MAP_LAYER_JSON_BYTES = 4 * 1024 * 1024
+
+
+class _WorldEventHumanForm(forms.Form):
+    title = forms.CharField(label="Название", max_length=200)
+    description = forms.CharField(
+        label="Описание",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 5}),
+        help_text="Что должно произойти или что уже произошло в объективной истории кампании.",
+    )
+    region = forms.ModelChoiceField(
+        label="Место",
+        required=False,
+        queryset=Region.objects.none(),
+        empty_label="Без конкретного региона",
+    )
+
+    def __init__(self, *args, campaign, **kwargs):
+        self.campaign = campaign
+        super().__init__(*args, **kwargs)
+        self.fields["region"].queryset = campaign.regions.order_by("name")
+
+
+class WorldEventScheduleForm(_WorldEventHumanForm):
+    amount = forms.IntegerField(label="Через", min_value=1, initial=1)
+    unit = forms.ChoiceField(
+        label="Единица времени",
+        choices=[
+            (item["value"], item["label"])
+            for item in TIME_ADVANCE_UNITS
+        ],
+        initial="turns",
+        help_text="Событие будет привязано к точному мировому времени.",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.order_fields(("title", "description", "amount", "unit", "region"))
+
+    def clean(self):
+        cleaned = super().clean()
+        amount = cleaned.get("amount")
+        unit = cleaned.get("unit")
+        if amount and unit:
+            try:
+                delta = minutes_for_time_step(self.campaign, amount, unit)
+            except ValueError as error:
+                raise forms.ValidationError(str(error)) from error
+            cleaned["scheduled_world_minutes"] = self.campaign.world_minutes + delta
+        return cleaned
+
+
+class WorldEventNowForm(_WorldEventHumanForm):
+    pass
+
+
+class WorldEventDefinitionEditForm(_WorldEventHumanForm):
+    pass
 
 
 class BoundedJSONField(forms.JSONField):

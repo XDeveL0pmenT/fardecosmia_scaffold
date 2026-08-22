@@ -5,6 +5,7 @@ from django.db.models.functions import RowNumber
 
 from world.models import WeatherState
 from world.services.astronomy import calculate_local_sky
+from world.services.events import world_event_type_label
 from world.services.orbital_climate import (
     astronomical_milestones_between,
     orbital_climate_state,
@@ -546,10 +547,17 @@ def build_time_advance_summary(
         "extremes": extremes,
         "world_events": [
             {
-                "id": event.pk,
+                # ``id`` and ``trigger_at`` remain for old report consumers;
+                # P5 fields identify the immutable occurrence explicitly.
+                "id": event.definition_id or event.pk,
+                "occurrence_id": event.pk,
                 "title": event.title,
-                "trigger_at": event.trigger_at,
-                "region_name": event.region.name if event.region_id else None,
+                "trigger_at": event.occurred_world_minutes,
+                "occurred_world_minutes": event.occurred_world_minutes,
+                "event_type": event.event_type_snapshot,
+                "type_label": world_event_type_label(event.event_type_snapshot),
+                "location_label": event.region_label_snapshot or event.target_label,
+                "region_name": event.region_label_snapshot or None,
             }
             for event in world_events
         ],

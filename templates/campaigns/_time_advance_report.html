@@ -40,7 +40,10 @@
                 <p class="time-report__event"><strong>{{ event.title }}</strong><small>{{ event.world_minutes }} мин. эпохи</small></p>
             {% endfor %}
             {% for event in time_advance_report.summary.world_events %}
-                <p class="time-report__event"><strong>{{ event.title }}</strong>{% if event.region_name %} · {{ event.region_name }}{% endif %}</p>
+                <p class="time-report__event">
+                    {% if event.occurrence_id %}<strong><a href="{% url 'world:world_event_occurrence_detail' campaign.id event.occurrence_id %}">{{ event.title }}</a></strong>{% else %}<strong>{{ event.title }}</strong>{% endif %}
+                    {% if event.location_label %} · {{ event.location_label }}{% elif event.region_name %} · {{ event.region_name }}{% endif %}
+                </p>
             {% endfor %}
             {% for highlight in time_advance_report.summary.global_highlights %}
                 <p class="time-report__event">
