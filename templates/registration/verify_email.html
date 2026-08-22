@@ -21,11 +21,11 @@
             </p>
             <button type="submit" class="button button--wide">Подтвердить</button>
         </form>
-        <div class="verification-resend">
-            <p>{% if retry_after_seconds %}Новый код можно запросить через {{ retry_after_seconds }} сек.{% else %}Не получили письмо? Запросите новый код.{% endif %}</p>
+        <div class="verification-resend" data-resend-countdown data-remaining-seconds="{{ retry_after_seconds }}">
+            <p data-resend-help>{% if retry_after_seconds %}Повторная отправка станет доступна автоматически.{% else %}Не получили письмо? Запросите новый код.{% endif %}</p>
             <form method="post" action="{% url 'accounts:resend_verification' %}">
                 {% csrf_token %}
-                <button type="submit" class="button button--ghost button--wide" {% if retry_after_seconds %}disabled{% endif %}>Отправить код повторно</button>
+                <button type="submit" class="button button--ghost button--wide" data-resend-button {% if retry_after_seconds %}disabled{% endif %}>{% if retry_after_seconds %}Отправить код повторно через {{ retry_after_label }}{% else %}Отправить код повторно{% endif %}</button>
             </form>
         </div>
         <form method="post" action="{% url 'logout' %}" class="auth-card__logout">

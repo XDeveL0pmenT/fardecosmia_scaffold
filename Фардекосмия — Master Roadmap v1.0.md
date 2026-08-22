@@ -65,7 +65,7 @@
 
 ## Следующий этап
 
-- [ ] **C4 — Atmospheric Circulation & Terrain Dynamics**
+- [x] **C4 — Atmospheric Circulation & Terrain Dynamics**
   - физически значимый Coriolis с вращением 7.52 суток;
   - pressure-gradient force;
   - крупномасштабная циркуляция;

@@ -183,6 +183,106 @@ class RegistrationAndVerificationTests(TestCase):
         self.assertContains(response, "Новый код можно отправить через")
         self.assertEqual(EmailVerificationChallenge.objects.count(), before)
 
+    @override_settings(EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS=60)
+    def test_verification_get_shows_server_remaining_and_disables_resend(self):
+        self.register()
+        challenge = EmailVerificationChallenge.objects.get()
+        sent_at = timezone.now()
+        EmailVerificationChallenge.objects.filter(pk=challenge.pk).update(
+            sent_at=sent_at
+        )
+
+        with patch(
+            "accounts.services.verification.timezone.now",
+            return_value=sent_at,
+        ):
+            response = self.client.get(reverse("accounts:verify_email"))
+
+        self.assertEqual(response.context["retry_after_seconds"], 60)
+        self.assertGreater(response.context["retry_after_seconds"], 0)
+        self.assertContains(response, 'data-remaining-seconds="60"')
+        self.assertContains(response, "Отправить код повторно через 01:00")
+        self.assertContains(response, "disabled")
+
+    @override_settings(EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS=60)
+    def test_refresh_returns_smaller_remaining_without_mutating_challenge(self):
+        self.register()
+        challenge = EmailVerificationChallenge.objects.get()
+        sent_at = timezone.now()
+        EmailVerificationChallenge.objects.filter(pk=challenge.pk).update(
+            sent_at=sent_at
+        )
+        immutable_before = EmailVerificationChallenge.objects.values_list(
+            "pk", "generation", "attempt_count", "sent_at", "consumed_at"
+        ).get(pk=challenge.pk)
+
+        with patch(
+            "accounts.services.verification.timezone.now",
+            return_value=sent_at + timedelta(seconds=10),
+        ):
+            first = self.client.get(reverse("accounts:verify_email"))
+        with patch(
+            "accounts.services.verification.timezone.now",
+            return_value=sent_at + timedelta(seconds=25),
+        ):
+            refreshed = self.client.get(reverse("accounts:verify_email"))
+
+        self.assertEqual(first.context["retry_after_seconds"], 50)
+        self.assertEqual(refreshed.context["retry_after_seconds"], 35)
+        immutable_after = EmailVerificationChallenge.objects.values_list(
+            "pk", "generation", "attempt_count", "sent_at", "consumed_at"
+        ).get(pk=challenge.pk)
+        self.assertEqual(immutable_after, immutable_before)
+
+    @override_settings(EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS=60)
+    def test_forged_early_resend_post_is_rejected_with_remaining_time(self):
+        self.register()
+        challenge = EmailVerificationChallenge.objects.get()
+        sent_at = timezone.now()
+        EmailVerificationChallenge.objects.filter(pk=challenge.pk).update(
+            sent_at=sent_at
+        )
+        before = EmailVerificationChallenge.objects.count()
+
+        with patch(
+            "accounts.services.verification.timezone.now",
+            return_value=sent_at + timedelta(seconds=13),
+        ):
+            response = self.client.post(
+                reverse("accounts:resend_verification"),
+                follow=True,
+            )
+
+        self.assertContains(response, "Новый код можно отправить через 00:47")
+        self.assertEqual(EmailVerificationChallenge.objects.count(), before)
+        challenge.refresh_from_db()
+        self.assertIsNone(challenge.consumed_at)
+
+    @override_settings(EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS=60)
+    def test_backend_allows_resend_after_cooldown(self):
+        self.register()
+        challenge = EmailVerificationChallenge.objects.get()
+        sent_at = timezone.now()
+        EmailVerificationChallenge.objects.filter(pk=challenge.pk).update(
+            sent_at=sent_at
+        )
+
+        with patch(
+            "accounts.services.verification.timezone.now",
+            return_value=sent_at + timedelta(seconds=61),
+        ):
+            response = self.client.post(
+                reverse("accounts:resend_verification"),
+                follow=True,
+            )
+
+        self.assertContains(response, "Новый код отправлен")
+        self.assertEqual(response.context["retry_after_seconds"], 60)
+        self.assertContains(response, "Отправить код повторно через 01:00")
+        self.assertEqual(EmailVerificationChallenge.objects.count(), 2)
+        challenge.refresh_from_db()
+        self.assertIsNotNone(challenge.consumed_at)
+
     def test_email_change_invalidates_previous_verification(self):
         user = User.objects.create_user(
             username="verified",

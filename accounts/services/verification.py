@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import timedelta
+import math
 import secrets
 
 from django.conf import settings
@@ -21,9 +22,10 @@ class VerificationError(Exception):
 
 class VerificationCooldown(VerificationError):
     def __init__(self, retry_after_seconds):
-        self.retry_after_seconds = max(1, int(retry_after_seconds))
+        self.retry_after_seconds = max(1, math.ceil(retry_after_seconds))
+        minutes, seconds = divmod(self.retry_after_seconds, 60)
         super().__init__(
-            f"Новый код можно отправить через {self.retry_after_seconds} сек."
+            f"Новый код можно отправить через {minutes:02d}:{seconds:02d}."
         )
 
 
@@ -76,6 +78,17 @@ def has_verified_transactional_email(user):
     )
 
 
+def verification_resend_remaining_seconds(challenge, *, now=None):
+    """Return the server-authoritative whole seconds until resend is allowed."""
+    if challenge is None or challenge.sent_at is None:
+        return 0
+    current_time = now or timezone.now()
+    allowed_at = challenge.sent_at + timedelta(
+        seconds=settings.EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS
+    )
+    return max(0, math.ceil((allowed_at - current_time).total_seconds()))
+
+
 @transaction.atomic
 def issue_verification_challenge(*, user, enforce_cooldown=True):
     user = User.objects.select_for_update().get(pk=user.pk)
@@ -92,12 +105,9 @@ def issue_verification_challenge(*, user, enforce_cooldown=True):
         .order_by("-created_at", "-id")
         .first()
     )
-    if enforce_cooldown and latest is not None and latest.sent_at is not None:
-        allowed_at = latest.sent_at + timedelta(
-            seconds=settings.EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS
-        )
-        if allowed_at > now:
-            raise VerificationCooldown((allowed_at - now).total_seconds())
+    retry_after = verification_resend_remaining_seconds(latest, now=now)
+    if enforce_cooldown and retry_after:
+        raise VerificationCooldown(retry_after)
 
     EmailVerificationChallenge.objects.filter(
         user=user,
@@ -219,15 +229,11 @@ def verify_email_code(*, user, code):
 
 def verification_page_context(user):
     latest = user.email_verification_challenges.order_by("-created_at", "-id").first()
-    now = timezone.now()
-    retry_after = 0
-    if latest is not None and latest.sent_at is not None:
-        allowed_at = latest.sent_at + timedelta(
-            seconds=settings.EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS
-        )
-        retry_after = max(0, int((allowed_at - now).total_seconds()))
+    retry_after = verification_resend_remaining_seconds(latest)
+    minutes, seconds = divmod(retry_after, 60)
     return {
         "masked_email": mask_email_address(user.email),
         "latest_challenge": latest,
         "retry_after_seconds": retry_after,
+        "retry_after_label": f"{minutes:02d}:{seconds:02d}",
     }
