@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Регистрация — Фардекосмия{% endblock %}
+{% block content %}
+<div class="auth-layout">
+    <section class="auth-intro" aria-labelledby="register-title">
+        <p class="eyebrow">Первый шаг</p>
+        <h1 id="register-title">Создать<br><span>аккаунт</span></h1>
+        <p class="lead">Один аккаунт может быть мастером одной кампании и игроком другой. После регистрации подтвердите email шестизначным кодом.</p>
+        <div class="orbit-emblem" aria-hidden="true">
+            <span class="orbit-emblem__core"></span>
+            <span class="orbit-emblem__ring orbit-emblem__ring--one"></span>
+            <span class="orbit-emblem__ring orbit-emblem__ring--two"></span>
+            <span class="orbit-emblem__ring orbit-emblem__ring--three"></span>
+        </div>
+    </section>
+    <section class="panel auth-card" aria-label="Форма регистрации">
+        <div class="panel__glow" aria-hidden="true"></div>
+        <p class="panel-kicker">Новый пользователь</p>
+        <h2>Создать аккаунт</h2>
+        {{ form.non_field_errors }}
+        <form method="post" class="stacked-form">
+            {% csrf_token %}
+            {% for field in form %}
+                <p>
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}<small>{{ field.help_text|safe }}</small>{% endif %}
+                    {{ field.errors }}
+                </p>
+            {% endfor %}
+            <button type="submit" class="button button--wide">Создать аккаунт</button>
+        </form>
+        <div class="auth-card__links"><span>Уже зарегистрированы? <a href="{% url 'login' %}">Войти</a></span></div>
+    </section>
+</div>
+{% endblock %}

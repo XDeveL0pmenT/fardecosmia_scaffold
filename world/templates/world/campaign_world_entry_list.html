@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Канон кампании {{ campaign.name }} — Фардекосмия{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div class="page-heading__title">
+        <a class="back-link" href="{% url 'campaigns:gm_dashboard' campaign.id %}"><span aria-hidden="true">←</span> Панель кампании</a>
+        <p class="eyebrow">Effective truth · {{ campaign.name }}</p>
+        <h1>Канон кампании</h1>
+        <p class="lead">Глобальные записи объединены с локальными отличиями этой кампании. Игрокам этот objective слой пока не публикуется.</p>
+    </div>
+    <a class="button" href="{% url 'world:campaign_world_entry_create' campaign.id %}">Запись только кампании</a>
+</div>
+<section class="panel canon-panel">
+    {% if entries %}
+        <div class="canon-entry-list">
+            {% for entry in entries %}
+                <article class="canon-entry-card{% if entry.is_suppressed %} canon-entry-card--suppressed{% endif %}">
+                    <div class="canon-entry-card__meta">
+                        {% if entry.is_suppressed %}<span class="status-badge status-badge--warning">Скрыто в кампании</span>{% endif %}
+                        {% if entry.source == "global" %}<span class="status-badge">Глобальный канон</span>{% endif %}
+                        {% if entry.source == "global_overridden" %}<span class="status-badge status-badge--gm">Изменено в кампании</span>{% endif %}
+                        {% if entry.source == "campaign_only" %}<span class="status-badge status-badge--player">Только эта кампания</span>{% endif %}
+                        {{ entry.kind }} · {{ entry.slug }}
+                    </div>
+                    <h2>{{ entry.title }}</h2>
+                    <p>{{ entry.summary|default:"Краткое описание не добавлено." }}</p>
+                    <div class="canon-entry-card__actions">
+                        {% if entry.source == "campaign_only" %}
+                            <a class="button button--small" href="{% url 'world:campaign_world_entry_edit' campaign.id entry.pk %}">Изменить</a>
+                            <a class="button button--small button--danger" href="{% url 'world:campaign_world_entry_delete' campaign.id entry.pk %}">Удалить</a>
+                        {% else %}
+                            <a class="button button--small" href="{% url 'world:campaign_world_entry_override' campaign.id entry.pk %}">Override</a>
+                            <form method="post" action="{% url 'world:campaign_world_entry_override_action' campaign.id entry.pk %}" class="inline-form">
+                                {% csrf_token %}
+                                {% if entry.is_suppressed %}
+                                    <button class="button button--small" name="action" value="restore" type="submit">Вернуть</button>
+                                {% else %}
+                                    <button class="button button--small button--ghost" name="action" value="suppress" type="submit">Скрыть</button>
+                                {% endif %}
+                                {% if entry.override %}<button class="button button--small button--ghost" name="action" value="remove" type="submit">Сбросить отличия</button>{% endif %}
+                            </form>
+                        {% endif %}
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}<p class="empty-copy">Нет ни глобальных, ни campaign-only записей.</p>{% endif %}
+</section>
+{% endblock %}

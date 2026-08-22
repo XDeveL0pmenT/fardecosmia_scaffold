@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Override {{ entry.title }} — {{ campaign.name }}{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div class="page-heading__title">
+        <a class="back-link" href="{% url 'world:campaign_world_entry_list' campaign.id %}"><span aria-hidden="true">←</span> Канон кампании</a>
+        <p class="eyebrow">Campaign override · {{ entry.kind }} · {{ entry.slug }}</p>
+        <h1>{{ entry.title }}</h1>
+    </div>
+</div>
+<section class="panel canon-form-panel">
+    <p class="map-model-note">Пустое поле означает «наследовать текущее глобальное значение». В базе сохраняются только реальные отличия кампании.</p>
+    <div class="override-comparison">
+        <div><strong>Базовое название</strong><p>{{ entry.title }}</p></div>
+        <div><strong>Базовое краткое описание</strong><p>{{ entry.summary|default:"—" }}</p></div>
+        <div><strong>Базовый полный текст</strong><p>{{ entry.body|default:"—"|truncatechars:400 }}</p></div>
+    </div>
+    <form method="post" class="stacked-form">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        {% for field in form %}
+            <label>{{ field.label }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{{ field.errors }}</label>
+        {% endfor %}
+        <button class="button" type="submit">Сохранить отличия</button>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Участники — {{ campaign.name }}{% endblock %}
+{% block content %}
+<header class="page-intro"><div><a class="back-link" href="{% url 'campaigns:campaign_detail' campaign.id %}">← О кампании</a><p class="eyebrow">Команда кампании</p><h1>Участники</h1><p class="lead">Роли действуют только внутри «{{ campaign.name }}». Редактор глобального канона — отдельное право.</p></div></header>
+
+{% if created_invite_url %}
+<section class="panel invite-result" aria-labelledby="invite-ready-title">
+    <p class="panel-kicker">Приглашение готово</p><h2 id="invite-ready-title">Скопируйте ссылку</h2>
+    <p>{% if mail_sent %}Письмо отправлено, но ссылку можно передать и вручную.{% else %}Письмо не отправилось; само приглашение осталось действительным.{% endif %}</p>
+    <div class="copy-link"><input type="text" readonly value="{{ created_invite_url }}" data-copy-source aria-label="Ссылка приглашения"><button type="button" class="button button--ghost" data-copy-button>Копировать</button></div>
+    <small>Ссылка показывается только сейчас. Если она потеряется, выпустите новое приглашение.</small>
+</section>
+{% endif %}
+
+<div class="members-layout">
+    <section class="panel members-panel">
+        <div class="panel__glow" aria-hidden="true"></div><p class="panel-kicker">Текущий состав</p><h2>Участники кампании</h2>
+        <div class="member-list">
+        {% for membership in memberships %}
+            <article class="member-card">
+                <div class="member-card__identity"><strong>{{ membership.user.display_name|default:membership.user.username }}</strong><span>{{ membership.user.email|default:"Email не указан" }}</span></div>
+                <span class="status-badge status-badge--{{ membership.role }}">{% if membership.role == "gm" %}Game Master{% else %}Игрок{% endif %}</span>
+                <div class="member-card__actions">
+                    {% if membership.role == "player" %}
+                        <form method="post" action="{% url 'campaigns:member_promote' campaign.id membership.id %}">{% csrf_token %}<button class="button button--ghost button--small" type="submit" title="Пользователь получит полный доступ Game Master к этой кампании">Сделать Game Master</button></form>
+                        <form method="post" action="{% url 'campaigns:member_remove' campaign.id membership.id %}">{% csrf_token %}<button class="button button--danger button--small" type="submit">Удалить</button></form>
+                    {% else %}
+                        <form method="post" action="{% url 'campaigns:member_demote' campaign.id membership.id %}">{% csrf_token %}<button class="button button--ghost button--small" type="submit">Сделать игроком</button></form>
+                    {% endif %}
+                </div>
+            </article>
+        {% endfor %}
+        </div>
+    </section>
+
+    <aside class="panel invite-panel">
+        <div class="panel__glow" aria-hidden="true"></div><p class="panel-kicker">Новый игрок</p><h2>Отправить приглашение</h2>
+        <p>Приглашение одноразовое, действует семь дней и привязано к указанному email.</p>
+        <form method="post" action="{% url 'campaigns:invitation_create' campaign.id %}" class="stacked-form">
+            {% csrf_token %}{{ invite_form.non_field_errors }}
+            <p><label for="{{ invite_form.email.id_for_label }}">{{ invite_form.email.label }}</label>{{ invite_form.email }}<small>{{ invite_form.email.help_text }}</small>{{ invite_form.email.errors }}</p>
+            <button type="submit" class="button button--wide">Создать и отправить</button>
+        </form>
+    </aside>
+</div>
+
+<section class="panel invitations-history">
+    <p class="panel-kicker">Последние приглашения</p><h2>История приглашений</h2>
+    <div class="invitation-list">
+    {% for invitation in invitations %}
+        <article class="invitation-row"><div><strong>{{ invitation.email_normalized }}</strong><span>Игрок · до {{ invitation.expires_at|date:"d.m.Y H:i" }}</span></div><span class="status-badge">{{ invitation.status_label }}</span>{% if invitation.is_pending %}<form method="post" action="{% url 'campaigns:invitation_revoke' campaign.id invitation.id %}">{% csrf_token %}<button class="button button--ghost button--small" type="submit">Отозвать</button></form>{% endif %}</article>
+    {% empty %}<p class="empty-copy">Приглашений ещё не было.</p>{% endfor %}
+    </div>
+</section>
+{% endblock %}

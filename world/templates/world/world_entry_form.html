@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ form_title }} — Фардекосмия{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div class="page-heading__title">
+        {% if campaign %}
+            <a class="back-link" href="{% url 'world:campaign_world_entry_list' campaign.id %}"><span aria-hidden="true">←</span> Канон кампании</a>
+        {% else %}
+            <a class="back-link" href="{% url 'world:global_world_entry_list' %}"><span aria-hidden="true">←</span> Глобальный канон</a>
+        {% endif %}
+        <h1>{{ form_title }}</h1>
+    </div>
+</div>
+<section class="panel canon-form-panel">
+    {% if is_global_form %}
+        <p class="site-message site-message--warning">Изменение глобального канона влияет на все кампании, если конкретная кампания не переопределяет это поле.</p>
+    {% else %}
+        <p class="map-model-note">Эта запись существует только в кампании «{{ campaign.name }}» и не изменяет общий мир.</p>
+    {% endif %}
+    <form method="post" class="stacked-form">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        {% for field in form %}
+            <label>{{ field.label }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{{ field.errors }}</label>
+        {% endfor %}
+        <button class="button" type="submit">Сохранить</button>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,13 @@
+<div class="world-map-stage atlas-stage" data-map-stage data-map-mode-active="{{ initial_map_mode }}">
+    <div class="fardecosmia-leaflet-map" data-leaflet-map aria-label="{{ map_aria_label }}"></div>
+    <div class="map-hover-tooltip" data-map-tooltip hidden></div>
+    <div class="atlas-map-error" data-map-error role="alert" hidden></div>
+    <div class="atlas-cursor-coordinates" data-cursor-coordinates aria-live="off">0.000°N · 0.000°E</div>
+    <div class="map-draw-status" data-draw-status role="status" tabindex="0" aria-label="Подсказка карты">
+        Карта загружается…
+    </div>
+    <aside class="atlas-point-inspector" data-point-inspector hidden aria-label="Информация о точке карты">
+        <button type="button" class="atlas-point-inspector__close" data-point-inspector-close aria-label="Закрыть информацию">×</button>
+        <div data-point-inspector-content></div>
+    </aside>
+</div>

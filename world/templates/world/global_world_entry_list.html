@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Канон мира — Фардекосмия{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div class="page-heading__title">
+        <a class="back-link" href="{% url 'world:global_world_map' %}"><span aria-hidden="true">←</span> Атлас</a>
+        <p class="eyebrow">Объективный слой мира</p>
+        <h1>Глобальный канон</h1>
+        <p class="lead">Общие энциклопедические записи Фардекосмии. Кампании наследуют их и могут хранить только собственные отличия.</p>
+    </div>
+    {% if can_manage_global_canon %}
+        <div class="page-heading__actions">
+            <a class="button button--ghost" href="{% url 'world:global_audit_list' %}">История изменений</a>
+            <a class="button" href="{% url 'world:global_world_entry_create' %}">Новая запись</a>
+        </div>
+    {% endif %}
+</div>
+
+<section class="panel canon-panel">
+    {% if entries %}
+        <div class="canon-entry-list">
+            {% for entry in entries %}
+                <article class="canon-entry-card">
+                    <div class="canon-entry-card__meta"><span class="status-badge">Глобальный канон</span> {{ entry.kind }} · {{ entry.slug }}</div>
+                    <h2><a href="{% url 'world:global_world_entry_detail' entry.id %}">{{ entry.title }}</a></h2>
+                    <p>{{ entry.summary|default:"Краткое описание не добавлено." }}</p>
+                    <small>Ревизия {{ entry.revision }}</small>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-copy">Записей пока нет. Production demo-канон автоматически не создаётся.</p>
+    {% endif %}
+</section>
+{% endblock %}

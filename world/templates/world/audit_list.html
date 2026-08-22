@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% load audit_json %}
+{% audit_action_choices as action_choices %}
+{% block title %}История изменений — Фардекосмия{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div class="page-heading__title">
+        {% if campaign %}
+            <a class="back-link" href="{% url 'campaigns:gm_dashboard' campaign.id %}"><span aria-hidden="true">←</span> Панель кампании</a>
+            <p class="eyebrow">Мастер · {{ campaign.name }}</p>
+        {% else %}
+            <a class="back-link" href="{% url 'world:global_world_entry_list' %}"><span aria-hidden="true">←</span> Глобальный канон</a>
+            <p class="eyebrow">Редактор канона</p>
+        {% endif %}
+        <h1>История изменений</h1>
+        <p class="lead">Неизменяемый журнал значимых действий. Реальное и мировое время показаны отдельно.</p>
+    </div>
+</div>
+
+<details class="panel audit-filter-panel"{% if filters.action or filters.actor or filters.target_type or filters.source or filters.world_from or filters.world_to or filters.date_from or filters.date_to %} open{% endif %}>
+    <summary class="audit-filter-panel__summary">
+        <span><strong>Фильтры журнала</strong><small>Действие, автор, тип объекта и время</small></span>
+        <span class="audit-filter-panel__chevron" aria-hidden="true">⌄</span>
+    </summary>
+    <form method="get" class="audit-filters">
+        <label>Действие
+            <select name="action">
+                <option value="">Все действия</option>
+                {% for value, label in action_choices %}<option value="{{ value }}"{% if filters.action == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </label>
+        <label>Автор<input name="actor" value="{{ filters.actor }}" placeholder="Имя пользователя"></label>
+        <label>Тип объекта <span class="audit-filter-hint">точный технический фильтр</span><input name="target_type" value="{{ filters.target_type }}" placeholder="Например: world.region"></label>
+        <label>Источник
+            <select name="source">
+                <option value="">Все</option>
+                {% for value, label in audit_sources %}<option value="{{ value }}"{% if filters.source == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </label>
+        {% if campaign %}
+            <label>Мировое время от<input type="number" name="world_from" value="{{ filters.world_from }}"></label>
+            <label>Мировое время до<input type="number" name="world_to" value="{{ filters.world_to }}"></label>
+        {% else %}
+            <label>Реальная дата от<input type="date" name="date_from" value="{{ filters.date_from }}"></label>
+            <label>Реальная дата до<input type="date" name="date_to" value="{{ filters.date_to }}"></label>
+        {% endif %}
+        <div class="audit-filters__actions">
+            <button type="submit">Применить</button>
+            <a class="button button--ghost" href="{% if campaign %}{% url 'world:campaign_audit_list' campaign.id %}{% else %}{% url 'world:global_audit_list' %}{% endif %}">Сбросить</a>
+        </div>
+    </form>
+</details>
+
+<section class="audit-panel">
+    {% if audit_rows %}
+        <div class="audit-timeline">
+            {% for row in audit_rows %}
+                <article class="panel audit-event audit-event--{{ row.action|audit_action_tone }}">
+                    <div class="audit-event__rail" aria-hidden="true"><span></span></div>
+                    <div class="audit-event__content">
+                        <div class="audit-event__topline">
+                            <span class="audit-action-badge audit-action-badge--{{ row.action|audit_action_tone }}">{{ row.action|audit_action_label }}</span>
+                            <time datetime="{{ row.occurred_at|date:'c' }}">{{ row.occurred_at|date:"d.m.Y · H:i" }}</time>
+                        </div>
+                        <h2><a href="{% if campaign %}{% url 'world:campaign_audit_detail' campaign.id row.id %}{% else %}{% url 'world:global_audit_detail' row.id %}{% endif %}">{{ row.summary }}</a></h2>
+                        <p class="audit-event__description">{{ row.action|audit_action_description }}</p>
+                        <div class="audit-event__facts">
+                            <span><small>Кто</small>{{ row.actor_label_snapshot|default:"Система" }}</span>
+                            <span><small>Что изменено</small>{{ row.target_label|default:"Без конкретного объекта" }}</span>
+                            {% if campaign %}<span><small>Мировое время</small>{% if row.world_minutes is not None %}{{ row.world_minutes }} мин.{% else %}Не указано{% endif %}</span>{% endif %}
+                            <span><small>Источник</small>{{ row.get_source_display }}</span>
+                        </div>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+        {% if page_obj.paginator.num_pages > 1 %}
+            <nav class="audit-pagination" aria-label="Страницы журнала">
+                {% if page_obj.has_previous %}<a href="?{% if filter_query %}{{ filter_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">← Назад</a>{% endif %}
+                <span>Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+                {% if page_obj.has_next %}<a href="?{% if filter_query %}{{ filter_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Дальше →</a>{% endif %}
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="panel audit-empty"><span aria-hidden="true">◇</span><p>Записей с такими условиями нет.</p></div>
+    {% endif %}
+</section>
+{% endblock %}

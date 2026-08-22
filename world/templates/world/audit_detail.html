@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load audit_json %}
+{% block title %}{{ audit.summary }} — История изменений{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div class="page-heading__title">
+        <a class="back-link" href="{% if campaign %}{% url 'world:campaign_audit_list' campaign.id %}{% else %}{% url 'world:global_audit_list' %}{% endif %}"><span aria-hidden="true">←</span> История изменений</a>
+        <p class="eyebrow">Запись журнала</p>
+        <span class="audit-action-badge audit-action-badge--{{ audit.action|audit_action_tone }}">{{ audit.action|audit_action_label }}</span>
+        <h1>{{ audit.summary }}</h1>
+        <p class="lead">{{ audit.action|audit_action_description }}</p>
+    </div>
+</div>
+
+<section class="panel audit-detail audit-detail--{{ audit.action|audit_action_tone }}">
+    <dl class="audit-detail__facts">
+        <div><dt>Автор изменения</dt><dd>{{ audit.actor_label_snapshot|default:"Система" }}</dd></div>
+        <div><dt>Объект</dt><dd>{{ audit.target_label|default:"Без конкретного объекта" }}</dd></div>
+        <div><dt>Реальное время изменения</dt><dd>{{ audit.occurred_at|date:"d.m.Y H:i:s T" }}</dd></div>
+        <div><dt>Мировое время кампании</dt><dd>{% if audit.world_minutes is not None %}{{ audit.world_minutes }} мин.{% else %}Глобальная запись — не применяется{% endif %}</dd></div>
+        <div><dt>Область</dt><dd>{{ audit.campaign_label_snapshot|default:"Глобальный канон" }}</dd></div>
+        <div><dt>Источник</dt><dd>{{ audit.get_source_display }}</dd></div>
+    </dl>
+</section>
+
+{% with changes=audit|audit_diff %}
+<section class="panel audit-changes">
+    <div class="audit-section-heading">
+        <div><p class="panel-kicker">Суть изменения</p><h2>Что именно поменялось</h2></div>
+        <span>{{ changes|length }} изменений</span>
+    </div>
+    {% if changes %}
+        <div class="audit-diff-list">
+            {% for change in changes %}
+                <article class="audit-diff-row">
+                    <h3>{{ change.label }}</h3>
+                    <div class="audit-diff-row__values">
+                        <div><span>До</span><pre>{{ change.before }}</pre></div>
+                        <div class="audit-diff-row__arrow" aria-hidden="true">→</div>
+                        <div><span>После</span><pre>{{ change.after }}</pre></div>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-copy">Для этой операции нет попарно сравнимых полей. Подробности сохранены ниже.</p>
+    {% endif %}
+</section>
+{% endwith %}
+
+<details class="panel technical-details audit-technical">
+    {% include "world/_technical_details_summary.html" with technical_title="Технические подробности" technical_hint="ID операции и исходные JSON-данные" %}
+    <div class="audit-technical__body">
+        <dl class="audit-technical__ids">
+            <div><dt>Action ID</dt><dd><code>{{ audit.action }}</code></dd></div>
+            <div><dt>Operation ID</dt><dd><code>{{ audit.operation_id }}</code></dd></div>
+            <div><dt>Target</dt><dd>{% if audit.target_content_type %}<code>{{ audit.target_content_type.app_label }}.{{ audit.target_content_type.model }} #{{ audit.target_object_id }}</code>{% else %}—{% endif %}</dd></div>
+        </dl>
+        <div class="audit-json-grid">
+            <section><h3>До</h3><pre class="audit-json">{{ audit.before_state|pretty_json }}</pre></section>
+            <section><h3>После</h3><pre class="audit-json">{{ audit.after_state|pretty_json }}</pre></section>
+        </div>
+        <section><h3>Метаданные</h3><pre class="audit-json">{{ audit.metadata|pretty_json }}</pre></section>
+    </div>
+</details>
+{% endblock %}

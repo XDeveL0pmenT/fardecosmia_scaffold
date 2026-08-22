@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Удалить {{ entry.title }} — Фардекосмия{% endblock %}
+{% block content %}
+<section class="panel danger-panel">
+    <p class="eyebrow">Необратимое действие</p>
+    <h1>Удалить «{{ entry.title }}»?</h1>
+    {% if is_global_form %}
+        <p>Глобальная запись будет удалена для всех кампаний. При наличии активных campaign overrides удаление будет заблокировано.</p>
+    {% else %}
+        <p>Будет удалена только запись кампании «{{ campaign.name }}».</p>
+    {% endif %}
+    {% if error_message %}<div class="site-message site-message--error">{{ error_message }}</div>{% endif %}
+    <form method="post">
+        {% csrf_token %}
+        <button class="button button--danger" type="submit">Подтвердить удаление</button>
+        {% if campaign %}
+            <a class="button button--ghost" href="{% url 'world:campaign_world_entry_list' campaign.id %}">Отмена</a>
+        {% else %}
+            <a class="button button--ghost" href="{% url 'world:global_world_entry_detail' entry.id %}">Отмена</a>
+        {% endif %}
+    </form>
+</section>
+{% endblock %}

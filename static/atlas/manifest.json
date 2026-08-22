@@ -1,0 +1,73 @@
+{
+  "format": 1,
+  "builder_version": 1,
+  "layers": {
+    "base": {
+      "source": "static/images/fardecosmia-world-map.webp",
+      "source_width": 7096,
+      "source_height": 3548,
+      "source_world_crop": null,
+      "canvas_width": 8192,
+      "canvas_height": 4096,
+      "native_zoom": 4,
+      "extension": "webp",
+      "resampling": "lanczos",
+      "version": "e9362e2fece501e7",
+      "tile_count": 682,
+      "disk_bytes": 4225032
+    },
+    "temperature": {
+      "source": "static/images/0.webp",
+      "source_width": 1774,
+      "source_height": 1150,
+      "source_world_crop": [
+        0,
+        0,
+        1774,
+        887
+      ],
+      "canvas_width": 2048,
+      "canvas_height": 1024,
+      "native_zoom": 2,
+      "extension": "webp",
+      "resampling": "lanczos",
+      "version": "0a28cf6b532b6d9d",
+      "tile_count": 42,
+      "disk_bytes": 668088
+    },
+    "elevation": {
+      "source": "static/images/fardecosmia-elevation-map.webp",
+      "source_width": 1798,
+      "source_height": 875,
+      "source_world_crop": null,
+      "canvas_width": 2048,
+      "canvas_height": 1024,
+      "native_zoom": 2,
+      "extension": "webp",
+      "resampling": "lanczos",
+      "version": "cc649c939c176353",
+      "tile_count": 42,
+      "disk_bytes": 458892
+    },
+    "biome": {
+      "source": "GlobalWorldMapLayer.biome_cells",
+      "source_width": 360,
+      "source_height": 180,
+      "source_world_crop": null,
+      "canvas_width": 512,
+      "canvas_height": 256,
+      "native_zoom": 0,
+      "extension": "png",
+      "resampling": "nearest",
+      "version": "b78cfe644ced68aa",
+      "tile_count": 2,
+      "disk_bytes": 12427
+    }
+  },
+  "version": "3d0e54332e77b2e6",
+  "tile_size": 256,
+  "world_pixel_size_zoom_zero": [
+    512,
+    256
+  ]
+}

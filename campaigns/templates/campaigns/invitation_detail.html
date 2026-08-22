@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Приглашение в {{ invitation.campaign.name }} — Фардекосмия{% endblock %}
+{% block content %}
+<section class="panel invitation-hero">
+    <div class="panel__glow" aria-hidden="true"></div><span class="empty-state__icon" aria-hidden="true">✦</span><p class="panel-kicker">Приглашение в кампанию</p><h1>«{{ invitation.campaign.name }}»</h1>
+    <p class="lead">Вас приглашает <strong>{{ invitation.created_by_label_snapshot }}</strong>.</p>
+    <dl class="invitation-facts"><div><dt>Роль</dt><dd>Игрок</dd></div><div><dt>Действует до</dt><dd>{{ invitation.expires_at|date:"d.m.Y H:i" }}</dd></div><div><dt>Состояние</dt><dd>{{ invitation.status_label }}</dd></div></dl>
+
+    {% if not invitation.is_pending %}
+        <div class="form-message form-message--error">Это приглашение больше не действует. Попросите Game Master отправить новое.</div>
+    {% elif not user.is_authenticated %}
+        <p>Войдите или создайте аккаунт. После подтверждения email вы вернётесь к этому приглашению.</p>
+        <div class="invitation-actions"><a class="button" href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">Войти</a><a class="button button--ghost" href="{% url 'accounts:register' %}?next={{ request.get_full_path|urlencode }}">Зарегистрироваться</a></div>
+    {% elif not user_email_verified %}
+        <p>Для принятия приглашения подтвердите email своего аккаунта.</p><a class="button" href="{% url 'accounts:verify_email' %}">Подтвердить email</a>
+    {% elif not email_matches %}
+        <div class="form-message form-message--error">Приглашение отправлено на другой email. Войдите в подходящий подтверждённый аккаунт.</div>
+        <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="button button--ghost" type="submit">Выйти</button></form>
+    {% else %}
+        <p>После принятия кампания появится в разделе «Ваши кампании».</p>
+        <form method="post" action="{% if resume_mode %}{% url 'campaigns:invitation_resume_accept' %}{% else %}{% url 'campaigns:invitation_accept' invitation_token %}{% endif %}">{% csrf_token %}<button class="button" type="submit">Принять приглашение</button></form>
+    {% endif %}
+</section>
+{% endblock %}

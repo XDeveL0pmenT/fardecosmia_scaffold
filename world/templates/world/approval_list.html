@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{% if mine %}Мои запросы{% else %}Запросы на одобрение{% endif %} — {{ campaign.name }}{% endblock %}
+{% block content %}
+<div class="page-heading approval-page-heading">
+    <div class="page-heading__title">
+        <a class="back-link" href="{% if can_advance_time %}{% url 'campaigns:gm_dashboard' campaign.id %}{% else %}{% url 'campaigns:list' %}{% endif %}"><span aria-hidden="true">←</span> {{ campaign.name }}</a>
+        <p class="eyebrow">{% if mine %}Личный кабинет{% else %}Решения мастера{% endif %}</p>
+        <h1>{% if mine %}Мои запросы{% else %}Запросы на одобрение{% endif %}</h1>
+        <p class="lead">{% if mine %}Здесь собраны ваши просьбы и принятые по ним решения.{% else %}Очередь действий, которым требуется решение мастера кампании.{% endif %}</p>
+    </div>
+    <div class="page-heading__actions">
+        {% if mine and can_advance_time %}
+            <a class="button button--ghost" href="{% url 'world:campaign_approval_queue' campaign.id %}">Очередь мастера</a>
+        {% elif not mine %}
+            <a class="button button--ghost" href="{% url 'world:my_approval_requests' campaign.id %}">Мои запросы</a>
+        {% endif %}
+    </div>
+</div>
+
+<nav class="approval-status-tabs" aria-label="Фильтр по статусу">
+    <a class="{% if selected_status == 'PENDING' %}is-active{% endif %}" href="?status=pending">Ожидают</a>
+    <a class="{% if selected_status == 'APPROVED' %}is-active{% endif %}" href="?status=approved">Одобрены</a>
+    <a class="{% if selected_status == 'REJECTED' %}is-active{% endif %}" href="?status=rejected">Отклонены</a>
+    <a class="{% if selected_status == 'CANCELLED' %}is-active{% endif %}" href="?status=cancelled">Отменены</a>
+    <a class="{% if selected_status == 'EXPIRED' %}is-active{% endif %}" href="?status=expired">Истёкшие</a>
+    <a class="{% if selected_status == 'ALL' %}is-active{% endif %}" href="?status=all">Все</a>
+</nav>
+
+<details class="panel approval-filter-panel" {% if selected_request_type or selected_requester %}open{% endif %}>
+    <summary><span><strong>Дополнительные фильтры</strong><small>Тип запроса{% if not mine %} и автор{% endif %}</small></span><span aria-hidden="true">⌄</span></summary>
+    <form method="get" class="approval-filters">
+        <input type="hidden" name="status" value="{{ selected_status|lower }}">
+        <label><span>Тип запроса</span>
+            <select name="request_type">
+                <option value="">Все типы</option>
+                {% for value, label in approval_type_choices %}<option value="{{ value }}" {% if selected_request_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </label>
+        {% if not mine %}<label><span>Кто запросил</span><input name="requester" value="{{ selected_requester }}" placeholder="Имя участника"></label>{% endif %}
+        <div class="audit-filters__actions"><button class="button button--small" type="submit">Применить</button><a class="button button--ghost button--small" href="?status={{ selected_status|lower }}">Сбросить</a></div>
+    </form>
+</details>
+
+<div class="approval-list">
+    {% for row in approval_rows %}
+        {% with approval=row.request %}
+        <article class="panel approval-card approval-card--{{ approval.effective_status|lower }}">
+            <div class="approval-card__topline">
+                <span class="approval-status approval-status--{{ approval.effective_status|lower }}">{{ approval.effective_status_label }}</span>
+                <span class="approval-card__type">{{ row.type_label }}</span>
+            </div>
+            <h2><a href="{% url 'world:approval_request_detail' campaign.id approval.id %}">{{ approval.title }}</a></h2>
+            <p>{{ approval.summary }}</p>
+            <div class="approval-card__facts">
+                <span><small>Кто запросил</small><strong>{{ approval.requester_label_snapshot|default:"Система" }}</strong></span>
+                {% if approval.target_label %}<span><small>Цель</small><strong>{{ approval.target_label }}</strong></span>{% endif %}
+                <span><small>Мировое время</small><strong>Год {{ row.requested_time.year }} · Виток {{ row.requested_time.turn_of_year }} · {{ row.requested_time.turn_clock }}</strong></span>
+                <span><small>Создан</small><strong>{{ approval.requested_at|date:"d.m.Y H:i" }}</strong></span>
+            </div>
+        </article>
+        {% endwith %}
+    {% empty %}
+        <section class="panel approval-empty">
+            <span aria-hidden="true">◇</span>
+            <div><h2>{% if mine %}У вас пока нет таких запросов{% else %}Сейчас нет запросов, ожидающих решения{% endif %}</h2><p>Когда появится подходящий запрос, он будет показан здесь понятной карточкой.</p></div>
+        </section>
+    {% endfor %}
+</div>
+
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="audit-pagination" aria-label="Страницы">
+    {% if page_obj.has_previous %}<a class="button button--ghost button--small" href="?{% if filter_query %}{{ filter_query }}&{% endif %}page={{ page_obj.previous_page_number }}">Назад</a>{% else %}<span></span>{% endif %}
+    <span>Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a class="button button--ghost button--small" href="?{% if filter_query %}{{ filter_query }}&{% endif %}page={{ page_obj.next_page_number }}">Дальше</a>{% else %}<span></span>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

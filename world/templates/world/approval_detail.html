@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% load audit_json %}
+{% block title %}{{ approval.title }} — Запрос{% endblock %}
+{% block content %}
+<div class="page-heading approval-page-heading">
+    <div class="page-heading__title">
+        <a class="back-link" href="{% if can_advance_time %}{% url 'world:campaign_approval_queue' campaign.id %}{% else %}{% url 'world:my_approval_requests' campaign.id %}{% endif %}"><span aria-hidden="true">←</span> {% if can_advance_time %}Запросы на одобрение{% else %}Мои запросы{% endif %}</a>
+        <p class="eyebrow">{{ presentation.request_type_label }}</p>
+        <div class="approval-detail__status-line"><span class="approval-status approval-status--{{ approval.effective_status|lower }}">{{ approval.effective_status_label }}</span></div>
+        <h1>{{ approval.title }}</h1>
+        <p class="lead">{{ approval.summary }}</p>
+    </div>
+</div>
+
+<section class="approval-detail-grid">
+    <article class="panel approval-section">
+        <p class="panel-kicker">Основные сведения</p>
+        <h2>Кто и когда запросил</h2>
+        <dl class="approval-fact-grid">
+            <div><dt>Кто запросил</dt><dd>{{ approval.requester_label_snapshot|default:"Система" }}</dd></div>
+            <div><dt>Кампания</dt><dd>{{ campaign.name }}</dd></div>
+            <div><dt>Когда создан</dt><dd>{{ approval.requested_at|date:"d.m.Y H:i" }}</dd></div>
+            <div><dt>Мировое время</dt><dd>Год {{ requested_time.year }} · Виток {{ requested_time.turn_of_year }} · {{ requested_time.turn_clock }}</dd></div>
+            {% if approval.target_label %}<div><dt>Связанный объект</dt><dd>{{ approval.target_label }}</dd></div>{% endif %}
+            {% if approval.expires_at %}<div><dt>Срок решения</dt><dd>{{ approval.expires_at|date:"d.m.Y H:i" }}</dd></div>{% endif %}
+        </dl>
+    </article>
+
+    <article class="panel approval-section approval-section--intent">
+        <p class="panel-kicker">Намерение</p>
+        <h2>Что запрашивается</h2>
+        <p class="approval-section__summary">{{ presentation.summary }}</p>
+        {% if presentation.details %}<dl class="approval-detail-list">{% for label, value in presentation.details %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>{% endif %}
+    </article>
+
+    <article class="panel approval-section approval-section--consequences">
+        <p class="panel-kicker">Результат решения</p>
+        <h2>Что произойдёт после одобрения</h2>
+        <ul class="approval-consequences">{% for consequence in presentation.consequences %}<li>{{ consequence }}</li>{% endfor %}</ul>
+        {% if presentation.current_applicability_message %}<p class="approval-applicability">{{ presentation.current_applicability_message }}</p>{% endif %}
+    </article>
+</section>
+
+{% if can_approve_request %}
+<section class="panel approval-decision" aria-labelledby="decision-title">
+    <div><p class="panel-kicker">Требуется решение</p><h2 id="decision-title">Решение мастера</h2><p>Перед подтверждением ещё раз проверьте последствия выше.</p></div>
+    <form method="post" class="approval-decision__form">
+        {% csrf_token %}
+        <label><span>Комментарий к решению <small>необязательно, если тип запроса не требует иного</small></span><textarea name="resolution_note" rows="3" maxlength="4000"></textarea></label>
+        <div class="approval-decision__actions">
+            <button class="button" type="submit" formaction="{% url 'world:approve_approval_request' campaign.id approval.id %}">Одобрить</button>
+            <button class="button button--danger" type="submit" formaction="{% url 'world:reject_approval_request' campaign.id approval.id %}">Отклонить</button>
+        </div>
+    </form>
+</section>
+{% endif %}
+
+{% if can_cancel_request %}
+<section class="panel approval-cancel">
+    <div><h2>Запрос больше не нужен?</h2><p>Пока мастер не принял решение, автор может отозвать запрос.</p></div>
+    <form method="post" action="{% url 'world:cancel_approval_request' campaign.id approval.id %}">{% csrf_token %}<button class="button button--ghost" type="submit">Отменить запрос</button></form>
+</section>
+{% endif %}
+
+{% if approval.status != 'PENDING' %}
+<section class="panel approval-resolution">
+    <p class="panel-kicker">Решение</p>
+    <h2>{{ approval.get_status_display }}</h2>
+    <dl class="approval-fact-grid">
+        <div><dt>Кто принял решение</dt><dd>{{ approval.resolved_by_label_snapshot|default:"Система" }}</dd></div>
+        <div><dt>Когда</dt><dd>{{ approval.resolved_at|date:"d.m.Y H:i" }}</dd></div>
+        {% if resolved_time %}<div><dt>Мировое время</dt><dd>Год {{ resolved_time.year }} · Виток {{ resolved_time.turn_of_year }} · {{ resolved_time.turn_clock }}</dd></div>{% endif %}
+    </dl>
+    {% if approval.resolution_note %}<div class="approval-resolution__note"><strong>Комментарий</strong><p>{{ approval.resolution_note|linebreaksbr }}</p></div>{% endif %}
+    {% if approval.status == 'APPROVED' %}<p class="approval-result-summary">{{ presentation.result_summary|default:"Действие успешно применено." }}</p>{% endif %}
+</section>
+{% endif %}
+
+<section class="panel approval-history">
+    <p class="panel-kicker">Хронология</p><h2>История изменений</h2>
+    <ol>{% for row in approval_history %}<li><span>{{ row.occurred_at|date:"d.m.Y H:i" }}</span><strong>{{ row.summary }}</strong></li>{% empty %}<li><strong>История пока пуста.</strong></li>{% endfor %}</ol>
+</section>
+
+<details class="panel technical-details audit-technical approval-technical">
+    {% include "world/_technical_details_summary.html" with technical_title="Технические данные" technical_hint="Тип, версия, идентификаторы и безопасно экранированный JSON" %}
+    <div class="audit-technical__body">
+        <dl class="audit-technical__ids">
+            <div><dt>Request type</dt><dd><code>{{ approval.request_type }}</code></dd></div>
+            <div><dt>Payload version</dt><dd><code>{{ approval.payload_version }}</code></dd></div>
+            <div><dt>Operation ID</dt><dd><code>{{ approval.operation_id }}</code></dd></div>
+            <div><dt>Target</dt><dd>{% if approval.target_content_type %}<code>{{ approval.target_content_type.app_label }}.{{ approval.target_content_type.model }} #{{ approval.target_object_id }}</code>{% else %}—{% endif %}</dd></div>
+            <div><dt>Запрошенное время, минуты</dt><dd><code>{{ approval.requested_world_minutes }}</code></dd></div>
+            <div><dt>Dedupe</dt><dd><code>{{ approval.dedupe_key|default:"—" }}</code></dd></div>
+        </dl>
+        <div class="audit-json-grid"><section><h3>Payload</h3><pre class="audit-json">{{ approval.payload|pretty_json }}</pre></section><section><h3>Result</h3><pre class="audit-json">{{ approval.result|pretty_json }}</pre></section></div>
+    </div>
+</details>
+{% endblock %}

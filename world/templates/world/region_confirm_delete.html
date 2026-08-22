@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Удаление {{ region.name }} — Фардекосмия{% endblock %}
+{% block content %}
+<div class="delete-confirmation">
+    <a class="back-link" href="{% url 'world:region_detail' campaign.id region.id %}"><span aria-hidden="true">←</span> Вернуться к региону</a>
+
+    <section class="panel delete-confirmation__panel">
+        <p class="panel-kicker">Опасное действие</p>
+        <h1>Удалить регион «{{ region.name }}»?</h1>
+        <p class="lead">Это действие нельзя отменить через интерфейс.</p>
+
+        <div class="delete-confirmation__impact">
+            <p><strong>Будет удалено:</strong> сам регион, его контур на карте и вся погодная история. Состояний погоды: {{ weather_state_count }}.</p>
+            {% if world_event_count %}
+                <p><strong>Останется:</strong> {{ world_event_count }} связанных мировых событий. Они потеряют привязку к региону, но не будут удалены.</p>
+            {% endif %}
+        </div>
+
+        <form method="post" class="delete-confirmation__actions">
+            {% csrf_token %}
+            <button type="submit" class="button button--danger">Да, удалить регион</button>
+            <a class="button button--secondary" href="{% url 'world:region_detail' campaign.id region.id %}">Отмена</a>
+        </form>
+    </section>
+</div>
+{% endblock %}

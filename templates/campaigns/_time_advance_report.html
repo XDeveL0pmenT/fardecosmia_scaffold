@@ -1,0 +1,115 @@
+<section class="panel time-report{% if time_advance_report.simulation_mode == 'fast_forward' %} time-report--fast{% endif %}" aria-labelledby="time-report-title">
+    <div class="panel__glow" aria-hidden="true"></div>
+    <header class="time-report__header">
+        <div>
+            <p class="panel-kicker">Сводка продвижения времени</p>
+            <h2 id="time-report-title">Прошло: {{ time_advance_report.summary.elapsed_label }}</h2>
+        </div>
+        <span class="time-report__mode">{{ time_advance_report.get_simulation_mode_display }}</span>
+    </header>
+
+    {% if time_advance_report.simulation_mode == 'fast_forward' %}
+        <p class="time-report__warning">
+            Промежуточная детальная погода не симулировалась. Погодные данные ниже относятся только к финальному spin-up.
+        </p>
+    {% endif %}
+
+    {% if time_advance_report.summary.ocean_summary %}
+        <div class="time-report__ocean">
+            <strong>Океан</strong>
+            {% with ocean=time_advance_report.summary.ocean_summary %}
+                <span>
+                    Средняя SST:
+                    {{ ocean.start_mean_sst_c|floatformat:2 }}°C → {{ ocean.end_mean_sst_c|floatformat:2 }}°C
+                    ({% if ocean.mean_sst_change_c >= 0 %}+{% endif %}{{ ocean.mean_sst_change_c|floatformat:2 }}°C)
+                </span>
+                {% if ocean.mode == "fast_forward" %}<small>{{ ocean.macro_steps }} медленных океанических шагов до финального spin-up</small>{% endif %}
+                <small>
+                    От климатической нормы: {% if ocean.end_mean_sst_anomaly_c >= 0 %}+{% endif %}{{ ocean.end_mean_sst_anomaly_c|floatformat:2 }}°C ·
+                    пик испарения {{ ocean.maximum_evaporation_kg_m2_day|floatformat:3 }} кг/м²/сутки
+                    {% if ocean.mode == "exact" and ocean.atmospheric_vapor_mass_proxy_change_percent != None %} · водяной пар {% if ocean.atmospheric_vapor_mass_proxy_change_percent >= 0 %}+{% endif %}{{ ocean.atmospheric_vapor_mass_proxy_change_percent|floatformat:2 }}%{% endif %}
+                </small>
+            {% endwith %}
+        </div>
+    {% endif %}
+
+    <div class="time-report__grid">
+        <section>
+            <h3>Главные события</h3>
+            {% for event in time_advance_report.summary.astronomical_events %}
+                <p class="time-report__event"><strong>{{ event.title }}</strong><small>{{ event.world_minutes }} мин. эпохи</small></p>
+            {% endfor %}
+            {% for event in time_advance_report.summary.world_events %}
+                <p class="time-report__event"><strong>{{ event.title }}</strong>{% if event.region_name %} · {{ event.region_name }}{% endif %}</p>
+            {% endfor %}
+            {% for highlight in time_advance_report.summary.global_highlights %}
+                <p class="time-report__event">
+                    <strong>{{ highlight.title }}</strong> · {{ highlight.region_name }}
+                    {% if highlight.duration_hours %}<small>{{ highlight.duration_hours }} ч</small>{% endif %}
+                    {% if highlight.value != None %}<small>{{ highlight.value }}°C</small>{% endif %}
+                </p>
+            {% empty %}
+                {% if not time_advance_report.summary.world_events and not time_advance_report.summary.astronomical_events %}<p class="empty-copy">Значимых событий не зафиксировано.</p>{% endif %}
+            {% endfor %}
+        </section>
+
+        <section>
+            <h3>Погода по регионам</h3>
+            {% for region in time_advance_report.summary.regional_weather %}
+                <p class="time-report__region"><strong>{{ region.region_name }}</strong><span>{{ region.summary }}</span></p>
+            {% empty %}<p class="empty-copy">В кампании нет регионов.</p>{% endfor %}
+        </section>
+
+        <section>
+            <h3>Экстремумы</h3>
+            {% with extremes=time_advance_report.summary.extremes %}
+                {% if extremes.temperature_minimum %}<p>Минимум: <strong>{{ extremes.temperature_minimum.value }}°C</strong> · {{ extremes.temperature_minimum.region_name }}</p>{% endif %}
+                {% if extremes.temperature_maximum %}<p>Максимум: <strong>{{ extremes.temperature_maximum.value }}°C</strong> · {{ extremes.temperature_maximum.region_name }}</p>{% endif %}
+                {% if extremes.wind_maximum %}<p>Ветер: <strong>{{ extremes.wind_maximum.value }} м/с</strong> · {{ extremes.wind_maximum.region_name }}</p>{% endif %}
+                {% if extremes.precipitation_maximum %}<p>Осадки за рассчитанный период: <strong>{{ extremes.precipitation_maximum.value|floatformat:2 }} мм</strong> · {{ extremes.precipitation_maximum.region_name }}</p>{% endif %}
+                {% if not extremes.temperature_minimum and not extremes.wind_maximum and not extremes.precipitation_maximum %}<p class="empty-copy">Недостаточно подробных данных.</p>{% endif %}
+            {% endwith %}
+        </section>
+    </div>
+
+    <details class="time-report__details">
+        <summary>Развернуть подробности</summary>
+        <p>{{ time_advance_report.summary.climate_summary.text }}</p>
+        <div class="time-report__coverage">
+            {% for segment in time_advance_report.coverage %}
+                <span>{{ segment.kind }} · {{ segment.start }}–{{ segment.end }}</span>
+            {% endfor %}
+        </div>
+        {% for region in time_advance_report.summary.regional_weather %}
+            <article class="time-report__regional-detail">
+                <h4>{{ region.region_name }}</h4>
+                <p>
+                    Температура:
+                    {% if region.temperature.minimum != None %}
+                        {{ region.temperature.minimum }}…{{ region.temperature.maximum }}°C,
+                        средняя {{ region.temperature.average }}°C · ветер до {{ region.maximum_wind_speed }} м/с
+                    {% else %}нет подробных данных{% endif %}
+                </p>
+                <div class="time-report__shares">
+                    {% for share in region.condition_shares %}<span>{{ share.label }} {{ share.percent }}%</span>{% endfor %}
+                </div>
+                {% if region.integrated_precipitation %}
+                    <p>
+                        Осадки за подробно рассчитанную часть периода:
+                        <strong>{{ region.integrated_precipitation.integrated_amount_mm|floatformat:2 }} мм</strong>
+                        · дождь {{ region.integrated_precipitation.rain_amount_mm|floatformat:2 }} мм
+                        · снег {{ region.integrated_precipitation.snow_water_equivalent_mm|floatformat:2 }} мм водного эквивалента
+                        · пик {{ region.integrated_precipitation.maximum_rate_mm_h|floatformat:2 }} мм/ч
+                    </p>
+                {% endif %}
+                {% if region.notable_episodes %}
+                    <ul>
+                        {% for episode in region.notable_episodes %}
+                            <li>{{ episode.title }} · {{ episode.duration_hours }} ч · {{ episode.start }}–{{ episode.end }} мин.</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </article>
+        {% endfor %}
+    </details>
+</section>

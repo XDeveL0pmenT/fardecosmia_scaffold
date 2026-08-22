@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ entry.title }} — Канон Фардекосмии{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div class="page-heading__title">
+        <a class="back-link" href="{% url 'world:global_world_entry_list' %}"><span aria-hidden="true">←</span> Глобальный канон</a>
+        <p class="eyebrow">{{ entry.kind }} · {{ entry.slug }}</p>
+        <h1>{{ entry.title }}</h1>
+        <p class="lead">{{ entry.summary|default:"Краткое описание не добавлено." }}</p>
+    </div>
+    {% if can_manage_global_canon %}
+        <div class="page-heading__actions">
+            <a class="button" href="{% url 'world:global_world_entry_edit' entry.id %}">Изменить</a>
+            <a class="button button--danger" href="{% url 'world:global_world_entry_delete' entry.id %}">Удалить</a>
+        </div>
+    {% endif %}
+</div>
+<article class="panel canon-entry-body canon-reading-shell">
+    <header class="canon-reading-shell__header">
+        <span class="canon-reading-shell__ornament" aria-hidden="true"></span>
+        <div>
+            <p class="panel-kicker">Подробное описание</p>
+            <p>Глобальная запись канона · ревизия {{ entry.revision }}</p>
+        </div>
+    </header>
+    <div class="canon-prose">
+        {{ entry.body|default:"Полное описание пока не добавлено."|linebreaks }}
+    </div>
+    <footer class="canon-reading-shell__footer">
+        <span>Последнее обновление</span>
+        <time datetime="{{ entry.updated_at|date:'c' }}">{{ entry.updated_at|date:"d.m.Y H:i" }}</time>
+    </footer>
+</article>
+{% endblock %}
