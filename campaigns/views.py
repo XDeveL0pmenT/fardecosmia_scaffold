@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST
 
 from accounts.services.email import send_campaign_invitation_email
 from accounts.services.verification import has_verified_transactional_email
+from characters.services import controlled_characters, get_active_character
 from .forms import (
     CampaignBasicForm,
     CampaignCreateForm,
@@ -82,14 +83,21 @@ def campaign_list(request):
 def campaign_detail(request, campaign_id):
     campaign = get_object_or_404(Campaign, pk=campaign_id)
     membership = require_campaign_member(request.user, campaign)
+    is_campaign_gm = request.user.is_superuser or membership.role == CampaignMembership.Role.GM
+    player_characters = []
+    active_character = None
+    if membership is not None and not is_campaign_gm:
+        player_characters = list(controlled_characters(membership=membership))
+        active_character = get_active_character(request.user, campaign)
     return render(
         request,
         "campaigns/campaign_detail.html",
         {
             "campaign": campaign,
             "membership": membership,
-            "is_campaign_gm": request.user.is_superuser
-            or membership.role == CampaignMembership.Role.GM,
+            "is_campaign_gm": is_campaign_gm,
+            "player_characters": player_characters,
+            "active_character": active_character,
         },
     )
 
@@ -460,7 +468,9 @@ def _gm_dashboard_context(campaign, *, atmosphere_form=None, time_settings_form=
         "time_advance_units": TIME_ADVANCE_UNITS,
         "can_advance_time": True,
         "weather_rows": weather_rows,
-        "characters": campaign.characters.select_related("owner__user").order_by("name"),
+        "characters": campaign.characters.filter(is_active=True).select_related(
+            "owner__user", "roll20_binding"
+        ).order_by("name"),
         "upcoming_events": upcoming_events,
         "atmospheric_config": atmospheric_config,
         "atmosphere_form": atmosphere_form,

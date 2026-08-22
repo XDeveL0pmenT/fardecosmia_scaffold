@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Персонажи — {{ campaign.name }}{% endblock %}
+{% block content %}
+<header class="page-intro character-heading">
+    <div>
+        <a class="back-link" href="{% url 'campaigns:gm_dashboard' campaign.id %}">← Панель мастера</a>
+        <p class="eyebrow">Кампания «{{ campaign.name }}»</p>
+        <h1>Персонажи</h1>
+        <p class="lead">Базовые личности персонажей и назначение игроков. Боевой лист остаётся в Roll20.</p>
+    </div>
+    <a class="button" href="{% url 'characters:create' campaign.id %}">Создать персонажа</a>
+</header>
+
+<nav class="character-tabs" aria-label="Фильтр персонажей">
+    <a class="{% if selected_tab == 'active' %}is-active{% endif %}" href="?tab=active">Активные</a>
+    <a class="{% if selected_tab == 'unassigned' %}is-active{% endif %}" href="?tab=unassigned">Без игрока</a>
+    <a class="{% if selected_tab == 'archive' %}is-active{% endif %}" href="?tab=archive">Архив</a>
+    <a class="{% if selected_tab == 'all' %}is-active{% endif %}" href="?tab=all">Все</a>
+</nav>
+
+<section class="character-card-grid" aria-label="Персонажи кампании">
+    {% for character in characters %}
+        <article class="panel character-card{% if not character.is_active %} character-card--archived{% endif %}">
+            <div class="character-card__portrait" aria-hidden="true">
+                {% if character.portrait %}<img src="{{ character.portrait.url }}" alt="">{% else %}<span>✦</span>{% endif %}
+            </div>
+            <div class="character-card__body">
+                <div class="character-card__topline">
+                    {% if character.is_active %}<span class="status-badge status-badge--success">Активен</span>{% else %}<span class="status-badge status-badge--muted">В архиве</span>{% endif %}
+                    {% if character.roll20_binding %}<span class="sync-status sync-status--ok">Roll20 связан</span>{% else %}<span class="sync-status">Без Roll20</span>{% endif %}
+                </div>
+                <h2><a href="{% url 'characters:detail' campaign.id character.id %}">{{ character.name }}</a></h2>
+                <p>{{ character.biography|default:"Краткое описание пока не добавлено."|truncatechars:180 }}</p>
+                <div class="character-card__controller">
+                    <span>Игрок</span>
+                    <strong>{% if character.owner %}{{ character.owner.user.display_name|default:character.owner.user.username }}{% else %}Не назначен{% endif %}</strong>
+                </div>
+                <a class="button button--ghost button--small" href="{% url 'characters:detail' campaign.id character.id %}">Открыть</a>
+            </div>
+        </article>
+    {% empty %}
+        <article class="panel character-empty">
+            <span aria-hidden="true">✦</span>
+            <div><h2>В кампании пока нет персонажей</h2><p>Создайте базовую личность, а затем назначьте её игроку.</p><a class="button" href="{% url 'characters:create' campaign.id %}">Создать персонажа</a></div>
+        </article>
+    {% endfor %}
+</section>
+{% endblock %}

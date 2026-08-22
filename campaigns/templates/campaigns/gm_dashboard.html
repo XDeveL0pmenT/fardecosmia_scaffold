@@ -215,15 +215,16 @@
             <div><p class="panel-kicker">Участники</p><h2>Персонажи</h2></div>
         </header>
         {% for character in characters %}
-            <div class="row">
-                <strong>{{ character.name }}</strong>
+            <a class="row row--link" href="{% url 'characters:detail' campaign.id character.id %}">
+                <span><strong>{{ character.name }}</strong><small>{% if character.owner %}{{ character.owner.user.display_name|default:character.owner.user.username }}{% else %}Игрок не назначен{% endif %}</small></span>
                 {% if character.roll20_binding %}
                     <span class="sync-status sync-status--ok">Roll20 <span aria-hidden="true">✓</span></span>
                 {% else %}
                     <span class="sync-status">без Roll20</span>
                 {% endif %}
-            </div>
+            </a>
         {% empty %}<p class="empty-copy">Персонажей пока нет.</p>{% endfor %}
+        <p class="dashboard-card__action"><a class="button button--ghost" href="{% url 'characters:gm_list' campaign.id %}">Управлять персонажами</a></p>
     </section>
 
     <section class="panel dashboard-card dashboard-card--roll20">

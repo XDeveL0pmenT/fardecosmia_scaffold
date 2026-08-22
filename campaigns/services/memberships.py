@@ -1,3 +1,5 @@
+import uuid
+
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
@@ -87,8 +89,51 @@ def remove_campaign_member(*, campaign, membership_id, actor):
         raise MembershipConflict(
             "Сначала измените роль Game Master на «Игрок», затем удалите участника."
         )
+    from characters.models import Character
+    from characters.services import serialize_character
+
+    operation_id = uuid.uuid4()
+    assigned_characters = list(
+        Character.objects.select_for_update()
+        .select_related("owner__user")
+        .filter(owner=membership)
+        .order_by("pk")
+    )
     before = _serialize_membership(membership)
+    before["assigned_character_count"] = len(assigned_characters)
     label = _user_label(membership.user)
+    if membership.active_character_id:
+        active = membership.active_character
+        membership.active_character = None
+        membership.save(update_fields=["active_character"])
+        record_audit(
+            action="character.active_changed",
+            actor=actor,
+            campaign=locked_campaign,
+            target=membership,
+            target_label=f"Активный персонаж {label}",
+            summary=f"Активный персонаж {label} очищен при удалении из кампании.",
+            before_state={"character_id": active.pk, "name": active.name},
+            after_state={"character_id": None, "name": None},
+            operation_id=operation_id,
+        )
+    for character in assigned_characters:
+        character_before = serialize_character(character)
+        character.owner = None
+        character.save(update_fields=["owner", "updated_at"])
+        record_audit(
+            action="character.unassigned",
+            actor=actor,
+            campaign=locked_campaign,
+            target=character,
+            summary=(
+                f"Персонаж «{character.name}» остался без игрока после удаления "
+                f"{label} из кампании."
+            ),
+            before_state=character_before,
+            after_state=serialize_character(character),
+            operation_id=operation_id,
+        )
     membership.delete()
     record_audit(
         action="campaign_member.removed",
@@ -98,6 +143,11 @@ def remove_campaign_member(*, campaign, membership_id, actor):
         target_label=f"Участник {label}",
         summary=f"Игрок {label} удалён из кампании.",
         before_state=before,
-        after_state={"user_label": label, "removed": True},
+        after_state={
+            "user_label": label,
+            "removed": True,
+            "unassigned_character_count": len(assigned_characters),
+        },
+        operation_id=operation_id,
     )
     return label

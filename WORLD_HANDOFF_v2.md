@@ -2119,6 +2119,51 @@ Campaign authority outside the established access services.
 
 ---
 
+# 70A. P5.5 Character Identity & Player Workspace foundation
+
+P5.5 is implemented on the existing `characters.Character` identity.
+
+Current invariants:
+
+- Character belongs to Campaign and keeps its durable PK;
+- control uses nullable `Character.owner → CampaignMembership`;
+- campaign role remains exclusively on CampaignMembership;
+- normal GM assignment accepts only a PLAYER membership in the same Campaign;
+- existing legacy GM-owned Character rows remain preserved compatibility data;
+- one membership can control multiple Characters;
+- `CampaignMembership.active_character` persists the per-user/per-Campaign UI
+  selection and is valid only for an active controlled Character in that same
+  Campaign;
+- the sole controlled Character is a read-only fallback when no explicit
+  selection exists, so GET never writes selection state;
+- reassignment, unassignment, archive and supported membership removal clear a
+  stale active selection transactionally;
+- membership/User deletion preserves Character through `SET_NULL`;
+- archive/deactivate replaces normal hard-delete and preserves future history;
+- player pages expose only their controlled active Characters;
+- meaningful identity/control/archive changes use P3 AuditLog in the same
+  transaction;
+- Character admin is diagnostic-only; supported mutations use domain services.
+
+Architecture boundary:
+
+```text
+Character identity
+!= CharacterSheet
+!= Roll20 raw state
+!= User
+!= Campaign role
+```
+
+Roll20 binding is independent from player control and is never inferred by
+name. Future CharacterKnowledge references stable Character identity and follows
+the Character across controller reassignment.
+
+P5.5 did not implement CharacterKnowledge, CharacterSheet, Roll20 sync,
+Character Builder, Inventory/Ledger/Purchases, Travel, Quests, M2 or C5.
+
+---
+
 # 71. Generated vs authored data
 
 ## Authored / GM-approved
@@ -2559,10 +2604,11 @@ Completed:
 
 Completed additionally:
 - P5 WorldEvent foundation.
+- P5.5 Character Identity & Player Workspace foundation.
 
 Any next phase requires a separate explicit GM instruction.
 CharacterKnowledge, M2, Inventory/Purchases, Travel and C5 have not been started
-by P5.
+by P5.5.
 
 C5 is intentionally not started yet.
 
@@ -2774,6 +2820,11 @@ The essential truths:
   and fast-forward, and registered effects/audits commit atomically.
 - Objective event history is GM-only until a future CharacterKnowledge
   publication layer explicitly makes a fact player-known.
+- P5.5 preserves the existing campaign-scoped Character identity, separates
+  player control from Campaign role, persists a validated active Character and
+  uses archive instead of normal hard-delete.
+- CharacterKnowledge and gameplay state belong to Character, not User;
+  Character identity remains separate from CharacterSheet and Roll20 raw data.
 - Region legacy climate fields are not allowed to re-enter modern physics.
 - Fast-forward does not invent detailed skipped weather history.
 - Lumen, Noctis and Heat Corruption are world-specific concepts and must be treated according to canon.

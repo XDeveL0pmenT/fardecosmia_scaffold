@@ -39,6 +39,15 @@ campaign state.
   Bind them explicitly by Roll20 character ID.
 - Future Django -> Roll20 changes must use queued commands and conflict checks,
   never blind overwrites.
+- Audit the existing `characters.Character` model and stored rows before any
+  replacement or ownership migration; preserve durable PKs and Roll20 bindings.
+- Character identity/control is Campaign-scoped. A controller assignment never
+  grants or changes the user's `CampaignMembership` role.
+- Gameplay knowledge and character state belong to Character, not User, and
+  must survive reassignment between player accounts.
+- Character identity is not CharacterSheet and must not absorb raw Roll20 state.
+- Player-facing Character queries may expose only active Characters controlled
+  through that user's membership in the same Campaign.
 
 ## World simulation
 - Campaign time is stored as integer game minutes, not real-world datetime.

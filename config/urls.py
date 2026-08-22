@@ -9,6 +9,7 @@ from accounts.urls import password_reset_patterns
 urlpatterns = [
     path("", include("world.urls")),
     path("", include("campaigns.urls")),
+    path("", include("characters.urls")),
     path("accounts/", include("accounts.urls")),
     path("accounts/", include(password_reset_patterns)),
     path(

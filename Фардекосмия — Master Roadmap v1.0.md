@@ -385,13 +385,20 @@
 
 # 8. Персонажи и Roll20
 
-- [ ] Внутренняя модель Character.
+- [x] P5.5 — существующая внутренняя Character identity сохранена и закреплена за Campaign.
+- [x] Campaign-scoped назначение игроку через CampaignMembership.
+- [x] Несколько Characters на одного User в одной Campaign.
+- [x] Persisted active Character и безопасный single-character UI fallback.
+- [x] Archive/restore вместо normal hard-delete.
+- [x] GM Character management и player workspace.
+- [x] Campaign-scoped permissions, IDOR-защита и P3 AuditLog.
 - [ ] Внутренний CharacterSheet.
 - [ ] Roll20 adapter/synchronization.
 - [ ] Не связывать gameplay services напрямую со структурой Roll20.
-- [ ] Игрок вступает в кампанию по ссылке.
-- [ ] Выбирает существующего персонажа либо создаёт нового.
-- [ ] Страница персонажа.
+- [x] Игрок вступает в кампанию по защищённому приглашению P4.5.
+- [x] Игрок переключается между назначенными ему существующими персонажами.
+- [ ] Создание персонажа игроком через будущий Character Builder + Approval flow.
+- [x] Базовая страница персонажа.
 - [ ] Инвентарь.
 - [ ] Экипировка.
 - [ ] Валюта.
@@ -645,6 +652,7 @@
 - [x] **P4 — ApprovalRequest foundation**
 - [x] **P4.5 — Account Onboarding, Email & Campaign Lifecycle**
 - [x] **P5 — WorldEvent foundation**
+- [x] **P5.5 — Character Identity & Player Workspace foundation**
 - [ ] **CharacterKnowledge foundation**
 - [ ] **M2 — Countries / Settlements / Roads**
 - [ ] **Navigation + Encyclopedia shell + Search**

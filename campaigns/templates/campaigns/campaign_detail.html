@@ -11,7 +11,23 @@
         <section class="panel dashboard-card"><p class="panel-kicker">Команда</p><h2>Участники</h2><p>Приглашения, роли и доступ к кампании.</p><a class="button button--ghost" href="{% url 'campaigns:members' campaign.id %}">Управлять участниками</a></section>
         <section class="panel dashboard-card"><p class="panel-kicker">Представление</p><h2>Название и описание</h2><p>Измените основные сведения без затрагивания симуляции.</p><a class="button button--ghost" href="{% url 'campaigns:edit' campaign.id %}">Редактировать</a></section>
     {% else %}
-        <section class="panel dashboard-card"><p class="panel-kicker">Ваш доступ</p><h2>Вы участник кампании</h2><p>Игровые разделы персонажа, знаний и квестов появятся в следующих этапах. Сейчас доступны ваши запросы.</p><a class="button" href="{% url 'world:my_approval_requests' campaign.id %}">Мои запросы</a></section>
+        <section class="panel dashboard-card player-character-summary">
+            <p class="panel-kicker">Ваш персонаж · Вы участник кампании</p>
+            {% if active_character %}
+                <h2>{{ active_character.name }}</h2>
+                <p>{{ active_character.biography|default:"Ваш персонаж в этой кампании."|truncatechars:180 }}</p>
+                <div class="player-character-summary__actions"><a class="button" href="{% url 'characters:detail' campaign.id active_character.id %}">Открыть персонажа</a>{% if player_characters|length > 1 %}<a class="button button--ghost" href="{% url 'characters:player_list' campaign.id %}">Сменить персонажа</a>{% endif %}</div>
+            {% elif player_characters %}
+                <h2>Выберите активного персонажа</h2>
+                <p>Вам доступно несколько персонажей. Выберите, за кого играете сейчас.</p>
+                <a class="button" href="{% url 'characters:player_list' campaign.id %}">Выбрать персонажа</a>
+            {% else %}
+                <h2>Персонаж ещё не назначен</h2>
+                <p>Game Master пока не назначил вам персонажа. Когда это произойдёт, он появится здесь.</p>
+                <a class="button button--ghost" href="{% url 'characters:player_list' campaign.id %}">Открыть раздел персонажей</a>
+            {% endif %}
+        </section>
+        <section class="panel dashboard-card"><p class="panel-kicker">Ваши действия</p><h2>Мои запросы</h2><p>Здесь находятся отправленные вами запросы и решения Game Master.</p><a class="button button--ghost" href="{% url 'world:my_approval_requests' campaign.id %}">Открыть запросы</a></section>
     {% endif %}
 </div>
 {% endblock %}

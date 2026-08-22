@@ -10,7 +10,7 @@ class CampaignMembershipInline(admin.TabularInline):
     model = CampaignMembership
     extra = 0
     can_delete = False
-    readonly_fields = ("user", "role", "joined_at")
+    readonly_fields = ("user", "role", "active_character", "joined_at")
 
     def has_add_permission(self, request, obj=None):
         return False
@@ -69,9 +69,9 @@ class CampaignAdmin(admin.ModelAdmin):
 
 @admin.register(CampaignMembership)
 class CampaignMembershipAdmin(admin.ModelAdmin):
-    list_display = ("campaign", "user", "role", "joined_at")
+    list_display = ("campaign", "user", "role", "active_character", "joined_at")
     list_filter = ("role", "campaign")
-    readonly_fields = ("campaign", "user", "role", "joined_at")
+    readonly_fields = ("campaign", "user", "role", "active_character", "joined_at")
 
     def has_add_permission(self, request):
         return False

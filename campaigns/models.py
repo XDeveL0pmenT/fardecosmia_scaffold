@@ -188,6 +188,13 @@ class CampaignMembership(models.Model):
         related_name="campaign_memberships",
     )
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.PLAYER)
+    active_character = models.ForeignKey(
+        "characters.Character",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="active_for_memberships",
+    )
     joined_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -200,6 +207,21 @@ class CampaignMembership(models.Model):
 
     def __str__(self):
         return f"{self.user} — {self.campaign} ({self.role})"
+
+    def clean(self):
+        super().clean()
+        if not self.active_character_id:
+            return
+        character = self.active_character
+        errors = []
+        if character.campaign_id != self.campaign_id:
+            errors.append("Активный персонаж должен принадлежать этой кампании.")
+        if character.owner_id != self.pk:
+            errors.append("Активным можно выбрать только назначенного вам персонажа.")
+        if not character.is_active:
+            errors.append("Архивный персонаж не может быть активным.")
+        if errors:
+            raise ValidationError({"active_character": errors})
 
 
 class CampaignInvitation(models.Model):

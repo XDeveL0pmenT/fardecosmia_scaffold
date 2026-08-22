@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{% if mode == 'create' %}Новый персонаж{% else %}Редактирование {{ character.name }}{% endif %} — {{ campaign.name }}{% endblock %}
+{% block content %}
+<header class="page-intro">
+    <div>
+        <a class="back-link" href="{% if character %}{% url 'characters:detail' campaign.id character.id %}{% else %}{% url 'characters:gm_list' campaign.id %}{% endif %}">← Назад</a>
+        <p class="eyebrow">Базовая личность</p>
+        <h1>{% if mode == 'create' %}Создать персонажа{% else %}Редактировать персонажа{% endif %}</h1>
+        <p class="lead">Здесь хранится только личность персонажа внутри кампании. Характеристики, HP и боевые ресурсы не дублируются из Roll20.</p>
+    </div>
+</header>
+<section class="panel character-form-panel">
+    <form method="post" class="stacked-form character-form">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        {% for field in form %}
+            <p>
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+                {{ field.errors }}
+            </p>
+        {% endfor %}
+        <div class="character-form__actions">
+            <button type="submit" class="button">{% if mode == 'create' %}Создать персонажа{% else %}Сохранить изменения{% endif %}</button>
+            <a class="button button--ghost" href="{% if character %}{% url 'characters:detail' campaign.id character.id %}{% else %}{% url 'characters:gm_list' campaign.id %}{% endif %}">Отмена</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

@@ -5,6 +5,7 @@
             <a href="{% url 'campaigns:gm_dashboard' campaign.id %}">Панель</a>
             <a href="{% url 'campaigns:campaign_detail' campaign.id %}">О кампании</a>
             <a href="{% url 'campaigns:members' campaign.id %}">Участники</a>
+            <a href="{% url 'characters:gm_list' campaign.id %}">Персонажи</a>
             <a href="{% url 'world:world_map' campaign.id %}">Регионы кампании</a>
             <a href="{% url 'world:campaign_world_entry_list' campaign.id %}">Канон кампании</a>
             <a href="{% url 'world:campaign_approval_queue' campaign.id %}">Запросы</a>

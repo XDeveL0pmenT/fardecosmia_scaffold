@@ -292,16 +292,37 @@ or notification infrastructure without a separate phase and permission model.
 
 # 10. Character и Roll20
 
-В будущем появится внутренний:
+P5.5 Character Identity & Player Workspace foundation реализован.
+
+Обязательные границы:
+
+- `Character != User`;
+- Character identity принадлежит Campaign и имеет durable PK;
+- Character assignment/controller не является Campaign role;
+- Campaign authority остаётся в `CampaignMembership`;
+- Character identity != CharacterSheet;
+- Roll20 binding/control assignment — независимые отношения;
+- gameplay knowledge/state не хранится на User;
+- будущий CharacterKnowledge следует за Character при reassignment;
+- player-facing выборки показывают только controlled active Characters той же
+  Campaign;
+- normal hard-delete Character не вводить: использовать archive/deactivate;
+- не заменять существующую Character model и не менять Roll20 binding semantics
+  без отдельного data-preserving audit/migration proof.
+
+Будущая цепочка:
 
 ```text
-Character
-CharacterSheet
+Character identity
+↓
+Normalized Character State / CharacterSheet
+↓
+Roll20 Adapter
 ```
 
-Roll20 будет внешним adapter/integration.
-
-Не проектировать gameplay-сервисы так, будто Roll20 является единственным source of truth.
+Roll20 остаётся source of truth combat-sheet mechanics. Fardecosmia хранит
+campaign/world state и стабильный normalized mirror. Не связывать по имени и не
+протаскивать raw Roll20 attributes в Character domain/UI.
 
 ---
 

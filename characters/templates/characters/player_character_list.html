@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Мои персонажи — {{ campaign.name }}{% endblock %}
+{% block content %}
+<header class="page-intro character-heading">
+    <div>
+        <a class="back-link" href="{% url 'campaigns:campaign_detail' campaign.id %}">← О кампании</a>
+        <p class="eyebrow">Кампания «{{ campaign.name }}»</p>
+        <h1>Ваши персонажи</h1>
+        <p class="lead">Выберите, за кого играете сейчас, и откройте его рабочее пространство.</p>
+    </div>
+</header>
+
+{% if characters %}
+<section class="character-card-grid" aria-label="Доступные персонажи">
+    {% for character in characters %}
+        <article class="panel character-card{% if active_character == character %} character-card--selected{% endif %}">
+            <div class="character-card__portrait" aria-hidden="true">
+                {% if character.portrait %}<img src="{{ character.portrait.url }}" alt="">{% else %}<span>✦</span>{% endif %}
+            </div>
+            <div class="character-card__body">
+                {% if active_character == character %}<span class="status-badge status-badge--success">Активный персонаж</span>{% endif %}
+                <h2><a href="{% url 'characters:detail' campaign.id character.id %}">{{ character.name }}</a></h2>
+                <p>{{ character.biography|default:"Краткое описание пока не добавлено."|truncatechars:180 }}</p>
+                <div class="character-card__actions">
+                    <a class="button" href="{% url 'characters:detail' campaign.id character.id %}">Открыть персонажа</a>
+                    {% if active_character != character %}
+                    <form method="post" action="{% url 'characters:switch_active' campaign.id %}">{% csrf_token %}<input type="hidden" name="character" value="{{ character.id }}"><button class="button button--ghost" type="submit">Играть за {{ character.name }}</button></form>
+                    {% endif %}
+                </div>
+            </div>
+        </article>
+    {% endfor %}
+</section>
+{% else %}
+<section class="panel character-empty">
+    <span aria-hidden="true">✦</span>
+    <div><h2>Персонаж ещё не назначен</h2><p>Game Master пока не назначил вам персонажа. Когда это произойдёт, он появится здесь.</p><a class="button button--ghost" href="{% url 'campaigns:campaign_detail' campaign.id %}">Вернуться к кампании</a></div>
+</section>
+{% endif %}
+{% endblock %}

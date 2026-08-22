@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ character.name }} — {{ campaign.name }}{% endblock %}
+{% block content %}
+<header class="page-intro character-detail-heading">
+    <div>
+        <a class="back-link" href="{% if is_campaign_gm %}{% url 'characters:gm_list' campaign.id %}{% else %}{% url 'characters:player_list' campaign.id %}{% endif %}">← {% if is_campaign_gm %}Персонажи кампании{% else %}Мои персонажи{% endif %}</a>
+        <p class="eyebrow">{% if is_campaign_gm %}Персонаж кампании{% else %}Ваш персонаж в кампании «{{ campaign.name }}»{% endif %}</p>
+        <h1>{{ character.name }}</h1>
+        <p class="lead">{{ character.biography|default:"Краткое описание пока не добавлено."|linebreaksbr }}</p>
+    </div>
+    <div class="character-detail-heading__badges">
+        {% if character.is_active %}<span class="status-badge status-badge--success">Активен</span>{% else %}<span class="status-badge status-badge--muted">В архиве</span>{% endif %}
+        {% if is_active_character %}<span class="status-badge">Вы играете сейчас</span>{% endif %}
+    </div>
+</header>
+
+{% if is_campaign_gm %}
+<div class="character-detail-grid">
+    <section class="panel character-management-card">
+        <p class="panel-kicker">Управление</p><h2>Назначенный игрок</h2>
+        <p>{% if character.owner %}<strong>{{ character.owner.user.display_name|default:character.owner.user.username }}</strong>{% else %}Игрок пока не назначен.{% endif %}</p>
+        {% if character.is_active %}
+        <form method="post" action="{% url 'characters:assign' campaign.id character.id %}" class="stacked-form character-assignment-form">
+            {% csrf_token %}
+            <p><label for="{{ assignment_form.player.id_for_label }}">{{ assignment_form.player.label }}</label>{{ assignment_form.player }}<small>{{ assignment_form.player.help_text }}</small></p>
+            <button type="submit" class="button button--ghost">Сохранить назначение</button>
+        </form>
+        {% else %}<p class="character-note">Сначала верните персонажа из архива, чтобы менять активное назначение.</p>{% endif %}
+    </section>
+    <section class="panel character-management-card">
+        <p class="panel-kicker">Состояние</p><h2>История сохраняется</h2>
+        <p>Архивация не удаляет персонажа, его Roll20-связь или будущие знания и историю.</p>
+        {% if character.is_active %}<p class="character-note">Персонаж останется в истории кампании, но больше не будет доступен как активный.</p>{% endif %}
+        <div class="character-management-actions">
+            <a class="button button--ghost" href="{% url 'characters:edit' campaign.id character.id %}">Редактировать</a>
+            {% if character.is_active %}
+                <form method="post" action="{% url 'characters:archive' campaign.id character.id %}">{% csrf_token %}<button class="button button--danger" type="submit" title="Персонаж останется в истории кампании">Переместить в архив</button></form>
+            {% else %}
+                <form method="post" action="{% url 'characters:restore' campaign.id character.id %}">{% csrf_token %}<button class="button" type="submit">Вернуть из архива</button></form>
+            {% endif %}
+        </div>
+    </section>
+    <section class="panel character-management-card character-management-card--wide">
+        <p class="panel-kicker">Интеграция</p><h2>Roll20</h2>
+        {% if character.roll20_binding %}<p>Персонаж связан с боевым листом Roll20. Внутренние raw attributes здесь не показываются.</p>{% else %}<p>Связь с Roll20 пока не настроена. Она не требуется для базовой личности.</p>{% endif %}
+    </section>
+</div>
+{% endif %}
+
+<section class="character-workspace-grid" aria-label="Рабочее пространство персонажа">
+    <article class="panel character-workspace-card"><span aria-hidden="true">◇</span><div><p class="panel-kicker">Игровой лист</p><h2>Боевые данные</h2><p>Появятся на этапе normalized CharacterSheet и Roll20 adapter.</p></div></article>
+    <article class="panel character-workspace-card"><span aria-hidden="true">✧</span><div><p class="panel-kicker">Знания</p><h2>Что знает персонаж</h2><p>Появится после отдельного этапа CharacterKnowledge.</p></div></article>
+    <article class="panel character-workspace-card"><span aria-hidden="true">□</span><div><p class="panel-kicker">Инвентарь</p><h2>Предметы и снаряжение</h2><p>Появятся после этапов Ledger и Inventory.</p></div></article>
+    <article class="panel character-workspace-card"><span aria-hidden="true">↟</span><div><p class="panel-kicker">Квесты</p><h2>История приключений</h2><p>Будет подключена на отдельном этапе квестов.</p></div></article>
+</section>
+{% endblock %}

@@ -1448,5 +1448,39 @@ No simulation-coupled climate effect is active. Such effects require a future
 split-at-event-boundary design; the current high-level scheduler is safe only for
 effects that do not need to alter skipped atmospheric evolution.
 
-The next named roadmap foundation is CharacterKnowledge, but it must not be
-started without a separate explicit GM instruction.
+---
+
+# 47. P5.5 Character Identity & Player Workspace foundation
+
+P5.5 is completed.
+
+- The existing `characters.Character` table remains the durable identity; no
+  competing Character model was introduced.
+- Character belongs to exactly one Campaign. Player control is the nullable
+  existing `Character.owner → CampaignMembership` relation.
+- Normal GM assignment targets only a PLAYER membership from the same Campaign;
+  legacy controller rows are preserved rather than rewritten.
+- One User may control multiple Characters in one Campaign.
+- `CampaignMembership.active_character` is the persisted campaign/user choice.
+  It is accepted only when the Character belongs to the same Campaign, is
+  controlled by that membership and is not archived.
+- A sole controlled Character is resolved as the read-only UI default; GET does
+  not mutate the persisted selection.
+- Unassign, reassign, archive and supported membership removal clear stale
+  active selection transactionally.
+- Removing a CampaignMembership or deleting its User never deletes Character;
+  the nullable controller becomes NULL. Roll20 binding remains independent.
+- Archive is the normal removal-from-play mechanism. It preserves durable
+  identity, ownership/history and Roll20 binding.
+- GM can create/edit only basic identity (name and short biography), assign,
+  unassign, archive and restore through campaign-scoped audited services.
+- Player pages expose only controlled active Characters and no raw Roll20 IDs,
+  payloads or GM-only fields.
+- Character identity is distinct from CharacterSheet and from
+  `Roll20CharacterBinding.raw_attributes` / `normalized_state`.
+- Future CharacterKnowledge belongs to Character and follows that Character
+  across controller reassignment; it must never be stored on User.
+
+CharacterKnowledge, CharacterSheet/Roll20 sync, Character Builder, M2,
+Inventory/Ledger/Purchases, Travel, Quests and C5 remain unstarted and require
+separate explicit phases.
