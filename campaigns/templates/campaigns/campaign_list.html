@@ -7,6 +7,13 @@
         <h1>Ваши кампании</h1>
         <p class="lead">Выберите пространство, с которым хотите продолжить работу.</p>
     </div>
+    <div class="page-heading__actions">
+        {% if can_create_campaign %}
+            <a class="button" href="{% url 'campaigns:create' %}">Создать кампанию</a>
+        {% else %}
+            <a class="button button--ghost" href="{% url 'accounts:verify_email' %}">Подтвердить email для создания</a>
+        {% endif %}
+    </div>
     <div class="page-intro__ornament" aria-hidden="true">
         <span></span><span></span><span></span>
     </div>
@@ -24,17 +31,26 @@
             {% if membership.role == "gm" %}
                 <div class="campaign-card__actions">
                     <a class="button" href="{% url 'campaigns:gm_dashboard' membership.campaign.id %}">Открыть панель <span aria-hidden="true">→</span></a>
+                    <a class="button button--ghost" href="{% url 'campaigns:campaign_detail' membership.campaign.id %}">О кампании</a>
                     <a class="button button--ghost" href="{% url 'world:my_approval_requests' membership.campaign.id %}">Мои запросы</a>
                 </div>
             {% else %}
-                <a class="button button--ghost" href="{% url 'world:my_approval_requests' membership.campaign.id %}">Мои запросы</a>
+                <div class="campaign-card__actions">
+                    <a class="button" href="{% url 'campaigns:campaign_detail' membership.campaign.id %}">Открыть кампанию</a>
+                    <a class="button button--ghost" href="{% url 'world:my_approval_requests' membership.campaign.id %}">Мои запросы</a>
+                </div>
             {% endif %}
         </article>
     {% empty %}
         <section class="panel empty-state">
             <span class="empty-state__icon" aria-hidden="true">✦</span>
             <h2>Пока здесь тихо</h2>
-            <p>Вы ещё не добавлены ни в одну кампанию.</p>
+            <p>Вы ещё не участвуете ни в одной кампании.</p>
+            <div class="empty-state__actions">
+                {% if can_create_campaign %}<a class="button" href="{% url 'campaigns:create' %}">Создать кампанию</a>{% endif %}
+                <span class="button button--ghost button--disabled" aria-disabled="true">Присоединиться по приглашению</span>
+            </div>
+            <small>Откройте ссылку, которую прислал Game Master, чтобы присоединиться.</small>
         </section>
     {% endfor %}
 </div>

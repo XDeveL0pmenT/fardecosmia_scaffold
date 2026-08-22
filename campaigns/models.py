@@ -202,6 +202,110 @@ class CampaignMembership(models.Model):
         return f"{self.user} — {self.campaign} ({self.role})"
 
 
+class CampaignInvitation(models.Model):
+    """Email-bound, single-use invitation; plaintext token is never persisted."""
+
+    campaign = models.ForeignKey(
+        Campaign,
+        on_delete=models.CASCADE,
+        related_name="invitations",
+    )
+    email_normalized = models.EmailField(max_length=254)
+    role = models.CharField(
+        max_length=20,
+        choices=CampaignMembership.Role.choices,
+        default=CampaignMembership.Role.PLAYER,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_campaign_invitations",
+    )
+    created_by_label_snapshot = models.CharField(max_length=240)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    token_prefix = models.CharField(max_length=16, unique=True)
+    token_hash = models.CharField(max_length=256)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    delivery_failed_at = models.DateTimeField(null=True, blank=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    accepted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="accepted_campaign_invitations",
+    )
+    accepted_by_label_snapshot = models.CharField(max_length=240, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="revoked_campaign_invitations",
+    )
+    revoked_by_label_snapshot = models.CharField(max_length=240, blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(role=CampaignMembership.Role.PLAYER),
+                name="campaign_invitation_player_only",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(accepted_at__isnull=True)
+                    | models.Q(revoked_at__isnull=True)
+                ),
+                name="campaign_invite_not_accepted_and_revoked",
+            ),
+            models.UniqueConstraint(
+                fields=["campaign", "email_normalized"],
+                condition=(
+                    models.Q(accepted_at__isnull=True)
+                    & models.Q(revoked_at__isnull=True)
+                ),
+                name="unique_open_campaign_email_invite",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["campaign", "created_at"],
+                name="campaign_invite_time_idx",
+            ),
+            models.Index(fields=["expires_at"], name="campaign_invite_expiry_idx"),
+        ]
+
+    @property
+    def is_pending(self):
+        from django.utils import timezone
+
+        return bool(
+            self.accepted_at is None
+            and self.revoked_at is None
+            and self.expires_at > timezone.now()
+        )
+
+    @property
+    def status_label(self):
+        from django.utils import timezone
+
+        if self.accepted_at is not None:
+            return "Принято"
+        if self.revoked_at is not None:
+            return "Отозвано"
+        if self.expires_at <= timezone.now():
+            return "Истекло"
+        return "Ожидает"
+
+    def __str__(self):
+        return f"{self.campaign}: приглашение для {self.email_normalized}"
+
+
 class TimeAdvanceReport(models.Model):
     class SimulationMode(models.TextChoices):
         EXACT = "exact", "Точная симуляция"

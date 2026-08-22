@@ -22,9 +22,20 @@
         {% endif %}
         <form method="post" class="stacked-form">
             {% csrf_token %}
-            {{ form.as_p }}
+            {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+            {% for field in form %}
+                <p>
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {{ field.errors }}
+                </p>
+            {% endfor %}
             <button type="submit" class="button button--wide">Войти</button>
         </form>
+        <div class="auth-card__links">
+            <a href="{% url 'password_reset' %}">Забыли пароль?</a>
+            <span>Нет аккаунта? <a href="{% url 'accounts:register' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Зарегистрироваться</a></span>
+        </div>
     </section>
 </div>
 {% endblock %}

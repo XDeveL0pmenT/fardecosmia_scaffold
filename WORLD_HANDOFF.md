@@ -1383,3 +1383,36 @@ When uncertain whether something is canon, treat it as **UNKNOWN** and build a c
 - `Campaign.season_weather_modifiers` stores editable seasonal humidity/precipitation coefficients. Its defaults implement the confirmed qualitative descriptions (Autumn storms/fog, Winter cold/snow opportunity, Spring floods) but remain technical values that GM may replace.
 - Snow still requires freezing local temperature and sufficient precipitation conditions; Winter raises its opportunity rather than forcing snow in every region.
 - Weather transitions still happen only at the region's configured simulation boundaries, not on every small time advance.
+
+---
+
+# 45. P4.5 account and Campaign lifecycle foundation
+
+P4.5 is completed. A normal user can register without Django Admin, verify a
+required transactional email with a hashed six-digit challenge, recover a
+password, create a Campaign and join one through a secure invitation.
+
+Project boundaries:
+
+- verified email is the transactional contact foundation, not a Campaign role;
+- Campaign authority remains in `CampaignMembership`;
+- a verified Campaign creator atomically receives the initial GM membership;
+- invitations are email-bound, single-use, expiring tokens stored only as a
+  slow hash plus lookup prefix;
+- accepting an invitation creates a PLAYER membership and is not an
+  `ApprovalRequest`;
+- a Campaign can never lose its final GM through normal role-management paths;
+- campaign creation, invitation lifecycle and membership changes are P3 domain
+  audit actions;
+- registration, verification, login, password reset and other security activity
+  are not world `AuditLog` events;
+- no authentication code, reset token or invitation token may enter AuditLog.
+
+Existing pre-P4.5 users are not falsely marked verified. Legacy accounts remain
+usable for their existing memberships, while transactional actions such as
+normal Campaign creation require a verified contact email. Staff/superuser
+compatibility is preserved for administration; it does not replace
+CampaignMembership authority.
+
+Current next named roadmap phase is P5 WorldEvent, but it must not be started
+without a separate explicit GM instruction.

@@ -74,6 +74,22 @@ campaign state.
   request remains pending (or enters the appropriate non-approved terminal state).
 - Resolved approval requests are immutable through normal application paths.
   Never add a raw JSON approval-creation UI.
+- Never store email-verification codes or campaign-invitation tokens in
+  plaintext. Persist only slow hashes plus the minimum lookup metadata.
+- Campaign authority remains exclusively in `campaigns.CampaignMembership`;
+  verified email, invitation authorship and account staff flags are not campaign
+  roles.
+- Normal registration, email verification, campaign creation and invitation
+  acceptance must remain available without Django Admin.
+- Transactional email must go through the centralized accounts email service
+  and Django email backend; provider credentials belong only in environment
+  configuration.
+- A verification code is not an invitation token, and accepting an invitation
+  is not an `ApprovalRequest`.
+- A campaign must retain at least one GM. Role changes and removals must enforce
+  this invariant transactionally.
+- Authentication secrets, verification codes, reset tokens and invitation
+  tokens must never enter `AuditLog` payloads or summaries.
 
 ## After changes
 Run, when available:

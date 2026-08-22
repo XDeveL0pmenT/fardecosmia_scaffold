@@ -9,7 +9,7 @@
     <link rel="icon" type="image/png" sizes="117x117" href="{% static 'images/fardecosmia-favicon.png' %}">
     <link rel="shortcut icon" type="image/png" href="{% static 'images/fardecosmia-favicon.png' %}">
     <link rel="apple-touch-icon" href="{% static 'images/fardecosmia-favicon.png' %}">
-    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=p4-approval-foundation-1">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=p45-onboarding-2">
     {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -39,6 +39,9 @@
                     {% csrf_token %}
                     <button type="submit" class="link-button">Выйти</button>
                 </form>
+            {% else %}
+                <a class="account-nav__atlas" href="{% url 'login' %}">Войти</a>
+                <a class="account-nav__atlas" href="{% url 'accounts:register' %}">Регистрация</a>
             {% endif %}
         </nav>
     </div>
@@ -62,6 +65,7 @@
     <span>Fardecosmia</span>
 </footer>
 <script src="{% static 'js/time-control.js' %}"></script>
+<script src="{% static 'js/onboarding.js' %}"></script>
 {% block extra_scripts %}{% endblock %}
 </body>
 </html>

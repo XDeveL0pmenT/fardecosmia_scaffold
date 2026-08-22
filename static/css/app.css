@@ -2844,6 +2844,7 @@ button.region-placement-item {
 
     .auth-intro {
         padding-bottom: 0;
+        overflow: hidden;
     }
 
     .orbit-emblem {
@@ -3118,6 +3119,234 @@ button.region-placement-item {
     .weather-row .row__meta small {
         text-align: left;
     }
+}
+
+/* P4.5 — account onboarding and campaign membership. */
+.auth-layout--compact {
+    grid-template-columns: minmax(0, 0.95fr) minmax(330px, 0.7fr);
+}
+
+.auth-card__links,
+.verification-resend {
+    display: grid;
+    gap: 10px;
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(181, 166, 255, 0.14);
+    color: var(--muted);
+    font-size: 0.84rem;
+}
+
+.auth-card__links a,
+.auth-card__logout .link-button {
+    color: var(--cyan);
+}
+
+.auth-card__logout {
+    margin-top: 18px;
+    text-align: center;
+}
+
+.verification-form input[name="code"] {
+    width: 100%;
+    padding: 14px;
+    font-size: 1.8rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.28em;
+    text-align: center;
+}
+
+.errorlist {
+    margin: 8px 0 0;
+    padding: 0;
+    color: #ffb5c3;
+    font-size: 0.79rem;
+    list-style: none;
+}
+
+.auth-result-card,
+.content-form-card,
+.invitation-hero {
+    max-width: 720px;
+    margin-inline: auto;
+    padding: clamp(26px, 6vw, 52px);
+    text-align: center;
+}
+
+.auth-result-card p,
+.invitation-hero > p {
+    color: var(--muted);
+    line-height: 1.7;
+}
+
+.auth-result-card--form,
+.content-form-card {
+    text-align: left;
+}
+
+.content-form-card textarea {
+    min-height: 130px;
+    resize: vertical;
+}
+
+.campaign-landing {
+    align-items: center;
+}
+
+.campaign-landing__actions .dashboard-card {
+    min-height: 230px;
+}
+
+.campaign-landing__actions .dashboard-card .button {
+    margin-top: auto;
+    align-self: flex-start;
+}
+
+.empty-state__actions,
+.invitation-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin: 20px 0 12px;
+}
+
+.button--disabled {
+    cursor: default;
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.members-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.75fr);
+    gap: 20px;
+    align-items: start;
+}
+
+.members-panel,
+.invite-panel,
+.invitations-history,
+.invite-result {
+    padding: clamp(22px, 4vw, 32px);
+}
+
+.invite-panel {
+    position: sticky;
+    top: 150px;
+}
+
+.member-list,
+.invitation-list {
+    display: grid;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.member-card,
+.invitation-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 14px;
+    align-items: center;
+    padding: 16px;
+    border: 1px solid rgba(181, 166, 255, 0.14);
+    border-radius: 12px;
+    background: rgba(4, 5, 17, 0.45);
+}
+
+.member-card__identity,
+.invitation-row > div:first-child {
+    display: grid;
+    min-width: 0;
+    gap: 4px;
+}
+
+.member-card__identity span,
+.invitation-row > div:first-child span {
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 0.78rem;
+    text-overflow: ellipsis;
+}
+
+.member-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.invitations-history,
+.invite-result {
+    margin: 20px 0;
+}
+
+.copy-link {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    margin: 18px 0 10px;
+}
+
+.copy-link input {
+    min-width: 0;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.invitation-hero {
+    max-width: 780px;
+}
+
+.invitation-facts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin: 28px 0;
+    text-align: left;
+}
+
+.invitation-facts > div {
+    padding: 14px;
+    border: 1px solid rgba(181, 166, 255, 0.14);
+    border-radius: 10px;
+    background: rgba(4, 5, 17, 0.45);
+}
+
+.invitation-facts dt {
+    margin-bottom: 5px;
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.invitation-facts dd {
+    margin: 0;
+}
+
+@media (max-width: 820px) {
+    .auth-layout--compact,
+    .members-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .invite-panel { position: static; }
+}
+
+@media (max-width: 620px) {
+    .member-card,
+    .invitation-row {
+        grid-template-columns: 1fr;
+        align-items: start;
+    }
+
+    .member-card__actions { justify-content: flex-start; }
+    .invitation-facts { grid-template-columns: 1fr; }
+    .copy-link { grid-template-columns: 1fr; }
+    .empty-state__actions,
+    .invitation-actions { align-items: stretch; flex-direction: column; }
 }
 
 @media (prefers-reduced-motion: reduce) {
