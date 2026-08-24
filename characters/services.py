@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 import uuid
 
 from django.core.exceptions import ValidationError
@@ -7,13 +9,30 @@ from django.db import transaction
 from django.utils import timezone
 
 from campaigns.models import Campaign, CampaignMembership
-from characters.models import Character
+from characters.models import Character, CharacterLocationState
 from world.services.access import require_campaign_gm, require_campaign_member
 from world.services.audit import changed_fields, record_audit
 
 
 class CharacterConflict(ValidationError):
     pass
+
+
+class CharacterLocationConflict(CharacterConflict):
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class EffectiveCharacterLocation:
+    """Immutable resolver output; future Travel/Party logic can replace source."""
+
+    character_id: int
+    latitude: Decimal
+    longitude: Decimal
+    source: str = "initial_placement"
+
+
+COORDINATE_QUANTUM = Decimal("0.000001")
 
 
 def user_label(user):
@@ -39,6 +58,58 @@ def serialize_character(character):
     }
 
 
+def _coordinate_decimal(raw_value, *, coordinate):
+    if isinstance(raw_value, bool):
+        raise CharacterLocationConflict(f"{coordinate} должна быть числом.")
+    try:
+        value = Decimal(str(raw_value))
+    except (InvalidOperation, TypeError, ValueError) as error:
+        raise CharacterLocationConflict(f"{coordinate} должна быть числом.") from error
+    if not value.is_finite():
+        raise CharacterLocationConflict(f"{coordinate} должна быть конечным числом.")
+    if value.normalize().as_tuple().exponent < -6:
+        raise CharacterLocationConflict(
+            f"{coordinate} поддерживает не более шести знаков после запятой."
+        )
+    return value.quantize(COORDINATE_QUANTUM)
+
+
+def canonical_location_coordinates(*, latitude, longitude):
+    latitude = _coordinate_decimal(latitude, coordinate="Широта")
+    longitude = _coordinate_decimal(longitude, coordinate="Долгота")
+    if not Decimal("-90") <= latitude <= Decimal("90"):
+        raise CharacterLocationConflict(
+            "Широта должна находиться между -90 и 90 градусами."
+        )
+    if not Decimal("-180") <= longitude <= Decimal("180"):
+        raise CharacterLocationConflict(
+            "Долгота должна находиться между -180 и 180 градусами."
+        )
+    if longitude == Decimal("180"):
+        longitude = Decimal("-180").quantize(COORDINATE_QUANTUM)
+    return latitude, longitude
+
+
+def get_effective_character_location(character):
+    """Resolve current canonical position through the single future-facing boundary.
+
+    L1 has only the durable initial position. Future Travel/Party phases may add
+    domain-controlled branches here without changing Player/weather callers.
+    """
+
+    if character is None or character.pk is None:
+        return None
+    try:
+        state = character.location_state
+    except CharacterLocationState.DoesNotExist:
+        return None
+    return EffectiveCharacterLocation(
+        character_id=character.pk,
+        latitude=state.latitude,
+        longitude=state.longitude,
+    )
+
+
 def _locked_campaign_for_gm(*, campaign, actor):
     locked = Campaign.objects.select_for_update().get(pk=campaign.pk)
     require_campaign_gm(actor, locked)
@@ -49,7 +120,7 @@ def controlled_characters(*, membership, include_archived=False):
     queryset = Character.objects.filter(
         campaign=membership.campaign,
         owner=membership,
-    ).select_related("campaign", "owner__user", "roll20_binding")
+    ).select_related("campaign", "owner__user", "roll20_binding", "location_state")
     if not include_archived:
         queryset = queryset.filter(is_active=True)
     return queryset.order_by("name", "pk")
@@ -67,7 +138,7 @@ def get_active_character(user, campaign):
         return None
     membership = (
         CampaignMembership.objects.filter(campaign=campaign, user=user)
-        .select_related("active_character")
+        .select_related("active_character", "active_character__location_state")
         .first()
     )
     if membership is None:
@@ -125,6 +196,62 @@ def create_character(*, campaign, actor, name, biography=""):
         after_state=serialize_character(character),
     )
     return character
+
+
+@transaction.atomic
+def initialize_character_location(
+    *,
+    campaign,
+    character_id,
+    actor,
+    latitude,
+    longitude,
+):
+    """Perform the only supported L1 location write: one-time initialization."""
+
+    campaign = _locked_campaign_for_gm(campaign=campaign, actor=actor)
+    character = (
+        Character.objects.select_for_update()
+        .select_related("owner__user")
+        .get(pk=character_id, campaign=campaign)
+    )
+    if not character.is_active:
+        raise CharacterLocationConflict(
+            "Архивному персонажу нельзя задавать исходное положение."
+        )
+    if CharacterLocationState.objects.select_for_update().filter(
+        character=character
+    ).exists():
+        raise CharacterLocationConflict(
+            "Исходное положение этого персонажа уже установлено."
+        )
+    latitude, longitude = canonical_location_coordinates(
+        latitude=latitude,
+        longitude=longitude,
+    )
+    state = CharacterLocationState(
+        character=character,
+        latitude=latitude,
+        longitude=longitude,
+    )
+    state.full_clean()
+    state.save()
+    coordinates = {
+        "latitude": format(state.latitude, ".6f"),
+        "longitude": format(state.longitude, ".6f"),
+        "source": "initial_placement",
+    }
+    record_audit(
+        action="character.location_initialized",
+        actor=actor,
+        campaign=campaign,
+        target=character,
+        summary=f"Установлено исходное положение персонажа «{character.name}».",
+        before_state={"location": None},
+        after_state=coordinates,
+        metadata={"coordinate_system": "fardecosmia_planetary_lonlat"},
+    )
+    return state
 
 
 @transaction.atomic

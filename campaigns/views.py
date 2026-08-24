@@ -14,7 +14,11 @@ from django.views.decorators.http import require_POST
 
 from accounts.services.email import send_campaign_invitation_email
 from accounts.services.verification import has_verified_transactional_email
-from characters.services import controlled_characters, get_active_character
+from characters.services import (
+    controlled_characters,
+    get_active_character,
+    get_effective_character_location,
+)
 from .forms import (
     CampaignBasicForm,
     CampaignCreateForm,
@@ -93,6 +97,7 @@ def campaign_detail(request, campaign_id):
     is_campaign_gm = request.user.is_superuser or membership.role == CampaignMembership.Role.GM
     if not is_campaign_gm:
         player_characters = list(controlled_characters(membership=membership))
+        active_character = get_active_character(request.user, campaign)
         return render(
             request,
             "characters/character_workspace.html",
@@ -100,7 +105,10 @@ def campaign_detail(request, campaign_id):
                 "campaign": campaign,
                 "membership": membership,
                 "characters": player_characters,
-                "active_character": get_active_character(request.user, campaign),
+                "active_character": active_character,
+                "character_location_available": (
+                    get_effective_character_location(active_character) is not None
+                ),
             },
         )
     return render(

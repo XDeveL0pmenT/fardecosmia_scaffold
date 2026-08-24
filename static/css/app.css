@@ -1008,6 +1008,93 @@ button.button--small {
     }
 }
 
+/* L1 — one-time Character initial placement */
+.character-placement-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+    gap: 22px;
+    align-items: start;
+}
+
+.character-placement-map { min-width: 0; }
+.character-placement-map .atlas-stage { min-height: 520px; }
+.character-placement-map .fardecosmia-leaflet-map { min-height: 520px; }
+
+.character-placement-confirmation {
+    position: sticky;
+    top: 96px;
+}
+
+.character-placement-preview {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 16px;
+    margin: 18px 0;
+    border: 1px solid rgba(169, 139, 255, 0.24);
+    border-radius: 14px;
+    background: rgba(21, 15, 36, 0.72);
+}
+
+.character-placement-preview > span {
+    color: var(--accent-2);
+    font-size: 1.7rem;
+}
+
+.character-placement-preview p { margin: 0; }
+.character-placement-warning { color: var(--muted); }
+
+.character-placement-confirm-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 18px 0;
+    color: var(--text);
+}
+
+.character-placement-confirm-check input { margin-top: 4px; }
+
+.character-location-marker {
+    display: grid;
+    place-items: center;
+    width: 38px !important;
+    height: 38px !important;
+    border: 2px solid rgba(255, 255, 255, 0.92);
+    border-radius: 50%;
+    background: radial-gradient(circle, #f7d7ff 0 18%, #a147d1 22% 50%, rgba(72, 21, 97, 0.78) 54% 100%);
+    box-shadow: 0 0 0 7px rgba(174, 74, 218, 0.2), 0 0 24px rgba(217, 115, 255, 0.75);
+    color: #16071f;
+    font-size: 1.2rem;
+}
+
+.character-location-coordinates {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin: 16px 0;
+}
+
+.character-location-coordinates div {
+    padding: 12px;
+    border: 1px solid rgba(169, 139, 255, 0.2);
+    border-radius: 12px;
+    background: rgba(19, 14, 32, 0.58);
+}
+
+.character-location-coordinates dt { color: var(--muted); font-size: 0.78rem; }
+.character-location-coordinates dd { margin: 4px 0 0; color: var(--text); font-weight: 700; }
+
+@media (max-width: 900px) {
+    .character-placement-layout { grid-template-columns: minmax(0, 1fr); }
+    .character-placement-confirmation { position: static; }
+}
+
+@media (max-width: 520px) {
+    .character-placement-map .atlas-stage,
+    .character-placement-map .fardecosmia-leaflet-map { min-height: 360px; }
+    .character-location-coordinates { grid-template-columns: minmax(0, 1fr); }
+}
+
 input,
 textarea,
 select {

@@ -110,13 +110,15 @@ Recommended Codex reasoning: **HIGH**.
 
 # 6. L1 — Character Location / Initial Placement
 
-- [ ] Durable Character location.
-- [ ] Initial placement only while Character has no position.
-- [ ] No normal free GM teleport control.
-- [ ] Central effective-location service.
-- [ ] Party/Travel can later become effective position source during active travel.
-- [ ] C4.2 sampler integration boundary.
-- [ ] Audit meaningful setup/change.
+- [x] Durable Character location.
+- [x] Initial placement only while Character has no position.
+- [x] No normal free GM teleport control.
+- [x] Central effective-location service.
+- [x] Party/Travel can later become effective position source during active travel.
+- [x] C4.2 sampler integration boundary without starting PW2/weather.
+- [x] Audit meaningful setup/change atomically at Campaign world time.
+- [x] Player-safe disclosure without raw coordinates or GM atlas leakage.
+- [x] Fardecosmia planetary coordinates with canonical longitude seam.
 
 Recommended Codex reasoning: **HIGH**.
 
@@ -420,7 +422,7 @@ Player does NOT inherit this queue/dashboard model.
 
 [x] P5.6 — Campaign Creation & GM Eligibility Alignment
 [x] PW1 — Character Workspace Shell
-[ ] L1 — Character Location / Initial Placement
+[x] L1 — Character Location / Initial Placement
 [ ] N1 — Personal Notes Foundation
 [ ] P6 — Party Foundation
 [ ] M2 + V1 — Geography + Visibility/Discovery foundations

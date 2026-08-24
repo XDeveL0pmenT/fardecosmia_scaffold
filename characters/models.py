@@ -47,3 +47,45 @@ class Character(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class CharacterLocationState(models.Model):
+    """Durable world-facing position; absence means initial placement is pending."""
+
+    character = models.OneToOneField(
+        Character,
+        on_delete=models.CASCADE,
+        related_name="location_state",
+    )
+    latitude = models.DecimalField(max_digits=9, decimal_places=6)
+    longitude = models.DecimalField(max_digits=10, decimal_places=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(latitude__gte=-90, latitude__lte=90),
+                name="character_location_latitude_range",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(longitude__gte=-180, longitude__lt=180),
+                name="character_location_longitude_range",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.latitude is not None and not -90 <= self.latitude <= 90:
+            errors["latitude"] = "Широта должна находиться между -90 и 90 градусами."
+        if self.longitude is not None and not -180 <= self.longitude < 180:
+            errors["longitude"] = (
+                "Долгота должна находиться в диапазоне от -180 включительно "
+                "до 180 не включительно."
+            )
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        return f"Исходное положение: {self.character}"

@@ -2234,6 +2234,45 @@ not be reused as an objective Campaign dashboard or as a source of world truth.
 
 ---
 
+# 70D. L1 Character Location & Initial Placement Foundation
+
+L1 adds exact planetary position without starting movement, player mapping or
+environment presentation.
+
+Current invariants:
+
+- `characters.CharacterLocationState` is a separate additive OneToOne domain
+  row; absence means explicitly unplaced and existing Characters are not given
+  inferred/default locations;
+- coordinates are six-decimal Decimal latitude/longitude in Fardecosmia's
+  equirectangular planetary convention: latitude `[-90, 90]`, canonical
+  longitude `[-180, 180)`, with input `+180` stored as `-180`;
+- `initialize_character_location()` is the only supported L1 location mutation:
+  it is transactional, locks Campaign and Character, requires a same-Campaign
+  GM or superuser, permits active assigned or unassigned Characters, rejects
+  archived/already-placed Characters and records
+  `character.location_initialized` atomically at Campaign world time;
+- no normal GM teleport/reposition/correction UI or generic coordinate setter
+  exists; future movement is a Travel/domain responsibility;
+- `get_effective_character_location()` is the mandatory boundary for future
+  Character-position consumers; future Party/Travel sources must be integrated
+  there rather than bypassing it;
+- the GM initial-placement page reuses bundled Leaflet and M1's custom
+  Fardecosmia CRS/base atlas, requires an explicit point preview and confirmation,
+  and becomes read-only after success;
+- GM may see exact coordinates; the Player Workspace receives only the safe
+  fact that position is or is not reflected, with no raw coordinates or GM atlas;
+- L1 does not sample environment/weather and does not introduce Region binding,
+  settlement/POI identity, Player Map, Visibility, Party or Travel state;
+- the migration is additive and preserves Character PKs, Campaign/owner/archive
+  semantics and Roll20 bindings without auto-creating location rows.
+
+Character location is objective Campaign/Character state. Player disclosure in
+L1 is deliberately narrower than objective truth and is not yet a discovery or
+map system.
+
+---
+
 # 71. Generated vs authored data
 
 ## Authored / GM-approved
@@ -2677,10 +2716,12 @@ Completed additionally:
 - P5.5 Character Identity & Player Workspace foundation.
 - P5.6 Campaign Creation & GM Eligibility Alignment.
 - PW1 Character Workspace Shell.
+- L1 Character Location & Initial Placement Foundation.
 
 Any next phase requires a separate explicit GM instruction.
-L1, Notes, Party, M2, Visibility/Discovery, Roll20/normalized Character state,
-XP, Inventory/Economy, Travel and C5 have not been started by PW1.
+Notes, Party, M2, Visibility/Discovery, PW2/Player Map, Roll20/normalized
+Character state, XP, Inventory/Economy, Travel and C5 have not been started by
+L1.
 
 C5 is intentionally not started yet.
 
@@ -2902,6 +2943,10 @@ The essential truths:
 - PW1 makes the active Character Workspace the normal PLAYER Campaign
   destination, preserves the separate GM objective flow and keeps
   ApprovalRequest as backend/GM orchestration rather than Player navigation.
+- L1 stores exact Character position in an additive one-to-one state, permits
+  one transactional/audited initial placement only, exposes no normal GM
+  teleport and requires future consumers to use the effective-location resolver;
+  Player UI receives no raw coordinates or GM atlas.
 - Future Visibility & Discovery and gameplay state belong to Character, not
   User; Character identity remains separate from CharacterSheet and Roll20 raw
   data.

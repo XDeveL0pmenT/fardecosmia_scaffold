@@ -568,7 +568,10 @@ class CharacterMigrationTests(TransactionTestCase):
 
     def tearDown(self):
         executor = MigrationExecutor(connection)
-        executor.migrate(self._targets(executor, self.migrate_to))
+        # Restore the current project leaf rather than the historical P5.5
+        # target; later additive Character migrations must remain available to
+        # tests that run after this preservation check.
+        executor.migrate(executor.loader.graph.leaf_nodes())
         super().tearDown()
 
     def test_existing_character_pk_owner_campaign_and_binding_are_preserved(self):

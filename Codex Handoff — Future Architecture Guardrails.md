@@ -9,22 +9,10 @@
 
 # 1. Ближайшая задача
 
-Следующей отдельной задачей будет:
-
-**Phase C4 — Atmospheric Circulation & Terrain Dynamics.**
-
-При выполнении C4:
-
-- НЕ начинай Leaflet migration;
-- НЕ начинай Core Platform;
-- НЕ реализуй страны/города;
-- НЕ начинай катаклизмы;
-- НЕ начинай Travel Engine;
-- НЕ начинай CharacterKnowledge.
-
-Но архитектура C4 не должна делать эти будущие этапы сложнее.
-
-После выполнения C4 остановись и верни implementation report.
+C1–C4.2, R1, M1, Core Platform through P5.6, PW1 and L1 are completed.
+No later phase is implicitly authorized by this document. After every requested
+phase, stop and wait for a separate GM instruction; do not auto-start Notes,
+Party, geography/visibility, PW2, Travel, Roll20, economy or C5.
 
 ---
 
@@ -361,6 +349,30 @@ PW1 реализован как server-rendered shell и routing contract, а н
 Любое дальнейшее наполнение Workspace должно подключаться к явно определённому
 source of truth и соблюдать разделение objective truth, Character perception и
 GM-only information.
+
+---
+
+# 10.6 Character Location / Initial Placement
+
+L1 introduces one narrow Character-position foundation:
+
+- `CharacterLocationState` is additive durable Character domain state; an
+  absent row explicitly means unplaced and must never be replaced with guessed
+  `0,0`, Region center, Campaign default or biography inference;
+- initial placement is the only supported L1 write and can happen once for an
+  active Character through a transactional same-Campaign GM service;
+- normal GM free teleport/reposition, correction UI and generic coordinate
+  setter do not exist; future movement belongs to Travel/domain actions;
+- all future position consumers use the central effective-location resolver so
+  Party/Travel can later change the effective source without rewriting callers;
+- coordinates use the custom Fardecosmia equirectangular planetary convention,
+  six-decimal Decimal precision and canonical `+180 -> -180` seam handling;
+- GM may see the placement atlas and exact coordinates; PLAYER receives only a
+  safe location-present signal and no raw coordinates/GM atlas leakage;
+- L1 does not call the C4.2 environment sampler and does not create Weather,
+  Player Map, Visibility, Party, Travel, Region or named-place state;
+- location creation and `character.location_initialized` audit commit in the
+  same transaction and retain the Campaign world-time snapshot.
 
 ---
 

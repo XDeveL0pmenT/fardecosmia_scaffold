@@ -85,7 +85,11 @@
                 <article class="panel workspace-module workspace-module--map">
                     <div class="workspace-module__sigil" aria-hidden="true">⌖</div>
                     <p class="panel-kicker">Окружающий мир</p><h2>Карта</h2>
-                    <p>Положение персонажа пока не отражено.</p>
+                    {% if character_location_available %}
+                        <p>Ваше положение отражено.</p>
+                    {% else %}
+                        <p>Положение персонажа пока не отражено.</p>
+                    {% endif %}
                 </article>
                 <article class="panel workspace-module workspace-module--life">
                     <div class="workspace-module__sigil" aria-hidden="true">⌂</div>

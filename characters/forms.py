@@ -1,4 +1,5 @@
 from django import forms
+from decimal import Decimal
 
 from campaigns.models import CampaignMembership
 from characters.models import Character
@@ -55,3 +56,24 @@ class CharacterAssignmentForm(forms.Form):
             .select_related("user")
             .order_by("user__display_name", "user__username")
         )
+
+
+class CharacterInitialPlacementForm(forms.Form):
+    latitude = forms.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        min_value=Decimal("-90"),
+        max_value=Decimal("90"),
+        widget=forms.HiddenInput(),
+    )
+    longitude = forms.DecimalField(
+        max_digits=10,
+        decimal_places=6,
+        min_value=Decimal("-180"),
+        max_value=Decimal("180"),
+        widget=forms.HiddenInput(),
+    )
+    confirmed = forms.BooleanField(
+        label="Я проверил выбранную точку и подтверждаю исходное положение.",
+        required=True,
+    )

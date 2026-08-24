@@ -3,23 +3,31 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_http_methods, require_POST
 
 from campaigns.models import Campaign, CampaignMembership
 from campaigns.time_controls import TIME_ADVANCE_UNITS
-from characters.forms import CharacterAssignmentForm, CharacterIdentityForm
+from characters.forms import (
+    CharacterAssignmentForm,
+    CharacterIdentityForm,
+    CharacterInitialPlacementForm,
+)
 from characters.models import Character
 from characters.services import (
     CharacterConflict,
+    CharacterLocationConflict,
     assign_character,
     controlled_characters,
     create_character,
+    get_effective_character_location,
     get_active_character,
+    initialize_character_location,
     set_active_character,
     set_character_archived,
     update_character,
 )
 from world.services.access import require_campaign_gm, require_campaign_member
+from world.services.atlas import build_atlas_config
 
 
 def _campaign(campaign_id):
@@ -109,7 +117,7 @@ def character_detail(request, campaign_id, character_id):
     membership = require_campaign_member(request.user, campaign)
     is_gm = request.user.is_superuser or membership.role == CampaignMembership.Role.GM
     queryset = Character.objects.select_related(
-        "owner__user", "campaign", "roll20_binding"
+        "owner__user", "campaign", "roll20_binding", "location_state"
     ).filter(campaign=campaign)
     if not is_gm:
         queryset = queryset.filter(owner=membership, is_active=True)
@@ -132,10 +140,63 @@ def character_detail(request, campaign_id, character_id):
             "membership": membership,
             "is_campaign_gm": is_gm,
             "assignment_form": assignment_form,
+            "character_location": get_effective_character_location(character),
             "is_active_character": False,
             "can_advance_time": True,
             "time_advance_units": TIME_ADVANCE_UNITS,
         },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def gm_character_initial_placement(request, campaign_id, character_id):
+    campaign = _campaign(campaign_id)
+    require_campaign_gm(request.user, campaign)
+    character = get_object_or_404(
+        Character.objects.select_related("location_state"),
+        pk=character_id,
+        campaign=campaign,
+    )
+    if not character.is_active:
+        raise PermissionDenied(
+            "Архивному персонажу нельзя задавать исходное положение."
+        )
+    if get_effective_character_location(character) is not None:
+        messages.info(request, "Исходное положение этого персонажа уже установлено.")
+        return redirect("characters:detail", campaign.pk, character.pk)
+
+    form = CharacterInitialPlacementForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            initialize_character_location(
+                campaign=campaign,
+                character_id=character.pk,
+                actor=request.user,
+                latitude=form.cleaned_data["latitude"],
+                longitude=form.cleaned_data["longitude"],
+            )
+        except CharacterLocationConflict as error:
+            messages.error(request, error.messages[0])
+            return redirect("characters:detail", campaign.pk, character.pk)
+        messages.success(
+            request,
+            f"Исходное положение персонажа «{character.name}» сохранено.",
+        )
+        return redirect("characters:detail", campaign.pk, character.pk)
+
+    return render(
+        request,
+        "characters/character_initial_placement.html",
+        _gm_context(
+            campaign,
+            character=character,
+            form=form,
+            atlas_config=build_atlas_config(
+                campaign=campaign,
+                active_layer="base",
+            ),
+        ),
     )
 
 
@@ -209,6 +270,7 @@ def player_character_list(request, campaign_id):
     if membership is None or membership.role != CampaignMembership.Role.PLAYER:
         raise PermissionDenied("Для рабочего пространства персонажа нужно участие в кампании.")
     characters = list(controlled_characters(membership=membership))
+    active_character = get_active_character(request.user, campaign)
     return render(
         request,
         "characters/character_workspace.html",
@@ -216,7 +278,10 @@ def player_character_list(request, campaign_id):
             "campaign": campaign,
             "membership": membership,
             "characters": characters,
-            "active_character": get_active_character(request.user, campaign),
+            "active_character": active_character,
+            "character_location_available": (
+                get_effective_character_location(active_character) is not None
+            ),
         },
     )
 

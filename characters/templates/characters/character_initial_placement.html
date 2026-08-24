@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Исходное положение — {{ character.name }}{% endblock %}
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'vendor/leaflet/1.9.4/dist/leaflet.css' %}">
+{% endblock %}
+{% block content %}
+<header class="page-intro character-placement-heading">
+    <div>
+        <a class="back-link" href="{% url 'characters:detail' campaign.id character.id %}">← {{ character.name }}</a>
+        <p class="eyebrow">Настройка кампании · исходная точка</p>
+        <h1>Установить исходное положение</h1>
+        <p class="lead">Выберите на планетарном атласе место, где {{ character.name }} начинает путь. Это одноразовая настройка, а не свободное перемещение.</p>
+    </div>
+</header>
+
+<div class="character-placement-layout" data-character-placement-atlas>
+    <section class="panel world-map-panel character-placement-map">
+        <div class="world-map-toolbar">
+            <div><p class="panel-kicker">Фардекосмия · equirectangular</p><h2>Точка начала</h2></div>
+            <div class="map-view-actions">
+                <button type="button" class="map-tool-button" data-zoom-reset>Весь мир</button>
+                <span class="atlas-zoom-label" data-zoom-label>z1</span>
+            </div>
+        </div>
+        {% include "world/_atlas_stage.html" with initial_map_mode="base" map_aria_label="Выбор исходного положения персонажа на Фардекосмии" %}
+        <p class="map-model-note">Нажмите на поверхность карты. Долгота замыкается по окружности планеты; широта не переносится через полюса.</p>
+    </section>
+
+    <aside class="panel character-placement-confirmation">
+        <p class="panel-kicker">Предпросмотр</p>
+        <h2>Проверьте точку</h2>
+        <div class="character-placement-preview" data-location-preview>
+            <span aria-hidden="true">⌖</span>
+            <p>Точка ещё не выбрана.</p>
+        </div>
+        <p class="character-placement-warning">После подтверждения обычная мастерская не предложит перенести персонажа или исправить координаты. Будущее движение будет происходить через Travel/domain movement.</p>
+        <form method="post" class="stacked-form" data-location-placement-form>
+            {% csrf_token %}
+            {{ form.latitude }}
+            {{ form.longitude }}
+            {{ form.non_field_errors }}
+            {{ form.latitude.errors }}
+            {{ form.longitude.errors }}
+            <label class="character-placement-confirm-check">
+                {{ form.confirmed }}
+                <span>{{ form.confirmed.label }}</span>
+            </label>
+            {{ form.confirmed.errors }}
+            <button class="button button--wide" type="submit" data-location-submit disabled>Подтвердить исходное положение</button>
+        </form>
+    </aside>
+</div>
+
+{{ atlas_config|json_script:"fardecosmia-atlas-config" }}
+{% endblock %}
+{% block extra_scripts %}
+    <script src="{% static 'vendor/leaflet/1.9.4/dist/leaflet.js' %}"></script>
+    <script type="module" src="{% static 'js/atlas/character_initial_placement.js' %}?v=l1-character-location"></script>
+{% endblock %}

@@ -32,6 +32,11 @@ urlpatterns = [
         name="assign",
     ),
     path(
+        "campaign/<uuid:campaign_id>/characters/<int:character_id>/initial-placement/",
+        views.gm_character_initial_placement,
+        name="initial_placement",
+    ),
+    path(
         "campaign/<uuid:campaign_id>/characters/<int:character_id>/archive/",
         views.gm_character_archive,
         name="archive",

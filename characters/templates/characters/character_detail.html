@@ -40,6 +40,24 @@
             {% endif %}
         </div>
     </section>
+    <section class="panel character-management-card character-location-card">
+        <p class="panel-kicker">Положение в мире</p><h2>Исходная точка</h2>
+        {% if character_location %}
+            <p><strong>Положение установлено</strong></p>
+            <dl class="character-location-coordinates">
+                <div><dt>Широта</dt><dd>{{ character_location.latitude|floatformat:6 }}°</dd></div>
+                <div><dt>Долгота</dt><dd>{{ character_location.longitude|floatformat:6 }}°</dd></div>
+            </dl>
+            <p class="character-note">Обычное перемещение не выполняется отсюда. В дальнейшем положение меняют только доменные действия путешествия.</p>
+        {% elif character.is_active %}
+            <p>Персонаж ещё не получил исходную точку на планете.</p>
+            <p class="character-note">Выбор подтверждается один раз. После сохранения обычного перемещения или исправления отсюда не будет.</p>
+            <a class="button" href="{% url 'characters:initial_placement' campaign.id character.id %}">Установить исходное положение</a>
+        {% else %}
+            <p>Исходное положение не задано.</p>
+            <p class="character-note">Архивному персонажу нельзя задавать новую исходную точку.</p>
+        {% endif %}
+    </section>
     <section class="panel character-management-card character-management-card--wide">
         <p class="panel-kicker">Интеграция</p><h2>Roll20</h2>
         {% if character.roll20_binding %}<p>Персонаж связан с боевым листом Roll20. Внутренние raw attributes здесь не показываются.</p>{% else %}<p>Связь с Roll20 пока не настроена. Она не требуется для базовой личности.</p>{% endif %}

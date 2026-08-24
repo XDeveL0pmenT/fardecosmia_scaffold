@@ -60,6 +60,16 @@ campaign state.
 - PW1 Workspace module cards are integration boundaries only. Do not turn XP,
   money, Inventory, Quests, Location, Weather, Notes, Party or Apotheosis slots
   into state until their dedicated phase defines a source of truth.
+- Character location is durable Character domain state, never User state.
+- L1 initial placement is a one-time, transactional GM setup for an active
+  Character that has no location; normal GM free teleport/reposition does not
+  exist.
+- All future Character-position consumers must use the centralized effective-
+  location resolver. Future movement belongs to Travel/domain actions rather
+  than direct coordinate edits.
+- Raw Character latitude/longitude and the GM placement atlas are GM-only.
+  Player-facing Workspace receives only safe, Character-facing disclosure and
+  must not infer Location from Region, biography or a default coordinate.
 
 ## World simulation
 - Campaign time is stored as integer game minutes, not real-world datetime.
