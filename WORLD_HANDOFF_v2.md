@@ -2273,6 +2273,51 @@ map system.
 
 ---
 
+# 70E. PW2 Live Character Ambience at Effective Location
+
+PW2 adds read-only, diegetic-adjacent environment presentation to the active
+Character Workspace without creating a second weather system or new durable
+Character state.
+
+Current invariants:
+
+- `build_character_ambience()` first calls
+  `get_effective_character_location()`; no view/template reads raw location
+  coordinates and no Region/default/`0,0` fallback exists;
+- a placed Character is sampled once at its exact point through
+  `sample_campaign_environment_state_at()`, then interpreted with the same C4
+  point-weather logic used to construct Region `WeatherState` rows;
+- local light, darkness, turn type, seasonal light and Ympha tint come from
+  `calculate_local_sky()`/`RegionalSky` at that exact Character point and
+  Campaign world time, never browser or real-world time;
+- `world.services.ambience` is the shared immutable presentation adapter for
+  Region and Character surfaces, and both render the same shared ambient layer
+  template/CSS engine;
+- ambience uses current snapshot precipitation rate and established rain/snow
+  fractions; it never treats interval/fast-forward accumulation as current rain;
+- fog appears only when the existing authoritative C4 condition classifier
+  reports fog; clouds use current point cloud fraction; heat/cold use the
+  existing human thermal classifier as cosmetic bands only;
+- stable biome ID may be carried as a safe cosmetic token, but PW2 adds no
+  biome temperature correction, C5 land-response patch or gameplay penalty;
+- an unplaced Character, disabled atmosphere, missing compatible snapshot or
+  expected unavailable point data produces neutral ambience without guessing,
+  simulation, repair or technical Player error;
+- Player HTML contains only safe normalized ambient tokens. It exposes no raw
+  coordinates, pressure/provenance/grid diagnostics, GM atlas, arbitrary-point
+  query input or Player weather API oracle;
+- Workspace GET performs no world-time/atmosphere/location/WeatherState/AuditLog
+  write. Derived ambience is not stored on Character and needs no migration;
+- rain, snow, cloud, fog and temperature motion uses bounded CSS animation under
+  the existing `prefers-reduced-motion` contract; static light/tint remains;
+- active Character switching always rebuilds ambience from the newly selected
+  Character rather than caching by User or Campaign.
+
+PW2 does not create Player Map, Geography/Visibility, Travel, Party, Notes,
+Quests, XP/Soul HUD, Inventory, Ledger, Roll20 sync, Apotheosis or C5 state.
+
+---
+
 # 71. Generated vs authored data
 
 ## Authored / GM-approved
@@ -2717,11 +2762,12 @@ Completed additionally:
 - P5.6 Campaign Creation & GM Eligibility Alignment.
 - PW1 Character Workspace Shell.
 - L1 Character Location & Initial Placement Foundation.
+- PW2 Live Character Ambience at Effective Location.
 
 Any next phase requires a separate explicit GM instruction.
-Notes, Party, M2, Visibility/Discovery, PW2/Player Map, Roll20/normalized
+Notes, Party, M2, Visibility/Discovery, Player Map, Roll20/normalized
 Character state, XP, Inventory/Economy, Travel and C5 have not been started by
-L1.
+PW2.
 
 C5 is intentionally not started yet.
 
@@ -2947,6 +2993,10 @@ The essential truths:
   one transactional/audited initial placement only, exposes no normal GM
   teleport and requires future consumers to use the effective-location resolver;
   Player UI receives no raw coordinates or GM atlas.
+- PW2 derives Player ambience only from that effective location, the compatible
+  authoritative point snapshot and RegionalSky; Region and Character share one
+  safe presentation adapter, Workspace GET stays read-only, and missing state is
+  neutral rather than inferred or simulated.
 - Future Visibility & Discovery and gameplay state belong to Character, not
   User; Character identity remains separate from CharacterSheet and Roll20 raw
   data.

@@ -9,10 +9,10 @@
 
 # 1. Ближайшая задача
 
-C1–C4.2, R1, M1, Core Platform through P5.6, PW1 and L1 are completed.
+C1–C4.2, R1, M1, Core Platform through P5.6, PW1, L1 and PW2 are completed.
 No later phase is implicitly authorized by this document. After every requested
 phase, stop and wait for a separate GM instruction; do not auto-start Notes,
-Party, geography/visibility, PW2, Travel, Roll20, economy or C5.
+Party, geography/visibility, Player Map, Travel, Roll20, economy or C5.
 
 ---
 
@@ -373,6 +373,39 @@ L1 introduces one narrow Character-position foundation:
   Player Map, Visibility, Party, Travel, Region or named-place state;
 - location creation and `character.location_initialized` audit commit in the
   same transaction and retain the Campaign world-time snapshot.
+
+---
+
+# 10.7 Live Character Ambience
+
+PW2 is a read-only presentation integration, not Character weather storage:
+
+- all Character environment reads begin with the central effective-location
+  resolver and use the exact authoritative arbitrary-point atmosphere sampler;
+- no location means neutral ambience and no sampler call; no Region center,
+  Campaign default, biography inference or `0,0` fallback is allowed;
+- point weather is interpreted through the same C4 boundary used by Region
+  persistence, while local sky/Ympha state reuses `RegionalSky`;
+- Region and Character UI consume one immutable safe ambient adapter and one
+  shared visual layer component; future surfaces must extend that path rather
+  than creating a second sky/weather engine;
+- current precipitation rate drives rain/snow. Skipped-period or interval
+  accumulated precipitation is never rendered as current weather;
+- fog is allowed only from the existing authoritative condition, and thermal/
+  biome tokens are cosmetic only: they must not change solver output or hide a
+  deferred C5 limitation;
+- Player receives no coordinates, grid/provenance/pressure diagnostics, GM atlas
+  data or arbitrary-point weather endpoint;
+- Workspace GET performs no atmosphere/time/location/WeatherState/AuditLog
+  mutation, and ambience is never persisted on Character;
+- missing compatible atmosphere data fails to neutral presentation; it never
+  triggers initialization, spin-up or hidden repair;
+- active Character switching rebuilds ambience per Character point; caching only
+  by User/Campaign is invalid;
+- shared motion must remain bounded and respect `prefers-reduced-motion`.
+
+PW2 does not authorize Player Map, Visibility/Discovery, Travel, Party, Notes,
+XP, Inventory, economy, Roll20, Apotheosis or C5.
 
 ---
 

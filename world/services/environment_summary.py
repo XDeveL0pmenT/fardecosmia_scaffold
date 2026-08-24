@@ -168,6 +168,28 @@ def _thermal_state(temperature, wet_bulb):
     return dry_code, dry_label, dry_severity, humid_severity
 
 
+def temperature_presentation_band(temperature_c):
+    """Return a stable cosmetic band from the existing thermal classifier.
+
+    The band is presentation-only: it neither changes atmospheric values nor
+    introduces a biome/season temperature correction.
+    """
+
+    thermal_code, _label, _severity, _humid_severity = _thermal_state(
+        float(temperature_c),
+        -273.15,
+    )
+    if thermal_code in {"THERMAL_EXTREME_COLD", "THERMAL_SEVERE_COLD"}:
+        return "extreme-cold"
+    if thermal_code in {"THERMAL_COLD", "THERMAL_COOL"}:
+        return "cold"
+    if thermal_code in {"THERMAL_HOT", "THERMAL_SEVERE_HEAT"}:
+        return "hot"
+    if thermal_code in {"THERMAL_EXTREME_HEAT", "THERMAL_LETHAL_HEAT"}:
+        return "extreme-hot"
+    return "temperate"
+
+
 def _humidity_state(temperature, humidity, vapor_pressure_pa):
     if temperature >= 40 and humidity >= 85 and vapor_pressure_pa >= 7000:
         return "HUMIDITY_STEAM", "насыщенный горячим паром воздух"

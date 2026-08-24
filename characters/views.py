@@ -27,6 +27,7 @@ from characters.services import (
     update_character,
 )
 from world.services.access import require_campaign_gm, require_campaign_member
+from world.services.ambience import build_character_ambience
 from world.services.atlas import build_atlas_config
 
 
@@ -271,6 +272,7 @@ def player_character_list(request, campaign_id):
         raise PermissionDenied("Для рабочего пространства персонажа нужно участие в кампании.")
     characters = list(controlled_characters(membership=membership))
     active_character = get_active_character(request.user, campaign)
+    character_ambience = build_character_ambience(active_character, campaign)
     return render(
         request,
         "characters/character_workspace.html",
@@ -279,9 +281,8 @@ def player_character_list(request, campaign_id):
             "membership": membership,
             "characters": characters,
             "active_character": active_character,
-            "character_location_available": (
-                get_effective_character_location(active_character) is not None
-            ),
+            "character_location_available": character_ambience.location_available,
+            "character_ambience": character_ambience,
         },
     )
 

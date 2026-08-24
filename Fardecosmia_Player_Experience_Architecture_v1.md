@@ -317,6 +317,25 @@ Character ambience
 
 Никакой декоративной случайной погоды.
 
+PW2 implementation status:
+
+- ambient state is derived on each Workspace render from the active Character's
+  centralized effective location;
+- the current compatible AtmosphericSnapshot is sampled at that exact point and
+  combined with RegionalSky at Campaign world time;
+- Region and Character pages share one safe presentation adapter and one visual
+  layer component rather than maintaining separate weather/sky engines;
+- current rain/snow, cloud fraction and authoritative fog condition are used;
+  interval accumulation is never presented as current precipitation;
+- missing placement or environment produces neutral ambience without hidden
+  simulation, fallback coordinates or technical Player output;
+- raw coordinates, pressure/grid/provenance diagnostics and arbitrary-coordinate
+  Player weather queries remain unavailable;
+- ambience is derived presentation, not persisted Character state, and active
+  Character switching rebuilds it for the newly selected point;
+- heat/cold and optional stable biome keys are cosmetic only and do not patch C5
+  physics or add gameplay consequences.
+
 ---
 
 # 12. Ambient effects
@@ -745,6 +764,7 @@ Character Workspace должен ощущаться как отражение:
 P5.6 — Campaign Creation & GM Eligibility Alignment
 PW1  — Character Workspace Shell
 L1   — Character Location / Initial Placement
+PW2  — Live Character Ambience at Effective Location
 N1   — Notes Foundation
 P6   — Party Foundation
 M2   — Geography

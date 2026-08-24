@@ -2498,53 +2498,58 @@ button.region-placement-item {
     color: #fff;
 }
 
-.region-atmosphere {
+.ambient-scene {
     position: fixed;
     inset: 0;
     z-index: 0;
     overflow: hidden;
-    background: linear-gradient(180deg, #101b30, #05060d 72%);
     pointer-events: none;
 }
 
-.region-atmosphere > div {
+.ambient-scene--neutral { display: none; }
+
+.ambient-scene--active {
+    background: linear-gradient(180deg, #101b30, #05060d 72%);
+}
+
+.ambient-scene > div {
     position: absolute;
     inset: -10%;
 }
 
-.region-atmosphere__light {
-    opacity: var(--star-opacity);
+.ambient-scene__light {
+    opacity: var(--ambient-star-opacity);
     background:
         radial-gradient(circle at 55% 5%, rgba(255, 249, 211, 0.96), rgba(255, 193, 105, 0.42) 25%, transparent 65%),
         linear-gradient(180deg, #55a6e8, #1b365b 72%);
     transition: opacity 400ms ease;
 }
 
-.region-atmosphere__ympha {
-    opacity: var(--ympha-opacity);
+.ambient-scene__ympha {
+    opacity: var(--ambient-ympha-opacity);
     background:
         radial-gradient(circle at 72% 18%, rgba(255, 104, 126, 0.9), transparent 13%),
         linear-gradient(180deg, rgba(115, 5, 45, 0.9), rgba(35, 0, 25, 0.72));
     mix-blend-mode: screen;
 }
 
-.region-atmosphere::after {
-    position: absolute;
-    inset: 0;
-    opacity: var(--dark-opacity);
+.ambient-scene__dark {
+    opacity: var(--ambient-dark-opacity);
     z-index: 1;
     background: linear-gradient(180deg, #000, #010105 58%, #000);
-    content: "";
 }
 
-.region-atmosphere__clouds,
-.region-atmosphere__precipitation,
-.region-atmosphere__season {
+.ambient-scene__clouds,
+.ambient-scene__fog,
+.ambient-scene__rain,
+.ambient-scene__snow,
+.ambient-scene__temperature,
+.ambient-scene__season {
     z-index: 2;
 }
 
-.region-atmosphere__clouds {
-    opacity: 0;
+.ambient-scene__clouds {
+    opacity: var(--ambient-cloud-opacity);
     background-image:
         radial-gradient(ellipse at 15% 30%, rgba(198, 207, 224, 0.35) 0 8%, transparent 18%),
         radial-gradient(ellipse at 48% 16%, rgba(156, 169, 194, 0.32) 0 10%, transparent 24%),
@@ -2554,51 +2559,89 @@ button.region-placement-item {
     animation: region-cloud-drift 45s linear infinite;
 }
 
-.weather--cloudy .region-atmosphere__clouds { opacity: 0.8; }
-.weather--rain .region-atmosphere__clouds,
-.weather--storm .region-atmosphere__clouds { opacity: 1; filter: blur(12px) brightness(0.55); }
-.weather--snow .region-atmosphere__clouds { opacity: 0.72; filter: blur(18px) brightness(1.2); }
-.weather--fog .region-atmosphere__clouds { opacity: 1; filter: blur(32px) brightness(1.25); }
+.weather--rain .ambient-scene__clouds,
+.weather--storm .ambient-scene__clouds { filter: blur(12px) brightness(0.55); }
+.weather--snow .ambient-scene__clouds { filter: blur(18px) brightness(1.2); }
+.weather--fog .ambient-scene__clouds { filter: blur(28px) brightness(1.2); }
 
-.weather--rain .region-atmosphere__precipitation,
-.weather--storm .region-atmosphere__precipitation {
-    opacity: 0.64;
-    background-image: url("../gifs/rain.gif");
-    background-repeat: repeat;
-    background-size: 480px 480px;
-    filter: contrast(1.12) brightness(1.2);
-    mix-blend-mode: screen;
+.ambient-scene__fog {
+    opacity: var(--ambient-fog-opacity);
+    background:
+        radial-gradient(ellipse at 20% 46%, rgba(218, 226, 236, 0.56), transparent 38%),
+        radial-gradient(ellipse at 72% 60%, rgba(189, 201, 219, 0.52), transparent 44%),
+        linear-gradient(180deg, rgba(189, 202, 221, 0.28), rgba(218, 224, 235, 0.5));
+    filter: blur(24px);
+    animation: ambient-fog-drift 62s ease-in-out infinite alternate;
 }
 
-.weather--storm .region-atmosphere__precipitation {
-    opacity: 0.68;
+.ambient-scene__rain {
+    opacity: var(--ambient-rain-opacity);
+    background-image: repeating-linear-gradient(
+        106deg,
+        transparent 0 14px,
+        rgba(201, 229, 255, 0.68) 15px 16px,
+        transparent 17px 30px
+    );
+    background-size: 34px 52px;
+    filter: contrast(1.12) brightness(1.2);
+    mix-blend-mode: screen;
+    animation: ambient-rain-fall 620ms linear infinite;
+}
+
+.weather--storm .ambient-scene__rain {
     filter: contrast(1.28) brightness(1.35);
 }
 
-.weather--snow .region-atmosphere__precipitation {
-    opacity: 0.78;
-    background-image: url("../gifs/placidplace-snow-16036.gif");
-    background-position: center;
-    background-repeat: repeat;
-    background-size: min(100vw, 1176px) auto;
+.ambient-scene__snow {
+    opacity: var(--ambient-snow-opacity);
+    background-image:
+        radial-gradient(circle, rgba(255, 255, 255, 0.92) 0 2px, transparent 2.7px),
+        radial-gradient(circle, rgba(221, 237, 255, 0.82) 0 1.4px, transparent 2.2px),
+        radial-gradient(circle, rgba(255, 255, 255, 0.72) 0 1px, transparent 1.8px);
+    background-position: 0 0, 43px 23px, 18px 61px;
+    background-size: 86px 104px, 122px 146px, 68px 92px;
     filter: brightness(1.18);
     mix-blend-mode: screen;
+    animation: ambient-snow-fall 8s linear infinite;
 }
 
-.season--summer .region-atmosphere__season { background: rgba(255, 174, 76, 0.08); }
-.season--autumn .region-atmosphere__season { background: rgba(190, 86, 39, 0.12); }
-.season--winter .region-atmosphere__season { background: rgba(106, 178, 255, 0.12); }
-.season--spring .region-atmosphere__season { background: rgba(85, 216, 163, 0.08); }
-.region-atmosphere--bright .region-atmosphere__light { filter: brightness(1.82) saturate(0.82) contrast(0.92); }
-.region-atmosphere--day .region-atmosphere__light { filter: brightness(1.18) saturate(1.08); }
-.region-atmosphere--sunset .region-atmosphere__light { filter: sepia(0.45) hue-rotate(-18deg) saturate(1.6); }
-.turn--red.region-atmosphere--night .region-atmosphere__ympha,
-.turn--red.region-atmosphere--deep-night .region-atmosphere__ympha,
-.turn--red.region-atmosphere--predawn .region-atmosphere__ympha { filter: saturate(1.55) brightness(1.08); }
-.turn--black.region-atmosphere--night,
-.turn--black.region-atmosphere--deep-night { filter: grayscale(0.72) saturate(0.35); }
-.season-light--light.region-atmosphere--bright .region-atmosphere__light { filter: brightness(2.08) saturate(0.76); }
-.season-light--dark.region-atmosphere--deep-night .region-atmosphere__ympha { opacity: 0.08; }
+.ambient-scene__temperature {
+    background:
+        linear-gradient(145deg, rgba(255, 139, 65, var(--ambient-warm-opacity)), transparent 58%),
+        linear-gradient(35deg, rgba(105, 197, 255, var(--ambient-cold-opacity)), transparent 64%);
+    animation: ambient-temperature-shimmer 7s ease-in-out infinite alternate;
+}
+
+.season--summer .ambient-scene__season { background: rgba(255, 174, 76, 0.08); }
+.season--autumn .ambient-scene__season { background: rgba(190, 86, 39, 0.12); }
+.season--winter .ambient-scene__season { background: rgba(106, 178, 255, 0.12); }
+.season--spring .ambient-scene__season { background: rgba(85, 216, 163, 0.08); }
+.ambient-scene--bright .ambient-scene__light { filter: brightness(1.82) saturate(0.82) contrast(0.92); }
+.ambient-scene--day .ambient-scene__light { filter: brightness(1.18) saturate(1.08); }
+.ambient-scene--sunset .ambient-scene__light { filter: sepia(0.45) hue-rotate(-18deg) saturate(1.6); }
+.turn--red.ambient-scene--night .ambient-scene__ympha,
+.turn--red.ambient-scene--deep-night .ambient-scene__ympha,
+.turn--red.ambient-scene--predawn .ambient-scene__ympha { filter: saturate(1.55) brightness(1.08); }
+.turn--black.ambient-scene--night,
+.turn--black.ambient-scene--deep-night { filter: grayscale(0.72) saturate(0.35); }
+.season-light--light.ambient-scene--bright .ambient-scene__light { filter: brightness(2.08) saturate(0.76); }
+.season-light--dark.ambient-scene--deep-night .ambient-scene__ympha { opacity: 0.08; }
+
+@keyframes ambient-rain-fall {
+    to { background-position: -34px 104px; }
+}
+
+@keyframes ambient-snow-fall {
+    to { background-position: 86px 208px, -79px 292px, 52px 184px; }
+}
+
+@keyframes ambient-fog-drift {
+    to { transform: translate3d(3%, -1%, 0) scale(1.03); }
+}
+
+@keyframes ambient-temperature-shimmer {
+    to { transform: translate3d(0, -0.8%, 0) scale(1.015); }
+}
 
 .region-page {
     position: relative;
@@ -4539,6 +4582,8 @@ button.region-placement-item {
 
 /* PW1 — active Character Workspace shell. */
 .character-worldspace {
+    position: relative;
+    z-index: 1;
     display: grid;
     gap: 22px;
 }

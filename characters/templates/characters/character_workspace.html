@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{% if active_character %}{{ active_character.name }}{% else %}{{ campaign.name }}{% endif %} — Фардекосмия{% endblock %}
 {% block content %}
+{% include "world/_ambient_layers.html" with ambience=character_ambience ambient_scope="character" %}
 <div class="character-worldspace">
     <header class="character-worldspace__hero{% if not active_character %} character-worldspace__hero--quiet{% endif %}">
 

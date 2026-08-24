@@ -1,0 +1,20 @@
+<div
+    class="ambient-scene {{ ambience.css_classes }}{% if ambient_scope == 'region' %} region-atmosphere region-atmosphere--{{ ambience.light_level }}{% else %} character-ambience{% endif %}"
+    style="{{ ambience.css_variables }}"
+    data-ambience="{{ ambience.has_environment|yesno:'live,neutral' }}"
+    data-light-level="{{ ambience.light_level }}"
+    data-is-dark="{{ ambience.is_dark|yesno:'true,false' }}"
+    data-precipitation-kind="{{ ambience.precipitation_kind }}"
+    data-temperature-band="{{ ambience.temperature_band }}"
+    aria-hidden="true"
+>
+    <div class="ambient-scene__light"></div>
+    <div class="ambient-scene__ympha"></div>
+    <div class="ambient-scene__dark"></div>
+    <div class="ambient-scene__clouds"></div>
+    <div class="ambient-scene__fog"></div>
+    <div class="ambient-scene__rain"></div>
+    <div class="ambient-scene__snow"></div>
+    <div class="ambient-scene__temperature"></div>
+    <div class="ambient-scene__season"></div>
+</div>

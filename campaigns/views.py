@@ -17,7 +17,6 @@ from accounts.services.verification import has_verified_transactional_email
 from characters.services import (
     controlled_characters,
     get_active_character,
-    get_effective_character_location,
 )
 from .forms import (
     CampaignBasicForm,
@@ -51,6 +50,7 @@ from .services.memberships import (
 from world.forms import AtmosphericConfigForm
 from world.models import ApprovalRequest, AtmosphericConfig, WorldEvent
 from world.services.astronomy import calculate_local_sky, describe_region_sky
+from world.services.ambience import build_character_ambience
 from world.services.atmosphere.config import AtmosphericSettings
 from world.services.atmosphere.forcing import CampaignSkyForcing
 from world.services.calendar import describe_campaign_time, minutes_for_time_step
@@ -98,6 +98,7 @@ def campaign_detail(request, campaign_id):
     if not is_campaign_gm:
         player_characters = list(controlled_characters(membership=membership))
         active_character = get_active_character(request.user, campaign)
+        character_ambience = build_character_ambience(active_character, campaign)
         return render(
             request,
             "characters/character_workspace.html",
@@ -106,9 +107,8 @@ def campaign_detail(request, campaign_id):
                 "membership": membership,
                 "characters": player_characters,
                 "active_character": active_character,
-                "character_location_available": (
-                    get_effective_character_location(active_character) is not None
-                ),
+                "character_location_available": character_ambience.location_available,
+                "character_ambience": character_ambience,
             },
         )
     return render(

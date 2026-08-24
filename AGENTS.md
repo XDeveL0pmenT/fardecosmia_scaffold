@@ -70,6 +70,22 @@ campaign state.
 - Raw Character latitude/longitude and the GM placement atlas are GM-only.
   Player-facing Workspace receives only safe, Character-facing disclosure and
   must not infer Location from Region, biography or a default coordinate.
+- PW2 Character ambience is read-only derived presentation, never persisted
+  Character weather. It must resolve the active Character through the central
+  effective-location service and sample the authoritative C4.2 atmosphere at
+  that exact point; an unplaced Character or unavailable compatible snapshot
+  gets neutral ambience without simulation or fallback coordinates.
+- Region and Character ambience share `world.services.ambience` presentation
+  tokens and the shared ambient template/CSS engine. Do not fork day/night,
+  Ympha, cloud, precipitation, fog or heat/cold visual semantics by surface.
+- Player ambience uses current precipitation rate, never fast-forward/interval
+  accumulated precipitation. Fog is shown only from the existing authoritative
+  point-weather condition, and thermal bands must not modify solver output or
+  compensate for deferred C5 physics.
+- Never add a Player arbitrary-coordinate weather/environment endpoint. Raw
+  sampler provenance, pressure, grid indexes, coordinates and GM diagnostics
+  remain outside Player HTML/JS; Workspace GET must not advance or repair the
+  atmosphere, write WeatherState, location state or AuditLog.
 
 ## World simulation
 - Campaign time is stored as integer game minutes, not real-world datetime.

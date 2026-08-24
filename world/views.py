@@ -57,6 +57,7 @@ from world.services.astronomy import (
     celestial_positions,
     describe_region_sky,
 )
+from world.services.ambience import build_region_ambience
 from world.services.map_geometry import polygon_center, polygon_svg_points
 from world.services.atlas import build_atlas_config
 from world.services.map_inspection import inspect_map_point
@@ -116,12 +117,6 @@ from world.services.events import (
 from world.services.overrides import effective_world_entries, resolve_for_campaign
 
 
-SEASON_CODES = {
-    "Лето": "summer",
-    "Осень": "autumn",
-    "Зима": "winter",
-    "Весна": "spring",
-}
 def _gm_campaign_or_403(user, campaign_id):
     campaign = get_object_or_404(Campaign, pk=campaign_id)
     require_campaign_gm(user, campaign)
@@ -1483,10 +1478,11 @@ def region_detail(request, campaign_id, region_id):
             world_minutes=campaign.world_minutes,
             local_elevation_m=region.elevation,
         )
-    atmosphere_style = (
-        f"--star-opacity:{0.04 + sky.star_intensity * 0.96:.4f};"
-        f"--ympha-opacity:{(1 - sky.star_intensity) * sky.ympha_visibility:.4f};"
-        f"--dark-opacity:{sky.darkness * 0.99:.4f};"
+    ambience = build_region_ambience(
+        weather,
+        sky,
+        parameters=atmosphere_settings.parameters,
+        biome=region.biome,
     )
     environment_summary = build_environment_summary(
         weather,
@@ -1523,9 +1519,7 @@ def region_detail(request, campaign_id, region_id):
             "environment_summary": environment_summary,
             "sky": sky,
             "calendar": moment,
-            "season_code": SEASON_CODES[moment.season],
-            "weather_code": weather.condition if weather else "clear",
-            "atmosphere_style": atmosphere_style,
+            "ambience": ambience,
             "region_points": polygon_svg_points(region.map_polygon),
             "map_defaults": (
                 map_defaults_at(campaign, sky.longitude, sky.latitude)

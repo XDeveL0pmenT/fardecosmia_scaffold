@@ -196,15 +196,19 @@ Recommended Codex reasoning: **VERY HIGH**.
 # 11. PW2 — Live Character Ambience / M4 Player Map
 
 ## PW2
-- [ ] Effective Character location → C4.2 environment sampler.
-- [ ] RegionalSky.
-- [ ] Biome/World Data context.
-- [ ] Day/night brightness.
-- [ ] Ympha red lighting.
-- [ ] clouds/rain/snow/fog.
-- [ ] heat/cold ambience.
-- [ ] reduced motion/accessibility.
-- [ ] no random fake weather.
+- [x] Effective Character location → C4.2 environment sampler.
+- [x] RegionalSky.
+- [x] Safe stable biome/World Data context without climate overrides.
+- [x] Day/night brightness.
+- [x] Ympha red lighting.
+- [x] clouds/current rain/snow/authoritative fog.
+- [x] cosmetic heat/cold ambience without changing solver output.
+- [x] reduced motion/accessibility.
+- [x] no random fake weather, persistence or Player coordinate oracle.
+
+PW2 is complete as a server-rendered read-only presentation phase. Region and
+Character surfaces now share one ambient adapter/component. M4 remains a
+separate future Player Map/Visibility scope and was not started by PW2.
 
 ## M4
 - [ ] Character/Party position.
@@ -423,10 +427,11 @@ Player does NOT inherit this queue/dashboard model.
 [x] P5.6 — Campaign Creation & GM Eligibility Alignment
 [x] PW1 — Character Workspace Shell
 [x] L1 — Character Location / Initial Placement
+[x] PW2 — Live Character Ambience at Effective Location
 [ ] N1 — Personal Notes Foundation
 [ ] P6 — Party Foundation
 [ ] M2 + V1 — Geography + Visibility/Discovery foundations
-[ ] PW2/M4 — Live Character ambience + Player Map
+[ ] M4 — Player Map / Exploration / current visibility
 [ ] CH1 — Normalized Character/Roll20 authority layer
 [ ] XP1/T1 — XP + Тиамана
 [ ] E1 — Ledger

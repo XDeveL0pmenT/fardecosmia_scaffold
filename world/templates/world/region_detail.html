@@ -2,13 +2,7 @@
 {% load static %}
 {% block title %}{{ region.name }} — регион{% endblock %}
 {% block content %}
-<div class="region-atmosphere region-atmosphere--{{ sky.star_phase_code }} weather--{{ weather_code }} season--{{ season_code }} turn--{{ sky.turn_type_code }} season-light--{{ sky.season_light_code }}" style="{{ atmosphere_style }}" aria-hidden="true">
-    <div class="region-atmosphere__light"></div>
-    <div class="region-atmosphere__ympha"></div>
-    <div class="region-atmosphere__clouds"></div>
-    <div class="region-atmosphere__precipitation"></div>
-    <div class="region-atmosphere__season"></div>
-</div>
+{% include "world/_ambient_layers.html" with ambience=ambience ambient_scope="region" %}
 
 <div class="region-page">
     <div class="page-heading region-heading">
