@@ -120,6 +120,12 @@ class Campaign(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        permissions = [
+            (
+                "create_campaign_as_gm",
+                "Can create campaigns as a trusted Game Master",
+            ),
+        ]
         constraints = [
             models.CheckConstraint(
                 condition=models.Q(

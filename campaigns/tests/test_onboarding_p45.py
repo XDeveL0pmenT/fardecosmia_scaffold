@@ -55,12 +55,23 @@ def make_verified_user(username, email):
     return user
 
 
+def make_gm_eligible(user):
+    permission = Permission.objects.get(
+        content_type__app_label="campaigns",
+        codename="create_campaign_as_gm",
+    )
+    user.user_permissions.add(permission)
+    return user
+
+
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 class CampaignLifecycleTests(TestCase):
     def setUp(self):
-        self.creator = make_verified_user("creator", "creator@example.com")
+        self.creator = make_gm_eligible(
+            make_verified_user("creator", "creator@example.com")
+        )
 
-    def test_verified_user_creates_campaign_and_initial_gm_atomically_with_audit(self):
+    def test_eligible_verified_user_creates_campaign_and_initial_gm_atomically_with_audit(self):
         self.client.force_login(self.creator)
         response = self.client.post(
             reverse("campaigns:create"),
@@ -78,7 +89,7 @@ class CampaignLifecycleTests(TestCase):
         self.assertEqual(audit.after_state["name"], "Путь через Лик")
         self.assertFalse(hasattr(campaign, "owner"))
 
-    def test_same_verified_user_can_be_gm_of_multiple_campaigns(self):
+    def test_same_eligible_verified_user_can_be_gm_of_multiple_campaigns(self):
         first = create_campaign(actor=self.creator, name="First")
         second = create_campaign(actor=self.creator, name="Second")
         self.assertEqual(
@@ -107,6 +118,7 @@ class CampaignLifecycleTests(TestCase):
             password=STRONG_PASSWORD,
             email_verification_required=True,
         )
+        make_gm_eligible(unverified)
         self.client.force_login(unverified)
         response = self.client.get(reverse("campaigns:create"))
         self.assertRedirects(response, reverse("accounts:verify_email"))
@@ -156,17 +168,22 @@ class CampaignLifecycleTests(TestCase):
         CampaignMembership.objects.create(campaign=campaign, user=player)
         self.client.force_login(player)
         detail = self.client.get(reverse("campaigns:campaign_detail", args=[campaign.pk]))
-        self.assertContains(detail, "Вы участник кампании")
+        self.assertContains(detail, "Персонаж ещё не назначен")
+        self.assertNotContains(detail, "Мои запросы")
         self.assertNotContains(detail, "Управлять участниками")
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 class InvitationTests(TestCase):
     def setUp(self):
-        self.gm = make_verified_user("gm-invite", "gm@example.com")
+        self.gm = make_gm_eligible(
+            make_verified_user("gm-invite", "gm@example.com")
+        )
         self.campaign = create_campaign(actor=self.gm, name="Invite Campaign")
         self.player = make_verified_user("player-invite", "player@example.com")
-        self.other_gm = make_verified_user("gm-other", "gm-other@example.com")
+        self.other_gm = make_gm_eligible(
+            make_verified_user("gm-other", "gm-other@example.com")
+        )
         self.other_campaign = create_campaign(actor=self.other_gm, name="Other")
 
     def create_invite(self, email="player@example.com"):
@@ -441,7 +458,8 @@ class InvitationTests(TestCase):
             reverse("campaigns:invitation_resume_accept"),
             follow=True,
         )
-        self.assertContains(accepted, "Вы участник кампании")
+        self.assertContains(accepted, "Персонаж ещё не назначен")
+        self.assertNotContains(accepted, "Мои запросы")
         user = User.objects.get(username="new-person")
         self.assertTrue(user.has_verified_email)
         self.assertTrue(
@@ -456,7 +474,9 @@ class InvitationTests(TestCase):
 
 class MembershipManagementTests(TestCase):
     def setUp(self):
-        self.gm = make_verified_user("gm-members", "gm-members@example.com")
+        self.gm = make_gm_eligible(
+            make_verified_user("gm-members", "gm-members@example.com")
+        )
         self.campaign = create_campaign(actor=self.gm, name="Members")
         self.player = make_verified_user("member", "member@example.com")
         self.membership = CampaignMembership.objects.create(
@@ -470,7 +490,7 @@ class MembershipManagementTests(TestCase):
         page = self.client.get(reverse("campaigns:members", args=[self.campaign.pk]))
         self.assertContains(page, "Участники кампании")
         self.assertContains(page, "Game Master")
-        self.assertContains(page, "Сделать Game Master")
+        self.assertContains(page, "Нет права Game Master")
         self.client.force_login(self.player)
         self.assertEqual(
             self.client.get(reverse("campaigns:members", args=[self.campaign.pk])).status_code,
@@ -478,6 +498,7 @@ class MembershipManagementTests(TestCase):
         )
 
     def test_promote_demote_and_role_audits_do_not_grant_global_canon(self):
+        make_gm_eligible(self.player)
         promoted = change_membership_role(
             campaign=self.campaign,
             membership_id=self.membership.pk,
@@ -541,7 +562,9 @@ class MembershipManagementTests(TestCase):
         self.assertTrue(AuditLog.objects.filter(action="campaign_member.removed").exists())
 
     def test_foreign_gm_cannot_change_membership(self):
-        foreign = make_verified_user("foreign", "foreign@example.com")
+        foreign = make_gm_eligible(
+            make_verified_user("foreign", "foreign@example.com")
+        )
         create_campaign(actor=foreign, name="Foreign")
         with self.assertRaises(PermissionDenied):
             change_membership_role(
@@ -583,7 +606,9 @@ class CampaignConcurrencyTests(TransactionTestCase):
     reset_sequences = True
 
     def setUp(self):
-        self.gm_a = make_verified_user("concurrent-a", "ca@example.com")
+        self.gm_a = make_gm_eligible(
+            make_verified_user("concurrent-a", "ca@example.com")
+        )
         self.gm_b = make_verified_user("concurrent-b", "cb@example.com")
         self.campaign = create_campaign(actor=self.gm_a, name="Concurrent")
         self.membership_a = CampaignMembership.objects.get(

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{% if mode == "create" %}Создать кампанию{% else %}Изменить кампанию{% endif %} — Фардекосмия{% endblock %}
 {% block content %}
-<div class="page-heading"><div class="page-heading__title"><a class="back-link" href="{% if campaign %}{% url 'campaigns:campaign_detail' campaign.id %}{% else %}{% url 'campaigns:list' %}{% endif %}">← Назад</a><p class="eyebrow">{% if mode == "create" %}Новое пространство{% else %}Основные сведения{% endif %}</p><h1>{% if mode == "create" %}Создать кампанию{% else %}Изменить кампанию{% endif %}</h1><p class="lead">{% if mode == "create" %}Вы автоматически станете первым Game Master. Настройки мира можно будет изменить позже.{% else %}Эти поля видят участники кампании.{% endif %}</p></div></div>
+<div class="page-heading"><div class="page-heading__title"><a class="back-link" href="{% if campaign %}{% url 'campaigns:campaign_detail' campaign.id %}{% else %}{% url 'campaigns:list' %}{% endif %}">← Назад</a><p class="eyebrow">{% if mode == "create" %}Новое пространство{% else %}Основные сведения{% endif %}</p><h1>{% if mode == "create" %}Создать кампанию{% else %}Изменить кампанию{% endif %}</h1><p class="lead">{% if mode == "create" %}Право доверенного Game Master подтверждено. После создания вы станете первым мастером этой кампании; настройки мира можно будет изменить позже.{% else %}Эти поля видят участники кампании.{% endif %}</p></div></div>
 <section class="panel content-form-card">
     <div class="panel__glow" aria-hidden="true"></div>
     {{ form.non_field_errors }}

@@ -1,9 +1,11 @@
 import uuid
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from campaigns.models import Campaign, CampaignMembership
+from campaigns.services.eligibility import has_gm_eligibility
 from world.services.access import require_campaign_gm
 from world.services.audit import record_audit
 
@@ -36,6 +38,16 @@ def change_membership_role(*, campaign, membership_id, actor, new_role):
         raise ValidationError("Неизвестная роль участника.")
     if membership.role == new_role:
         return membership
+    if new_role == CampaignMembership.Role.GM:
+        target_user = get_user_model().objects.select_for_update().get(
+            pk=membership.user_id
+        )
+        if not has_gm_eligibility(target_user):
+            raise MembershipConflict(
+                "Сначала superuser должен выдать этому пользователю "
+                "глобальное право Game Master."
+            )
+        membership.user = target_user
     if (
         membership.role == CampaignMembership.Role.GM
         and new_role == CampaignMembership.Role.PLAYER

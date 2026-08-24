@@ -121,3 +121,10 @@ def resend_verification_view(request):
                 "Письмо сейчас не удалось отправить. Попробуйте ещё раз чуть позже.",
             )
     return redirect("accounts:verify_email")
+
+
+@login_required
+def account_settings_view(request):
+    """Small platform-level account landing for the PW1 shell."""
+
+    return render(request, "accounts/account_settings.html")

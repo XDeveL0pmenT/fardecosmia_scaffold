@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.core.exceptions import PermissionDenied
 
 from world.services.audit import changed_fields, record_audit
 
@@ -30,7 +31,14 @@ class CampaignAdmin(admin.ModelAdmin):
     search_fields = ("name",)
     inlines = [CampaignMembershipInline]
 
+    def has_add_permission(self, request):
+        # Supported trusted-GM creation lives in the normal application flow.
+        # Django Admin remains a superuser recovery/diagnostic boundary.
+        return bool(request.user.is_superuser)
+
     def save_model(self, request, obj, form, change):
+        if not change and not request.user.is_superuser:
+            raise PermissionDenied("Только superuser может создавать кампании в Admin.")
         before = None
         if change:
             before = serialize_campaign_basics(Campaign.objects.get(pk=obj.pk))

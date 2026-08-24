@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}{% if active_character %}{{ active_character.name }}{% else %}{{ campaign.name }}{% endif %} — Фардекосмия{% endblock %}
+{% block content %}
+<div class="character-worldspace">
+    <header class="character-worldspace__hero{% if not active_character %} character-worldspace__hero--quiet{% endif %}">
+
+        {% if active_character %}
+            <div class="character-identity">
+                <div class="character-identity__portrait">
+                    {% if active_character.portrait %}
+                        <img src="{{ active_character.portrait.url }}" alt="Портрет {{ active_character.name }}">
+                    {% else %}
+                        <span aria-hidden="true">✦</span>
+                    {% endif %}
+                </div>
+                <div class="character-identity__copy">
+                    <p class="eyebrow">Ваш взгляд устремлен на ваше отражение дорогой Vermin.</p>
+                    <h1>{{ active_character.name }}</h1>
+                    <p class="lead">{{ active_character.biography|default:"История этого персонажа ещё не обрела слов."|linebreaksbr }}</p>
+                </div>
+            </div>
+
+            {% if characters|length > 1 %}
+                <form class="character-switcher" method="post" action="{% url 'characters:switch_active' campaign.id %}">
+                    {% csrf_token %}
+                    <label for="active-character-choice">Сменить персонажа</label>
+                    <div class="character-switcher__controls">
+                        <select id="active-character-choice" name="character">
+                            {% for character in characters %}
+                                <option value="{{ character.id }}"{% if character == active_character %} selected{% endif %}>{{ character.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button class="button button--ghost" type="submit">Выбрать</button>
+                    </div>
+                </form>
+            {% endif %}
+        {% elif characters %}
+            <div class="character-workspace-empty">
+                <span aria-hidden="true">✧</span>
+                <div>
+                    <p class="eyebrow">Кампания «{{ campaign.name }}»</p>
+                    <h1>Выберите активного персонажа</h1>
+                    <p class="lead">Несколько судеб откликаются вам. Выберите, чьим взглядом продолжить путь.</p>
+                </div>
+            </div>
+            <div class="character-choice-grid" aria-label="Доступные персонажи">
+                {% for character in characters %}
+                    <form class="panel character-choice" method="post" action="{% url 'characters:switch_active' campaign.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="character" value="{{ character.id }}">
+                        <div class="character-choice__portrait" aria-hidden="true">
+                            {% if character.portrait %}<img src="{{ character.portrait.url }}" alt="">{% else %}<span>✦</span>{% endif %}
+                        </div>
+                        <div><h2>{{ character.name }}</h2><p>{{ character.biography|default:"Краткое описание пока не добавлено."|truncatechars:150 }}</p></div>
+                        <button class="button" type="submit">Играть за {{ character.name }}</button>
+                    </form>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="character-workspace-empty">
+                <span aria-hidden="true">✧</span>
+                <div>
+                    <p class="eyebrow">Кампания «{{ campaign.name }}»</p>
+                    <h1>Персонаж ещё не назначен</h1>
+                    <p class="lead">Game Master пока не связал вас с персонажем этой истории.</p>
+                    <a class="button button--ghost" href="{% url 'campaigns:list' %}">Вернуться ко всем кампаниям</a>
+                </div>
+            </div>
+        {% endif %}
+    </header>
+
+    {% if active_character %}
+        <main class="character-workspace" aria-label="Пространство персонажа {{ active_character.name }}">
+            <section class="character-workspace__grid">
+                <article class="panel workspace-module workspace-module--tiamana">
+                    <div class="workspace-module__sigil" aria-hidden="true">◇</div>
+                    <p class="panel-kicker">Внутренний путь</p><h2>Тиамана</h2>
+                    <p>Её линии пока остаются спокойны.</p>
+                </article>
+                <article class="panel workspace-module workspace-module--quests">
+                    <div class="workspace-module__sigil" aria-hidden="true">↟</div>
+                    <p class="panel-kicker">Нити пути</p><h2>Активные квесты</h2>
+                    <p>Здесь пока нет открытых записей.</p>
+                </article>
+                <article class="panel workspace-module workspace-module--map">
+                    <div class="workspace-module__sigil" aria-hidden="true">⌖</div>
+                    <p class="panel-kicker">Окружающий мир</p><h2>Карта</h2>
+                    <p>Положение персонажа пока не отражено.</p>
+                </article>
+                <article class="panel workspace-module workspace-module--life">
+                    <div class="workspace-module__sigil" aria-hidden="true">⌂</div>
+                    <p class="panel-kicker">Повседневность</p><h2>Быт / Обязательства</h2>
+                    <p>Сведения о быте пока не отражены.</p>
+                </article>
+                <article class="panel workspace-module workspace-module--party">
+                    <div class="workspace-module__sigil" aria-hidden="true">✦</div>
+                    <p class="panel-kicker">Те, кто рядом</p><h2>Команда</h2>
+                    <p>Связи команды пока не проявлены.</p>
+                </article>
+                <article class="panel workspace-module workspace-module--notes">
+                    <div class="workspace-module__sigil" aria-hidden="true">✎</div>
+                    <p class="panel-kicker">След памяти</p><h2>Заметки</h2>
+                    <p>Чистая страница ждёт первых строк.</p>
+                </article>
+                <article class="panel workspace-module workspace-module--apotheosis">
+                    <div class="workspace-module__sigil" aria-hidden="true">△</div>
+                    <p class="panel-kicker">Сокрытый контур</p><h2>Apotheosis</h2>
+                    <p>Его очертания пока молчат.</p>
+                </article>
+            </section>
+
+            <section class="panel workspace-inventory">
+                <div><p class="panel-kicker">При персонаже</p><h2>Инвентарь</h2></div>
+                <p>Список вещей пока не отражён.</p>
+            </section>
+
+            <aside class="workspace-hud" aria-label="Состояние персонажа">
+                <div class="workspace-hud__anchor workspace-hud__anchor--soul" data-xp-hud-anchor>
+                    <span aria-hidden="true">◇</span><div><small>Развитие</small><strong>Путь не отражён</strong></div>
+                </div>
+                <div class="workspace-hud__anchor workspace-hud__anchor--money" data-money-hud-anchor>
+                    <span aria-hidden="true">◈</span><div><small>Кошель</small><strong>Баланс не отражён</strong></div>
+                </div>
+            </aside>
+        </main>
+    {% endif %}
+</div>
+{% endblock %}

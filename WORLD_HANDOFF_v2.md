@@ -2094,13 +2094,15 @@ Do not build many incompatible one-off approval systems.
 
 P4.5 account onboarding and Campaign lifecycle foundation is implemented.
 Normal users no longer depend on Django Admin for registration, verified-email
-onboarding, Campaign creation or invitation acceptance.
+onboarding or invitation acceptance. Campaign creation remains available in the
+normal application only to accounts that satisfy the later P5.6 trusted-GM
+policy.
 
 P4.5 invariants:
 - verified email is a transactional-contact state, never a GM/player role;
 - Campaign authority remains exclusively in `CampaignMembership`;
-- a verified creator receives the first GM membership atomically with Campaign
-  creation and its P3 audit row;
+- an authorized creator receives the first GM membership atomically with
+  Campaign creation and its P3 audit row;
 - verification codes are six-digit, expiring, attempt-limited and slow-hashed;
 - invitation tokens are high-entropy, email-bound, single-use, expiring and
   persisted only as a slow hash plus lookup prefix;
@@ -2156,11 +2158,79 @@ Character identity
 ```
 
 Roll20 binding is independent from player control and is never inferred by
-name. Future CharacterKnowledge references stable Character identity and follows
-the Character across controller reassignment.
+name. Future Visibility & Discovery state references stable Character identity
+and follows the Character across controller reassignment.
 
 P5.5 did not implement CharacterKnowledge, CharacterSheet, Roll20 sync,
 Character Builder, Inventory/Ledger/Purchases, Travel, Quests, M2 or C5.
+
+---
+
+# 70B. P5.6 Campaign creation and trusted-GM eligibility
+
+P5.6 separates global eligibility to become a GM from the role a user already
+holds inside a particular Campaign.
+
+Current invariants:
+
+- Campaign-local authority remains exclusively in `CampaignMembership`;
+- no `User.is_gm` role field exists;
+- global trusted-GM eligibility is the direct individual Django permission
+  `campaigns.create_campaign_as_gm` (or superuser status);
+- a permission inherited through a Group deliberately does not count as
+  eligibility;
+- only a superuser may grant or revoke eligibility through the supported
+  audited service/admin action;
+- campaign creation requires both eligibility and the existing verified
+  transactional-email rule;
+- an ordinary verified User joins campaigns by invitation and cannot create one;
+- PLAYER -> GM promotion requires the target User to be currently eligible;
+- revoking eligibility does not rewrite an existing GM membership. The existing
+  GM keeps current Campaign authority and may preserve the last-GM invariant,
+  but cannot create another Campaign or be promoted again after later demotion;
+- grant/revoke, campaign creation and role promotion use transactional User/
+  Campaign/Character/Membership row locking at their supported boundaries;
+- grant and revoke are recorded as `account.gm_eligibility_granted` and
+  `account.gm_eligibility_revoked`; no-op requests produce no audit row.
+
+The forward data migration grants the direct permission to every User who had
+an existing GM membership when P5.6 was installed. It does not grant permission
+to PLAYER-only users, does not change memberships, and has a non-destructive
+no-op reverse operation.
+
+---
+
+# 70C. PW1 Character Workspace Shell
+
+PW1 changes the normal PLAYER Campaign destination without changing objective
+world truth or Campaign authority.
+
+Current invariants:
+
+- opening a Campaign as PLAYER renders the active Character Workspace directly;
+- GM/superuser Campaign detail keeps the separate objective Campaign landing;
+- active Character resolution and switching reuse the P5.5 controlled-active
+  Character services and remain Campaign-scoped;
+- the old Player Character detail route is a compatibility redirect back to the
+  Campaign Workspace after ownership validation;
+- multiple controlled Characters can be switched explicitly and the POST returns
+  to the same Workspace; a single Character may be a read-only fallback, while an
+  ambiguous selection remains human-visible rather than guessed;
+- the Player Workspace does not expose raw Roll20 data, GM-only truth,
+  `CharacterKnowledge` wording, developer-roadmap language or ApprovalRequest
+  terminology;
+- “Мои запросы” is removed from normal Player navigation, but ApprovalRequest
+  models, handlers, compatibility routes and the GM decision queue remain intact;
+- the identity hero and Тиамана, Quests, Map, Быт/Обязательства, Party, Notes,
+  Apotheosis and Inventory cards are shell/integration slots only;
+- XP and money are layout anchors without numeric or invented state;
+- PW1 does not create Location, live Weather ambience, Notes, Party, XP,
+  Inventory, Quests, Economy, Travel, Roll20 sync or Apotheosis domain data;
+- the server-rendered shell is responsive at 390 px and keeps platform-level
+  Campaigns, Settings and Logout navigation available.
+
+Player Campaign Workspace is perceived/Character-facing presentation. It must
+not be reused as an objective Campaign dashboard or as a source of world truth.
 
 ---
 
@@ -2605,10 +2675,12 @@ Completed:
 Completed additionally:
 - P5 WorldEvent foundation.
 - P5.5 Character Identity & Player Workspace foundation.
+- P5.6 Campaign Creation & GM Eligibility Alignment.
+- PW1 Character Workspace Shell.
 
 Any next phase requires a separate explicit GM instruction.
-CharacterKnowledge, M2, Inventory/Purchases, Travel and C5 have not been started
-by P5.5.
+L1, Notes, Party, M2, Visibility/Discovery, Roll20/normalized Character state,
+XP, Inventory/Economy, Travel and C5 have not been started by PW1.
 
 C5 is intentionally not started yet.
 
@@ -2811,20 +2883,28 @@ The essential truths:
   and revalidated, and approval/domain mutation/audit commit atomically.
 - `APPROVED` means the domain action completed successfully; resolved approval
   requests are immutable and are never arbitrary command payloads.
-- Normal account onboarding uses verified transactional email; Campaign
-  creation/invitations still derive authority only from CampaignMembership.
+- Normal account onboarding uses verified transactional email; invitation and
+  existing Campaign authority still derive from CampaignMembership, while new
+  Campaign creation additionally requires P5.6 direct trusted-GM eligibility.
 - Verification, reset and invitation secrets are never plaintext persistence or
   world-audit data.
 - P5 separates mutable WorldEvent definitions from immutable objective
   WorldEventOccurrence history; WORLD_TIME crosses `(old,new]` equally in exact
   and fast-forward, and registered effects/audits commit atomically.
-- Objective event history is GM-only until a future CharacterKnowledge
-  publication layer explicitly makes a fact player-known.
+- Objective event history is GM-only until the future Visibility & Discovery
+  layer explicitly makes a fact player-known.
 - P5.5 preserves the existing campaign-scoped Character identity, separates
   player control from Campaign role, persists a validated active Character and
   uses archive instead of normal hard-delete.
-- CharacterKnowledge and gameplay state belong to Character, not User;
-  Character identity remains separate from CharacterSheet and Roll20 raw data.
+- P5.6 uses direct `campaigns.create_campaign_as_gm` eligibility, grantable and
+  revocable only by superuser; PLAYER -> GM promotion cannot bypass it, and
+  revocation never silently rewrites an existing Campaign role.
+- PW1 makes the active Character Workspace the normal PLAYER Campaign
+  destination, preserves the separate GM objective flow and keeps
+  ApprovalRequest as backend/GM orchestration rather than Player navigation.
+- Future Visibility & Discovery and gameplay state belong to Character, not
+  User; Character identity remains separate from CharacterSheet and Roll20 raw
+  data.
 - Region legacy climate fields are not allowed to re-enter modern physics.
 - Fast-forward does not invent detailed skipped weather history.
 - Lumen, Noctis and Heat Corruption are world-specific concepts and must be treated according to canon.

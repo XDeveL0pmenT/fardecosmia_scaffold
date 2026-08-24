@@ -1,8 +1,8 @@
-from django.core.exceptions import PermissionDenied
+from django.contrib.auth import get_user_model
 from django.db import transaction
 
-from accounts.services.verification import has_verified_transactional_email
 from campaigns.models import Campaign, CampaignMembership
+from campaigns.services.eligibility import require_campaign_creation_access
 from world.services.access import require_campaign_gm
 from world.services.audit import changed_fields, record_audit
 
@@ -16,8 +16,8 @@ def serialize_campaign_basics(campaign):
 
 @transaction.atomic
 def create_campaign(*, actor, name, description=""):
-    if not has_verified_transactional_email(actor):
-        raise PermissionDenied("Для создания кампании подтвердите email.")
+    actor = get_user_model().objects.select_for_update().get(pk=actor.pk)
+    require_campaign_creation_access(actor)
     campaign = Campaign.objects.create(
         name=str(name).strip(),
         description=str(description).strip(),

@@ -9,7 +9,7 @@
     <link rel="icon" type="image/png" sizes="117x117" href="{% static 'images/fardecosmia-favicon.png' %}">
     <link rel="shortcut icon" type="image/png" href="{% static 'images/fardecosmia-favicon.png' %}">
     <link rel="apple-touch-icon" href="{% static 'images/fardecosmia-favicon.png' %}">
-    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=p55-character-workspace-1">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=pw1-character-workspace-1">
     {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -28,6 +28,8 @@
         </a>
         <nav class="account-nav" aria-label="Пользовательское меню">
             {% if user.is_authenticated %}
+                <a class="account-nav__atlas" href="{% url 'campaigns:list' %}">Кампании</a>
+                <a class="account-nav__atlas" href="{% url 'accounts:settings' %}">Настройки</a>
                 {% if can_view_global_atlas %}<a class="account-nav__atlas" href="{% url 'world:global_world_map' %}">Атлас мира</a>{% endif %}
                 {% if can_view_global_atlas %}<a class="account-nav__atlas" href="{% url 'world:global_world_entry_list' %}">Канон мира</a>{% endif %}
                 {% if can_manage_global_canon %}<a class="account-nav__atlas" href="{% url 'world:global_audit_list' %}">История канона</a>{% endif %}

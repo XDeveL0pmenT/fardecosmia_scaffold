@@ -10,8 +10,10 @@
     <div class="page-heading__actions">
         {% if can_create_campaign %}
             <a class="button" href="{% url 'campaigns:create' %}">Создать кампанию</a>
-        {% else %}
+        {% elif gm_eligible and not transactional_email_ready %}
             <a class="button button--ghost" href="{% url 'accounts:verify_email' %}">Подтвердить email для создания</a>
+        {% else %}
+            <span class="status-badge">Участие по приглашению</span>
         {% endif %}
     </div>
     <div class="page-intro__ornament" aria-hidden="true">
@@ -32,12 +34,10 @@
                 <div class="campaign-card__actions">
                     <a class="button" href="{% url 'campaigns:gm_dashboard' membership.campaign.id %}">Открыть панель <span aria-hidden="true">→</span></a>
                     <a class="button button--ghost" href="{% url 'campaigns:campaign_detail' membership.campaign.id %}">О кампании</a>
-                    <a class="button button--ghost" href="{% url 'world:my_approval_requests' membership.campaign.id %}">Мои запросы</a>
                 </div>
             {% else %}
                 <div class="campaign-card__actions">
                     <a class="button" href="{% url 'campaigns:campaign_detail' membership.campaign.id %}">Открыть кампанию</a>
-                    <a class="button button--ghost" href="{% url 'world:my_approval_requests' membership.campaign.id %}">Мои запросы</a>
                 </div>
             {% endif %}
         </article>
@@ -46,9 +46,12 @@
             <span class="empty-state__icon" aria-hidden="true">✦</span>
             <h2>Пока здесь тихо</h2>
             <p>Вы ещё не участвуете ни в одной кампании.</p>
+            {% if not gm_eligible %}
+                <p>Новые кампании создают доверенные Game Master. Чтобы присоединиться к игре, откройте ссылку-приглашение от мастера.</p>
+            {% endif %}
             <div class="empty-state__actions">
                 {% if can_create_campaign %}<a class="button" href="{% url 'campaigns:create' %}">Создать кампанию</a>{% endif %}
-                <span class="button button--ghost button--disabled" aria-disabled="true">Присоединиться по приглашению</span>
+                <span class="button button--ghost button--disabled" aria-disabled="true">Откройте полученное приглашение</span>
             </div>
             <small>Откройте ссылку, которую прислал Game Master, чтобы присоединиться.</small>
         </section>

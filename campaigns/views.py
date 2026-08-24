@@ -2,7 +2,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import OperationalError, transaction
 from django.db.models import Q
 from django.http import Http404, HttpResponse, HttpResponseBadRequest
@@ -34,6 +34,11 @@ from .services.invitations import (
     revoke_campaign_invitation,
 )
 from .services.lifecycle import create_campaign, update_campaign_basics
+from .services.eligibility import (
+    can_create_campaign,
+    gm_eligible_user_ids,
+    has_gm_eligibility,
+)
 from .services.memberships import (
     MembershipConflict,
     change_membership_role,
@@ -74,7 +79,9 @@ def campaign_list(request):
         "campaigns/campaign_list.html",
         {
             "memberships": memberships,
-            "can_create_campaign": has_verified_transactional_email(request.user),
+            "can_create_campaign": can_create_campaign(request.user),
+            "gm_eligible": has_gm_eligibility(request.user),
+            "transactional_email_ready": has_verified_transactional_email(request.user),
         },
     )
 
@@ -84,11 +91,18 @@ def campaign_detail(request, campaign_id):
     campaign = get_object_or_404(Campaign, pk=campaign_id)
     membership = require_campaign_member(request.user, campaign)
     is_campaign_gm = request.user.is_superuser or membership.role == CampaignMembership.Role.GM
-    player_characters = []
-    active_character = None
-    if membership is not None and not is_campaign_gm:
+    if not is_campaign_gm:
         player_characters = list(controlled_characters(membership=membership))
-        active_character = get_active_character(request.user, campaign)
+        return render(
+            request,
+            "characters/character_workspace.html",
+            {
+                "campaign": campaign,
+                "membership": membership,
+                "characters": player_characters,
+                "active_character": get_active_character(request.user, campaign),
+            },
+        )
     return render(
         request,
         "campaigns/campaign_detail.html",
@@ -96,14 +110,23 @@ def campaign_detail(request, campaign_id):
             "campaign": campaign,
             "membership": membership,
             "is_campaign_gm": is_campaign_gm,
-            "player_characters": player_characters,
-            "active_character": active_character,
         },
     )
 
 
 @login_required
 def campaign_create_view(request):
+    if not has_gm_eligibility(request.user):
+        if request.method == "POST":
+            raise PermissionDenied(
+                "Создание кампаний доступно только доверенным Game Master."
+            )
+        messages.info(
+            request,
+            "Новые кампании создают доверенные Game Master. "
+            "Присоединиться к игре можно по приглашению.",
+        )
+        return redirect("campaigns:list")
     if not has_verified_transactional_email(request.user):
         messages.warning(request, "Для создания кампании подтвердите email.")
         return redirect("accounts:verify_email")
@@ -141,9 +164,16 @@ def campaign_edit_view(request, campaign_id):
 
 
 def _members_context(campaign, *, invite_form=None, created_invite_url="", mail_sent=None):
-    memberships = campaign.memberships.select_related("user").order_by(
-        "role", "user__display_name", "user__username"
+    memberships = list(
+        campaign.memberships.select_related("user").order_by(
+            "role", "user__display_name", "user__username"
+        )
     )
+    eligible_user_ids = gm_eligible_user_ids(
+        membership.user_id for membership in memberships
+    )
+    for membership in memberships:
+        membership.can_be_promoted_to_gm = membership.user_id in eligible_user_ids
     invitations = campaign.invitations.select_related(
         "created_by", "accepted_by", "revoked_by"
     ).order_by("-created_at", "-id")[:50]

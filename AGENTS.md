@@ -48,6 +48,18 @@ campaign state.
 - Character identity is not CharacterSheet and must not absorb raw Roll20 state.
 - Player-facing Character queries may expose only active Characters controlled
   through that user's membership in the same Campaign.
+- For a PLAYER, the Campaign index/detail destination is the active Character
+  Workspace. The GM Campaign landing remains a separate objective-world flow.
+- Resolve Player Workspace identity through the centralized P5.5 active
+  Character selection; do not duplicate ownership or fallback rules in templates.
+- Player UI is diegetic-adjacent and must not expose raw Roll20 data, GM-only
+  truth, developer-roadmap wording or fabricated gameplay values.
+- Player-facing navigation must not expose a generic ApprovalRequest/requester
+  inbox. ApprovalRequest remains backend/GM orchestration and compatibility
+  routes must not become the normal Player action model.
+- PW1 Workspace module cards are integration boundaries only. Do not turn XP,
+  money, Inventory, Quests, Location, Weather, Notes, Party or Apotheosis slots
+  into state until their dedicated phase defines a source of truth.
 
 ## World simulation
 - Campaign time is stored as integer game minutes, not real-world datetime.
@@ -88,8 +100,16 @@ campaign state.
 - Campaign authority remains exclusively in `campaigns.CampaignMembership`;
   verified email, invitation authorship and account staff flags are not campaign
   roles.
-- Normal registration, email verification, campaign creation and invitation
-  acceptance must remain available without Django Admin.
+- Normal registration, email verification, eligible-GM campaign creation and
+  invitation acceptance must remain available without Django Admin.
+- Global trusted-GM eligibility is the direct individual Django permission
+  `campaigns.create_campaign_as_gm`; group-derived permission does not count.
+  Only a superuser may grant or revoke it through the supported audited service.
+- Campaign creation requires both trusted-GM eligibility (or superuser status)
+  and the existing verified transactional-email rule.
+- PLAYER -> GM promotion requires the target account to be globally GM-eligible.
+  Revoking eligibility does not silently remove an existing CampaignMembership
+  GM role, but prevents new Campaign creation and future promotion after demotion.
 - Transactional email must go through the centralized accounts email service
   and Django email backend; provider credentials belong only in environment
   configuration.
@@ -115,8 +135,8 @@ campaign state.
   committed.
 - Do not couple an effect to atmospheric state inside a skipped interval until
   a future phase explicitly introduces split-at-event simulation boundaries.
-- Objective occurrences remain GM-only until a separate CharacterKnowledge or
-  publication layer grants player-safe knowledge.
+- Objective occurrences remain GM-only until the separate Visibility &
+  Discovery/publication layer grants player-safe knowledge.
 
 ## After changes
 Run, when available:

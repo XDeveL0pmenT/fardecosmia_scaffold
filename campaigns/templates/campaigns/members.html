@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Участники — {{ campaign.name }}{% endblock %}
 {% block content %}
-<header class="page-intro"><div><a class="back-link" href="{% url 'campaigns:campaign_detail' campaign.id %}">← О кампании</a><p class="eyebrow">Команда кампании</p><h1>Участники</h1><p class="lead">Роли действуют только внутри «{{ campaign.name }}». Редактор глобального канона — отдельное право.</p></div></header>
+<header class="page-intro"><div><a class="back-link" href="{% url 'campaigns:campaign_detail' campaign.id %}">← О кампании</a><p class="eyebrow">Команда кампании</p><h1>Участники</h1><p class="lead">Роли действуют только внутри «{{ campaign.name }}». Повысить игрока до Game Master можно после того, как superuser подтвердит его глобальное право мастера.</p></div></header>
 
 {% if created_invite_url %}
 <section class="panel invite-result" aria-labelledby="invite-ready-title">
@@ -22,7 +22,11 @@
                 <span class="status-badge status-badge--{{ membership.role }}">{% if membership.role == "gm" %}Game Master{% else %}Игрок{% endif %}</span>
                 <div class="member-card__actions">
                     {% if membership.role == "player" %}
-                        <form method="post" action="{% url 'campaigns:member_promote' campaign.id membership.id %}">{% csrf_token %}<button class="button button--ghost button--small" type="submit" title="Пользователь получит полный доступ Game Master к этой кампании">Сделать Game Master</button></form>
+                        {% if membership.can_be_promoted_to_gm %}
+                            <form method="post" action="{% url 'campaigns:member_promote' campaign.id membership.id %}">{% csrf_token %}<button class="button button--ghost button--small" type="submit" title="Пользователь получит полный доступ Game Master к этой кампании">Сделать Game Master</button></form>
+                        {% else %}
+                            <span class="button button--ghost button--small button--disabled" aria-disabled="true" title="Глобальное право доверенного Game Master может выдать только superuser">Нет права Game Master</span>
+                        {% endif %}
                         <form method="post" action="{% url 'campaigns:member_remove' campaign.id membership.id %}">{% csrf_token %}<button class="button button--danger button--small" type="submit">Удалить</button></form>
                     {% else %}
                         <form method="post" action="{% url 'campaigns:member_demote' campaign.id membership.id %}">{% csrf_token %}<button class="button button--ghost button--small" type="submit">Сделать игроком</button></form>

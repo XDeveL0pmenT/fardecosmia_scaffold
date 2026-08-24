@@ -100,7 +100,8 @@ CHARACTER KNOWLEDGE / CHARACTER STATE
 - global/campaign encyclopedic scope проверяется через `WorldEntry`;
 - `CampaignEntityOverride` хранит только whitelist-validated sparse patch;
 - campaign override никогда не мутирует global base;
-- player visibility остаётся отдельным будущим `CharacterKnowledge` layer;
+- player visibility остаётся отдельным будущим `V1 Visibility & Discovery`
+  layer; не возвращать старый широкий K1 CharacterKnowledge как ближайшую фазу;
 - будущие Country/Settlement/Race и другие structured domains остаются
   отдельными structured models, а не JSON внутри `WorldEntry`.
 
@@ -131,7 +132,7 @@ user.is_superuser
 
 ---
 
-# 6. CharacterKnowledge и Fog of War
+# 6. Visibility & Discovery и Fog of War
 
 Позже игрок будет видеть только сведения, известные его персонажу.
 
@@ -162,7 +163,7 @@ P5 foundation реализован:
 - triggers/effects registered, versioned, bounded и secret-safe;
 - effect, occurrence и связанные audits атомарны и имеют общий `operation_id`;
 - failed effect не оставляет occurrence/partial mutation и откатывает advance;
-- objective occurrences GM-only до CharacterKnowledge publication.
+- objective occurrences GM-only до explicit Visibility/Discovery publication.
 
 WorldEvent не является application event bus, event sourcing, AuditLog,
 ApprovalRequest или TimeAdvanceReport. Запрещены `eval`, arbitrary JSON field
@@ -267,7 +268,8 @@ travel, rewards и multi-party consent должны подключать соб�
 
 # 9.5 Account onboarding and Campaign lifecycle
 
-P4.5 foundation is implemented. Future account/Campaign work must preserve:
+P4.5 and P5.6 foundations are implemented. Future account/Campaign work must
+preserve:
 
 - verification code and invitation token are different credentials with
   separate lifecycles;
@@ -281,6 +283,13 @@ P4.5 foundation is implemented. Future account/Campaign work must preserve:
 - Campaign authority remains CampaignMembership-scoped;
 - invitation authorship, verified email, Canon Editor and staff flags do not
   grant Campaign GM rights;
+- global trusted-GM eligibility is the direct individual permission
+  `campaigns.create_campaign_as_gm`; group-derived permission does not count;
+- only superuser can grant/revoke that eligibility through the audited service;
+- Campaign creation requires eligibility (or superuser) plus verified email;
+- PLAYER -> GM promotion requires the target User to be eligible;
+- revocation preserves an existing Campaign GM membership but blocks new
+  Campaign creation and a later promotion after demotion;
 - every Campaign must retain at least one GM, enforced under transaction/locking;
 - security/authentication telemetry remains outside world AuditLog, while
   meaningful Campaign creation/invitation/membership mutations use P3 audit.
@@ -303,7 +312,8 @@ P5.5 Character Identity & Player Workspace foundation реализован.
 - Character identity != CharacterSheet;
 - Roll20 binding/control assignment — независимые отношения;
 - gameplay knowledge/state не хранится на User;
-- будущий CharacterKnowledge следует за Character при reassignment;
+- future gameplay knowledge/Visibility & Discovery state follows Character on
+  reassignment rather than User;
 - player-facing выборки показывают только controlled active Characters той же
   Campaign;
 - normal hard-delete Character не вводить: использовать archive/deactivate;
@@ -323,6 +333,34 @@ Roll20 Adapter
 Roll20 остаётся source of truth combat-sheet mechanics. Fardecosmia хранит
 campaign/world state и стабильный normalized mirror. Не связывать по имени и не
 протаскивать raw Roll20 attributes в Character domain/UI.
+
+---
+
+# 10.5 Player Character Workspace
+
+PW1 реализован как server-rendered shell и routing contract, а не как новая
+доменная модель.
+
+- Для `PLAYER` normal Campaign destination — Workspace активного Character.
+- Для GM сохраняется отдельный objective Campaign landing; Player Workspace не
+  является источником объективной истины мира.
+- Active Character определяется и переключается только через P5.5
+  Campaign-scoped control/selection services.
+- Старый Player Character detail URL остаётся compatibility redirect после
+  проверки доступа, а не вторым расходящимся экраном.
+- “Мои запросы” и ApprovalRequest terminology не должны возвращаться в normal
+  Player navigation. ApprovalRequest backend и GM decision queue сохраняются.
+- Workspace скрывает GM-only state, raw Roll20 attributes,
+  `CharacterKnowledge`/«Что знает персонаж» и developer-roadmap wording.
+- Тиамана, Quests, Map, Быт/Обязательства, Party, Notes, Apotheosis, Inventory,
+  XP и money представлены только стабильными UI slots/anchors. До профильных
+  фаз запрещено наполнять их fake values или baseline world data.
+- PW1 не определяет Location, live Weather, Notes ownership, Party, XP,
+  Inventory, Quests, Economy, Travel, Roll20 sync или Apotheosis mechanics.
+
+Любое дальнейшее наполнение Workspace должно подключаться к явно определённому
+source of truth и соблюдать разделение objective truth, Character perception и
+GM-only information.
 
 ---
 

@@ -397,13 +397,14 @@ class CharacterPermissionAndUITests(CharacterP55Mixin, TestCase):
             403,
         )
 
-    def test_player_dashboard_shows_own_active_character(self):
+    def test_player_campaign_index_is_own_active_character_workspace(self):
         character = self.character(owner=self.player_membership, name="Мой герой")
         self.client.force_login(self.player)
         response = self.client.get(reverse("campaigns:campaign_detail", args=[self.campaign_a.pk]))
-        self.assertContains(response, "Ваш персонаж")
+        self.assertTemplateUsed(response, "characters/character_workspace.html")
         self.assertContains(response, "Мой герой")
-        self.assertContains(response, reverse("characters:detail", args=[self.campaign_a.pk, character.pk]))
+        self.assertContains(response, "Тиамана")
+        self.assertNotContains(response, reverse("characters:detail", args=[self.campaign_a.pk, character.pk]))
 
     def test_player_empty_state_and_multiple_selector(self):
         self.client.force_login(self.player)
@@ -431,8 +432,14 @@ class CharacterPermissionAndUITests(CharacterP55Mixin, TestCase):
         listing = self.client.get(reverse("characters:player_list", args=[self.campaign_a.pk]))
         self.assertContains(listing, "Свой")
         self.assertNotContains(listing, "Чужой")
-        detail = self.client.get(reverse("characters:detail", args=[self.campaign_a.pk, own.pk]))
-        self.assertEqual(detail.status_code, 200)
+        detail = self.client.get(
+            reverse("characters:detail", args=[self.campaign_a.pk, own.pk]),
+            follow=True,
+        )
+        self.assertRedirects(
+            detail,
+            reverse("campaigns:campaign_detail", args=[self.campaign_a.pk]),
+        )
         self.assertNotContains(detail, "secret-internal-roll20-id")
         self.assertNotContains(detail, "raw-secret")
         self.assertEqual(

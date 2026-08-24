@@ -114,12 +114,15 @@ def character_detail(request, campaign_id, character_id):
     if not is_gm:
         queryset = queryset.filter(owner=membership, is_active=True)
     character = get_object_or_404(queryset, pk=character_id)
+    if not is_gm:
+        # Compatibility route only: normal Player navigation is the Campaign
+        # index, which now is the active Character Workspace.
+        return redirect("campaigns:campaign_detail", campaign_id=campaign.pk)
     assignment_form = None
-    if is_gm:
-        assignment_form = CharacterAssignmentForm(
-            campaign=campaign,
-            initial={"player": character.owner_id},
-        )
+    assignment_form = CharacterAssignmentForm(
+        campaign=campaign,
+        initial={"player": character.owner_id},
+    )
     return render(
         request,
         "characters/character_detail.html",
@@ -129,9 +132,9 @@ def character_detail(request, campaign_id, character_id):
             "membership": membership,
             "is_campaign_gm": is_gm,
             "assignment_form": assignment_form,
-            "is_active_character": get_active_character(request.user, campaign) == character,
-            "can_advance_time": is_gm,
-            "time_advance_units": TIME_ADVANCE_UNITS if is_gm else (),
+            "is_active_character": False,
+            "can_advance_time": True,
+            "time_advance_units": TIME_ADVANCE_UNITS,
         },
     )
 
@@ -203,12 +206,12 @@ def gm_character_restore(request, campaign_id, character_id):
 def player_character_list(request, campaign_id):
     campaign = _campaign(campaign_id)
     membership = require_campaign_member(request.user, campaign)
-    if membership is None:
+    if membership is None or membership.role != CampaignMembership.Role.PLAYER:
         raise PermissionDenied("Для рабочего пространства персонажа нужно участие в кампании.")
     characters = list(controlled_characters(membership=membership))
     return render(
         request,
-        "characters/player_character_list.html",
+        "characters/character_workspace.html",
         {
             "campaign": campaign,
             "membership": membership,
@@ -232,4 +235,4 @@ def player_character_switch(request, campaign_id):
     except (TypeError, ValueError, Character.DoesNotExist, CharacterConflict):
         raise PermissionDenied("Нельзя выбрать этого персонажа.")
     messages.success(request, f"Теперь активный персонаж — {character.name}.")
-    return redirect("characters:player_list", campaign.pk)
+    return redirect("campaigns:campaign_detail", campaign_id=campaign.pk)

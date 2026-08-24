@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Настройки — Фардекосмия{% endblock %}
+{% block content %}
+<header class="page-intro account-settings-heading">
+    <div>
+        <a class="back-link" href="{% url 'campaigns:list' %}">← Все кампании</a>
+        <p class="eyebrow">Уровень платформы</p>
+        <h1>Настройки аккаунта</h1>
+        <p class="lead">Ваш доступ к кампаниям и персонажам остаётся привязан к этому аккаунту.</p>
+    </div>
+</header>
+<section class="panel account-settings-card">
+    <p class="panel-kicker">Аккаунт</p>
+    <h2>{{ user.display_name|default:user.username }}</h2>
+    <dl class="account-settings-list">
+        <div><dt>Имя для входа</dt><dd>{{ user.username }}</dd></div>
+        <div><dt>Email</dt><dd>{{ user.email|default:"Не указан" }}</dd></div>
+        <div><dt>Подтверждение</dt><dd>{% if user.has_verified_email %}Email подтверждён{% else %}<a href="{% url 'accounts:verify_email' %}">Подтвердить email</a>{% endif %}</dd></div>
+    </dl>
+    <div class="account-settings-actions">
+        <a class="button button--ghost" href="{% url 'password_reset' %}">Изменить пароль через email</a>
+        <a class="button button--ghost" href="{% url 'campaigns:list' %}">Вернуться к кампаниям</a>
+    </div>
+</section>
+{% endblock %}
