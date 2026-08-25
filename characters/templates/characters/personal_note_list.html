@@ -1,11 +1,11 @@
 {% extends "characters/personal_notes_base.html" %}
 {% block thought_content %}
-<main class="held-thought-index" aria-label="Удержанные мысли">
+<main class="held-thought-index" aria-label="Удержанные мысли" data-memory-index>
     <div class="held-thought-index__actions">
-        <a class="memory-action memory-action--manifest" href="{% url 'characters:personal_note_hold' campaign.id %}"><span aria-hidden="true">✦</span> Удержать мысль</a>
+        <a class="memory-action memory-action--manifest" href="{% url 'characters:personal_note_hold' campaign.id %}" data-character-transition data-memory-create><span aria-hidden="true">✦</span> Удержать мысль</a>
     </div>
     {% if page.object_list %}
-        <section class="held-thought-grid" aria-label="Удержанные мысли">
+        <section class="held-thought-grid reflection-node-field" aria-label="Удержанные мысли" data-reflection-node-field data-memory-thought-field>
             {% for note in page.object_list %}
                 {% include "characters/_held_thought.html" with note=note %}
             {% endfor %}
@@ -20,7 +20,6 @@
         <section class="held-thought-empty">
             <span aria-hidden="true">· ✦ ·</span>
             <h2>Память пока безмолвна</h2>
-            <p>Когда появится мысль, которую важно не потерять, её можно будет удержать здесь.</p>
         </section>
     {% endif %}
 </main>

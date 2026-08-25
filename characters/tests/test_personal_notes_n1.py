@@ -485,9 +485,103 @@ class PersonalNotePresentationTests(PersonalNotesN1Mixin, TestCase):
         workspace = self.client.get(
             reverse("campaigns:campaign_detail", args=[self.campaign.pk])
         )
-        self.assertContains(workspace, 'class="workspace-module workspace-module--tiamana"', html=False)
+        self.assertContains(
+            workspace,
+            'class="workspace-module workspace-module--tiamana reflection-node"',
+            html=False,
+        )
         self.assertNotContains(workspace, 'class="panel workspace-module', html=False)
         self.assertContains(workspace, 'class="reflection-action reflection-action--manifest"', html=False)
+
+    def test_ux12_character_surfaces_expose_focus_field_without_generic_primitives(self):
+        self.note()
+        self.client.force_login(self.player_a)
+        workspace = self.client.get(
+            reverse("campaigns:campaign_detail", args=[self.campaign.pk])
+        )
+        memory = self.client.get(self.list_url())
+
+        self.assertContains(workspace, "data-reflection-focus-field", html=False)
+        self.assertContains(
+            workspace,
+            "data-reflection-node tabindex",
+            count=8,
+            html=False,
+        )
+        self.assertContains(workspace, "static/js/reflection-focus.js", html=False)
+        self.assertNotContains(workspace, 'class="panel workspace-module', html=False)
+        self.assertNotContains(workspace, 'class="button reflection-action', html=False)
+
+        self.assertContains(memory, 'data-character-surface="memory"', html=False)
+        self.assertContains(memory, "data-memory-thought-field", html=False)
+        self.assertContains(memory, "data-memory-thought", html=False)
+        self.assertContains(memory, "static/js/reflection-focus.js", html=False)
+        self.assertNotContains(memory, 'class="ambient-scene', html=False)
+        self.assertNotContains(memory, 'class="panel held-thought', html=False)
+        self.assertNotContains(memory, 'class="button memory-action', html=False)
+
+    def test_ux12_memory_focus_states_keep_native_secure_routes_and_quiet_copy(self):
+        note = self.note(memo="Тихий берег", body="Не забыть дорогу к воде.")
+        self.client.force_login(self.player_a)
+
+        detail = self.client.get(self.detail_url(note))
+        editing = self.client.get(self.return_url(note))
+        release = self.client.get(self.release_url(note))
+
+        self.assertContains(detail, 'data-memory-focus-state="detail"', html=False)
+        self.assertContains(detail, "data-memory-focused-thought", html=False)
+        self.assertContains(detail, "data-character-transition", html=False)
+        self.assertContains(editing, 'data-memory-focus-state="writing"', html=False)
+        self.assertContains(editing, 'data-memory-operation="edit"', html=False)
+        self.assertContains(editing, "csrfmiddlewaretoken", html=False)
+        self.assertNotContains(editing, "Оставить всё как есть")
+        self.assertContains(release, 'role="alertdialog"', html=False)
+        self.assertContains(release, "data-memory-release-form", html=False)
+        self.assertContains(release, "Не забыть дорогу к воде.")
+        self.assertContains(release, "csrfmiddlewaretoken", html=False)
+
+    def test_ux12_memory_suppresses_platform_success_toast_after_server_confirmed_hold(self):
+        self.client.force_login(self.player_a)
+        response = self.client.post(
+            self.hold_url(),
+            {"memo": "Свет", "body": "Сохранить отблеск."},
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Сохранить отблеск.")
+        self.assertNotContains(response, "Мысль удержана.")
+
+    def test_ux12_pointer_and_memory_scripts_are_bounded_progressive_enhancements(self):
+        root = Path(__file__).resolve().parents[2]
+        focus_script = (root / "static" / "js" / "reflection-focus.js").read_text(
+            encoding="utf-8"
+        )
+        memory_script = (root / "static" / "js" / "held-thoughts.js").read_text(
+            encoding="utf-8"
+        )
+        css = (root / "static" / "css" / "app.css").read_text(encoding="utf-8")
+
+        self.assertIn("requestAnimationFrame", focus_script)
+        self.assertIn("frame = null", focus_script)
+        self.assertIn("(hover: hover) and (pointer: fine)", focus_script)
+        self.assertIn("visibilitychange", focus_script)
+        self.assertIn("--focus-x", focus_script)
+        self.assertNotIn("setInterval", focus_script)
+        self.assertNotIn("fetch(", focus_script)
+        self.assertNotIn("innerHTML", focus_script)
+        self.assertIn("sessionStorage", memory_script)
+        self.assertIn("fardecosmia-memory-new-thought", memory_script)
+        self.assertIn("window.location.replace(closeLink.href)", memory_script)
+        self.assertIn("is-newly-held-in-field", memory_script)
+        self.assertIn("memory-thought-join-field", css)
+        self.assertIn("compositionend", memory_script)
+        self.assertNotIn("innerHTML", memory_script)
+        self.assertIn(".reflection-focus-field", css)
+        self.assertIn(".memory-space-ambience__focus", css)
+        self.assertIn("html.memory-focus-is-opening", css)
+        self.assertIn("@media (hover: none), (pointer: coarse)", css)
+        self.assertIn("@media (prefers-reduced-motion: reduce)", css)
+        self.assertIn("[data-character-surface]", css)
 
 
 class CharacterNoteMigrationTests(TransactionTestCase):

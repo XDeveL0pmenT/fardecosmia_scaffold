@@ -9,7 +9,7 @@
     <link rel="icon" type="image/png" sizes="117x117" href="{% static 'images/fardecosmia-favicon.png' %}">
     <link rel="shortcut icon" type="image/png" href="{% static 'images/fardecosmia-favicon.png' %}">
     <link rel="apple-touch-icon" href="{% static 'images/fardecosmia-favicon.png' %}">
-    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=ux11-character-reflection-1">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}?v=ux12-focus-field-1">
     {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -55,11 +55,13 @@
     {% if time_advance_report %}
         {% include "campaigns/_time_advance_report.html" %}
     {% endif %}
-    {% if messages %}
-        <div class="site-messages" aria-live="polite">
-            {% for message in messages %}<div class="site-message site-message--{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
-        </div>
-    {% endif %}
+    {% block messages %}
+        {% if messages %}
+            <div class="site-messages" aria-live="polite">
+                {% for message in messages %}<div class="site-message site-message--{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
+            </div>
+        {% endif %}
+    {% endblock %}
     {% block content %}{% endblock %}
 </main>
 <footer class="site-footer">

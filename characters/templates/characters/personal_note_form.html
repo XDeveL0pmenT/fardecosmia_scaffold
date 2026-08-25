@@ -1,7 +1,8 @@
 {% extends "characters/personal_notes_base.html" %}
 {% block thought_content %}
-<main class="held-thought-focus held-thought-focus--writing">
-    <form class="held-thought-form" method="post" data-held-thought-form data-initial-step="{% if form.body.errors %}body{% else %}memo{% endif %}" novalidate>
+<main class="held-thought-focus held-thought-focus--writing" data-memory-focus-state="writing">
+    <a class="memory-action memory-action--quiet held-thought-focus__close" href="{% if note %}{% url 'characters:personal_note_detail' campaign.id note.id %}{% else %}{% url 'characters:personal_note_list' campaign.id %}{% endif %}" aria-label="Закрыть" data-character-transition data-memory-close>×</a>
+    <form class="held-thought-form" method="post" data-held-thought-form data-memory-write-form data-initial-step="{% if form.body.errors %}body{% else %}memo{% endif %}" data-memory-operation="{% if editing %}edit{% else %}hold{% endif %}" novalidate>
         {% csrf_token %}
         {% if editing %}<p class="held-thought-form__mode">Вернуться к мысли</p>{% endif %}
         {% if form.non_field_errors %}<div class="held-thought-form__errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
@@ -25,7 +26,6 @@
                 <button class="memory-action memory-action--quiet" type="button" data-thought-back>Вернуться к памятке</button>
             </div>
         </section>
-        <a class="held-thought-form__cancel" href="{% if note %}{% url 'characters:personal_note_detail' campaign.id note.id %}{% else %}{% url 'characters:personal_note_list' campaign.id %}{% endif %}">Оставить всё как есть</a>
     </form>
 </main>
 {% endblock %}

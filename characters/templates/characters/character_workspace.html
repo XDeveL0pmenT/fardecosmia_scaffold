@@ -1,9 +1,11 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}{% if active_character %}{{ active_character.name }}{% else %}{{ campaign.name }}{% endif %} — Фардекосмия{% endblock %}
 {% block content %}
 {% include "world/_ambient_layers.html" with ambience=character_ambience ambient_scope="character" %}
-<div class="character-worldspace">
-    <header class="character-worldspace__hero{% if not active_character %} character-worldspace__hero--quiet{% endif %}">
+<div class="character-worldspace reflection-focus-field" data-character-surface="workspace" data-reflection-focus-field>
+    <span class="reflection-focus-field__glow" aria-hidden="true"></span>
+    <header class="character-worldspace__hero{% if not active_character %} character-worldspace__hero--quiet{% endif %}" data-focus-depth="background">
 
         {% if active_character %}
             <div class="character-identity">
@@ -44,9 +46,9 @@
                     <p class="lead">Несколько судеб проступают рядом. Чей взгляд продолжит путь?</p>
                 </div>
             </div>
-            <div class="character-choice-grid" aria-label="Доступные отражения">
+            <div class="character-choice-grid reflection-node-field" aria-label="Доступные отражения" data-reflection-node-field>
                 {% for character in characters %}
-                    <form class="character-choice reflection-choice" method="post" action="{% url 'characters:switch_active' campaign.id %}">
+                    <form class="character-choice reflection-choice reflection-node" method="post" action="{% url 'characters:switch_active' campaign.id %}" data-reflection-node tabindex="0">
                         {% csrf_token %}
                         <input type="hidden" name="character" value="{{ character.id }}">
                         <div class="character-choice__portrait" aria-hidden="true">
@@ -72,62 +74,62 @@
 
     {% if active_character %}
         <main class="character-workspace" aria-label="Отражение {{ active_character.name }}">
-            <section class="character-workspace__grid">
-                <article class="workspace-module workspace-module--tiamana">
+            <section class="character-workspace__grid reflection-node-field" data-reflection-node-field>
+                <article class="workspace-module workspace-module--tiamana reflection-node" data-reflection-node tabindex="0" aria-labelledby="workspace-tiamana-title">
                     <div class="workspace-module__sigil" aria-hidden="true">◇</div>
-                    <p class="panel-kicker">Внутренний путь</p><h2>Тиамана</h2>
+                    <p class="panel-kicker">Внутренний путь</p><h2 id="workspace-tiamana-title">Тиамана</h2>
                     <p>Внутренние линии остаются недвижимы.</p>
                 </article>
-                <article class="workspace-module workspace-module--quests">
+                <article class="workspace-module workspace-module--quests reflection-node" data-reflection-node tabindex="0" aria-labelledby="workspace-quests-title">
                     <div class="workspace-module__sigil" aria-hidden="true">↟</div>
-                    <p class="panel-kicker">Нити пути</p><h2>Активные квесты</h2>
+                    <p class="panel-kicker">Нити пути</p><h2 id="workspace-quests-title">Активные квесты</h2>
                     <p>Нити пути ещё не проступили.</p>
                 </article>
-                <article class="workspace-module workspace-module--map">
+                <article class="workspace-module workspace-module--map reflection-node" data-reflection-node tabindex="0" aria-labelledby="workspace-map-title">
                     <div class="workspace-module__sigil" aria-hidden="true">⌖</div>
-                    <p class="panel-kicker">Окружающий мир</p><h2>Карта</h2>
+                    <p class="panel-kicker">Окружающий мир</p><h2 id="workspace-map-title">Карта</h2>
                     {% if character_location_available %}
                         <p>Точка пути различима.</p>
                     {% else %}
                         <p>Путь ещё не обрёл точки.</p>
                     {% endif %}
                 </article>
-                <article class="workspace-module workspace-module--life">
+                <article class="workspace-module workspace-module--life reflection-node" data-reflection-node tabindex="0" aria-labelledby="workspace-life-title">
                     <div class="workspace-module__sigil" aria-hidden="true">⌂</div>
-                    <p class="panel-kicker">Повседневность</p><h2>Быт / Обязательства</h2>
+                    <p class="panel-kicker">Повседневность</p><h2 id="workspace-life-title">Быт / Обязательства</h2>
                     <p>Очертания повседневности пока молчат.</p>
                 </article>
-                <article class="workspace-module workspace-module--party">
+                <article class="workspace-module workspace-module--party reflection-node" data-reflection-node tabindex="0" aria-labelledby="workspace-party-title">
                     <div class="workspace-module__sigil" aria-hidden="true">✦</div>
-                    <p class="panel-kicker">Те, кто рядом</p><h2>Команда</h2>
+                    <p class="panel-kicker">Те, кто рядом</p><h2 id="workspace-party-title">Команда</h2>
                     <p>Связи ещё не проявились.</p>
                 </article>
-                <article class="workspace-module workspace-module--notes">
+                <article class="workspace-module workspace-module--notes reflection-node" data-reflection-node tabindex="0" aria-labelledby="workspace-notes-title">
                     <div class="workspace-module__sigil" aria-hidden="true">✎</div>
-                    <p class="panel-kicker">Заметки</p><h2>Удержанные мысли</h2>
+                    <p class="panel-kicker">Заметки</p><h2 id="workspace-notes-title">Удержанные мысли</h2>
                     {% if held_thoughts_preview %}
                         <div class="workspace-thought-preview">
                             {% for note in held_thoughts_preview %}
-                                <a href="{% url 'characters:personal_note_detail' campaign.id note.id %}">«{% if note.memo %}{{ note.memo }}{% else %}{{ note.body|truncatechars:72 }}{% endif %}»</a>
+                                <a href="{% url 'characters:personal_note_detail' campaign.id note.id %}" data-character-transition>«{% if note.memo %}{{ note.memo }}{% else %}{{ note.body|truncatechars:72 }}{% endif %}»</a>
                             {% endfor %}
                         </div>
                     {% else %}
                         <p>Память пока безмолвна.</p>
                     {% endif %}
                     <div class="workspace-thought-actions">
-                        <a class="reflection-action reflection-action--quiet" href="{% url 'characters:personal_note_list' campaign.id %}">Все мысли</a>
-                        <a class="reflection-action reflection-action--manifest" href="{% url 'characters:personal_note_hold' campaign.id %}"><span aria-hidden="true">✦</span> Удержать мысль</a>
+                        <a class="reflection-action reflection-action--quiet" href="{% url 'characters:personal_note_list' campaign.id %}" data-character-transition>Все мысли</a>
+                        <a class="reflection-action reflection-action--manifest" href="{% url 'characters:personal_note_hold' campaign.id %}" data-character-transition><span aria-hidden="true">✦</span> Удержать мысль</a>
                     </div>
                 </article>
-                <article class="workspace-module workspace-module--apotheosis">
+                <article class="workspace-module workspace-module--apotheosis reflection-node" data-reflection-node tabindex="0" aria-labelledby="workspace-apotheosis-title">
                     <div class="workspace-module__sigil" aria-hidden="true">△</div>
-                    <p class="panel-kicker">Сокрытый контур</p><h2>Apotheosis</h2>
+                    <p class="panel-kicker">Сокрытый контур</p><h2 id="workspace-apotheosis-title">Apotheosis</h2>
                     <p>Сокрытый контур остаётся безмолвным.</p>
                 </article>
             </section>
 
-            <section class="workspace-inventory">
-                <div><p class="panel-kicker">При себе</p><h2>Инвентарь</h2></div>
+            <section class="workspace-inventory reflection-node" data-reflection-node tabindex="0" aria-labelledby="workspace-inventory-title">
+                <div><p class="panel-kicker">При себе</p><h2 id="workspace-inventory-title">Инвентарь</h2></div>
                 <p>Вещи ещё не проступили.</p>
             </section>
 
@@ -142,4 +144,8 @@
         </main>
     {% endif %}
 </div>
+{% endblock %}
+{% block extra_scripts %}
+{{ block.super }}
+<script src="{% static 'js/reflection-focus.js' %}?v=ux12-focus-1"></script>
 {% endblock %}

@@ -1,16 +1,19 @@
 {% extends "base.html" %}
 {% load static %}
 {% block title %}Удержанные мысли — {{ active_character.name }} — Фардекосмия{% endblock %}
+{% block messages %}{% endblock %}
 {% block content %}
 <div class="memory-space-ambience" aria-hidden="true" data-memory-space>
     <span class="memory-space-ambience__depth"></span>
+    <span class="memory-space-ambience__focus"></span>
     <span class="memory-space-ambience__mote memory-space-ambience__mote--one"></span>
     <span class="memory-space-ambience__mote memory-space-ambience__mote--two"></span>
     <span class="memory-space-ambience__mote memory-space-ambience__mote--three"></span>
 </div>
-<div class="character-worldspace held-thought-space">
+<div class="character-worldspace held-thought-space reflection-focus-field" data-character-surface="memory" data-reflection-focus-field>
+    <span class="reflection-focus-field__glow" aria-hidden="true"></span>
     <header class="held-thought-space__header">
-        <a class="held-thought-space__return" href="{% url 'campaigns:campaign_detail' campaign.id %}">← Вернуться к отражению</a>
+        <a class="held-thought-space__return" href="{% url 'campaigns:campaign_detail' campaign.id %}" data-character-transition>← Вернуться к отражению</a>
         <p class="panel-kicker">Следы памяти</p>
         <h1>Удержанные мысли</h1>
         <p>Здесь остаётся то, что не должно исчезнуть.</p>
@@ -20,5 +23,6 @@
 {% endblock %}
 {% block extra_scripts %}
 {{ block.super }}
-<script src="{% static 'js/held-thoughts.js' %}?v=n1-1"></script>
+<script src="{% static 'js/reflection-focus.js' %}?v=ux12-focus-1"></script>
+<script src="{% static 'js/held-thoughts.js' %}?v=ux12-memory-2"></script>
 {% endblock %}
