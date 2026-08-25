@@ -504,6 +504,21 @@ GM не имеет обычного права читать личные Notes.
 
 При reassignment Character личные Notes остаются с Character.
 
+N1 implementation status:
+
+- private state is `characters.CharacterNote` with an opaque UUID, optional
+  short memo, required escaped plain-text body and technical-only timestamps;
+- access is only through Campaign-scoped routes for the current active
+  controller; GM, superuser diagnostic UI and other Players cannot browse it;
+- access follows Character reassignment, while unassignment/archive/User
+  deletion preserve the thoughts without exposing them;
+- create/edit/release does not create Campaign AuditLog records;
+- Workspace shows at most three thoughts; the full surface paginates and never
+  displays dates, IDs, author or privacy metadata;
+- creation and editing use the held-thought two-question experience, focused
+  presentation and confirmed release, with no-JS and reduced-motion support;
+- N1 surfaces reuse the live PW2 ambience without creating new weather state.
+
 ---
 
 # 22. Party Notes

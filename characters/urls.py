@@ -56,4 +56,29 @@ urlpatterns = [
         views.player_character_switch,
         name="switch_active",
     ),
+    path(
+        "campaign/<uuid:campaign_id>/thoughts/",
+        views.personal_note_list,
+        name="personal_note_list",
+    ),
+    path(
+        "campaign/<uuid:campaign_id>/thoughts/hold/",
+        views.personal_note_hold,
+        name="personal_note_hold",
+    ),
+    path(
+        "campaign/<uuid:campaign_id>/thoughts/<uuid:note_id>/",
+        views.personal_note_detail,
+        name="personal_note_detail",
+    ),
+    path(
+        "campaign/<uuid:campaign_id>/thoughts/<uuid:note_id>/return/",
+        views.personal_note_return,
+        name="personal_note_return",
+    ),
+    path(
+        "campaign/<uuid:campaign_id>/thoughts/<uuid:note_id>/release/",
+        views.personal_note_release,
+        name="personal_note_release",
+    ),
 ]

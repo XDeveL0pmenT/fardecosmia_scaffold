@@ -86,6 +86,16 @@ campaign state.
   sampler provenance, pressure, grid indexes, coordinates and GM diagnostics
   remain outside Player HTML/JS; Workspace GET must not advance or repair the
   atmosphere, write WeatherState, location state or AuditLog.
+- Personal Notes are private `characters.CharacterNote` state owned only by
+  Character. Access is restricted to the current active controller; Campaign
+  GM, superuser diagnostic UI and other Players have no ordinary read/search/
+  mutation path. Reassignment transfers access with the Character, while
+  unassignment, archive and controller deletion preserve the rows.
+- Personal Note create/edit/release is an explicit privacy exception to
+  Campaign AuditLog: do not audit content, excerpts, existence or activity.
+  Player-facing Notes show no technical dates/IDs/authors, accept escaped plain
+  text only and use the Held Thoughts conversational UX rather than generic
+  CRUD wording. Party Notes remain a separate future Party-domain system.
 
 ## World simulation
 - Campaign time is stored as integer game minutes, not real-world datetime.
@@ -104,6 +114,8 @@ campaign state.
 - Validate external JSON payloads before changing campaign state.
 - Meaningful user-authored world/campaign mutations must call the centralized
   `world.services.audit.record_audit()` inside the same database transaction.
+  The private Personal Character Notes exception above is not objective world/
+  campaign mutation and must remain outside AuditLog.
 - Audit history is append-only application data: do not update/delete rows or add
   purge/pruning UI. Generated weather, snapshots and solver timesteps are not
   individual audit actions.

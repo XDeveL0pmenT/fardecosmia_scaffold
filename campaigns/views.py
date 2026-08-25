@@ -14,10 +14,7 @@ from django.views.decorators.http import require_POST
 
 from accounts.services.email import send_campaign_invitation_email
 from accounts.services.verification import has_verified_transactional_email
-from characters.services import (
-    controlled_characters,
-    get_active_character,
-)
+from characters.workspace import build_character_workspace_context
 from .forms import (
     CampaignBasicForm,
     CampaignCreateForm,
@@ -50,7 +47,6 @@ from .services.memberships import (
 from world.forms import AtmosphericConfigForm
 from world.models import ApprovalRequest, AtmosphericConfig, WorldEvent
 from world.services.astronomy import calculate_local_sky, describe_region_sky
-from world.services.ambience import build_character_ambience
 from world.services.atmosphere.config import AtmosphericSettings
 from world.services.atmosphere.forcing import CampaignSkyForcing
 from world.services.calendar import describe_campaign_time, minutes_for_time_step
@@ -96,20 +92,13 @@ def campaign_detail(request, campaign_id):
     membership = require_campaign_member(request.user, campaign)
     is_campaign_gm = request.user.is_superuser or membership.role == CampaignMembership.Role.GM
     if not is_campaign_gm:
-        player_characters = list(controlled_characters(membership=membership))
-        active_character = get_active_character(request.user, campaign)
-        character_ambience = build_character_ambience(active_character, campaign)
         return render(
             request,
             "characters/character_workspace.html",
-            {
-                "campaign": campaign,
-                "membership": membership,
-                "characters": player_characters,
-                "active_character": active_character,
-                "character_location_available": character_ambience.location_available,
-                "character_ambience": character_ambience,
-            },
+            build_character_workspace_context(
+                campaign=campaign,
+                membership=membership,
+            ),
         )
     return render(
         request,

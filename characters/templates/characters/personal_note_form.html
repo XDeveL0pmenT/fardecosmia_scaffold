@@ -1,0 +1,34 @@
+{% extends "characters/personal_notes_base.html" %}
+{% block thought_content %}
+<main class="held-thought-focus held-thought-focus--writing">
+    <form class="held-thought-form" method="post" data-held-thought-form data-initial-step="{% if form.body.errors %}body{% else %}memo{% endif %}" novalidate>
+        {% csrf_token %}
+        <p class="held-thought-form__mode">{% if editing %}Вернуться к мысли{% else %}Удержать мысль{% endif %}</p>
+        {% if form.non_field_errors %}<div class="held-thought-form__errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+
+        <section class="held-thought-question" data-thought-step="memo">
+            <label for="{{ form.memo.id_for_label }}">Желаете дать памятку этой мысли?</label>
+            <p>Она может остаться без памятки — только само воспоминание.</p>
+            {{ form.memo }}
+            {% if form.memo.errors %}<div class="held-thought-form__errors" role="alert">{{ form.memo.errors }}</div>{% endif %}
+            <div class="held-thought-question__actions">
+                <button class="button" type="button" data-thought-next>Продолжить</button>
+                <a class="button button--ghost" href="#thought-body-question" data-thought-skip>Оставить без памятки</a>
+            </div>
+        </section>
+
+        <section class="held-thought-question" id="thought-body-question" data-thought-step="body">
+            <label for="{{ form.body.id_for_label }}">Что вы хотите сохранить в памяти?</label>
+            <p>Слова останутся только с этим персонажем.</p>
+            {{ form.body }}
+            {% if form.body.errors %}<div class="held-thought-form__errors" role="alert">{{ form.body.errors }}</div>{% endif %}
+            <div class="held-thought-question__actions">
+                <button class="button" type="submit">Удержать</button>
+                <button class="button button--ghost" type="button" data-thought-back>Вернуться к памятке</button>
+            </div>
+        </section>
+        <a class="held-thought-form__cancel" href="{% if note %}{% url 'characters:personal_note_detail' campaign.id note.id %}{% else %}{% url 'characters:personal_note_list' campaign.id %}{% endif %}">Оставить всё как есть</a>
+    </form>
+</main>
+{% endblock %}
+

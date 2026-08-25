@@ -2318,6 +2318,39 @@ Quests, XP/Soul HUD, Inventory, Ledger, Roll20 sync, Apotheosis or C5 state.
 
 ---
 
+# 70F. N1 Personal Character Notes / Held Thoughts
+
+N1 implements private Character-held thoughts without turning them into
+objective Campaign knowledge or GM records.
+
+Current invariants:
+
+- `characters.CharacterNote` belongs only to durable Character identity; it has
+  no User/author/visibility/GM/Party field;
+- only the current active PLAYER controller may list, create, open, edit or
+  release a thought; note IDs are opaque UUIDs and every lookup is scoped to
+  Campaign plus active controlled Character;
+- Campaign GM, superuser diagnostic surfaces and other Players have no ordinary
+  access to content, excerpts or existence;
+- reassignment transfers access with the Character; unassignment, archive and
+  controller/User deletion preserve note rows but remove ordinary access until
+  a valid current controller exists;
+- create/edit/release intentionally produces no Campaign `AuditLog` row because
+  note existence/activity is private inner Character state, not objective world
+  mutation;
+- memo is optional plain text up to 120 characters, body is required escaped
+  plain text up to 32 KiB, and technical timestamps are never shown Player-side;
+- Workspace preview is bounded to three thoughts and the full index paginates
+  24 per page;
+- Player UX uses `Удержанные мысли`, the two-question hold/return flow and
+  confirmed `Отпустить`, not generic CRUD/admin language;
+- N1 pages reuse the PW2 shared ambience component and preserve reduced-motion,
+  mobile and no-fake-state boundaries.
+
+Party Notes remain future Party-owned state and were not created by N1.
+
+---
+
 # 71. Generated vs authored data
 
 ## Authored / GM-approved
@@ -2763,11 +2796,12 @@ Completed additionally:
 - PW1 Character Workspace Shell.
 - L1 Character Location & Initial Placement Foundation.
 - PW2 Live Character Ambience at Effective Location.
+- N1 Personal Character Notes / Held Thoughts Foundation.
 
 Any next phase requires a separate explicit GM instruction.
-Notes, Party, M2, Visibility/Discovery, Player Map, Roll20/normalized
+Party Notes, Party, M2, Visibility/Discovery, Player Map, Roll20/normalized
 Character state, XP, Inventory/Economy, Travel and C5 have not been started by
-PW2.
+N1.
 
 C5 is intentionally not started yet.
 
@@ -2997,6 +3031,11 @@ The essential truths:
   authoritative point snapshot and RegionalSky; Region and Character share one
   safe presentation adapter, Workspace GET stays read-only, and missing state is
   neutral rather than inferred or simulated.
+- N1 stores private escaped plain-text thoughts on Character, grants ordinary
+  access only to its current active controller, transfers that access on
+  reassignment, preserves rows through unassignment/archive/User deletion and
+  deliberately keeps note content/existence/activity out of Campaign AuditLog
+  and GM/admin UI. Party Notes remain a separate future Party domain.
 - Future Visibility & Discovery and gameplay state belong to Character, not
   User; Character identity remains separate from CharacterSheet and Roll20 raw
   data.

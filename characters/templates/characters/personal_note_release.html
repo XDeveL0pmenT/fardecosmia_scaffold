@@ -1,0 +1,17 @@
+{% extends "characters/personal_notes_base.html" %}
+{% block thought_content %}
+<main class="held-thought-focus held-thought-focus--release">
+    <section class="held-thought-release">
+        <span aria-hidden="true">· ✦ ·</span>
+        <h2>Отпустить эту мысль?</h2>
+        <p>Она больше не останется среди удержанных мыслей.</p>
+        {% if note.memo %}<strong>{{ note.memo }}</strong>{% endif %}
+        <form method="post">
+            {% csrf_token %}
+            <a class="button button--ghost" href="{% url 'characters:personal_note_detail' campaign.id note.id %}">Оставить</a>
+            <button class="button button--danger" type="submit">Отпустить</button>
+        </form>
+    </section>
+</main>
+{% endblock %}
+

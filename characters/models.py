@@ -1,4 +1,7 @@
+import uuid
+
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxLengthValidator
 from django.db import models
 from django.utils import timezone
 
@@ -89,3 +92,49 @@ class CharacterLocationState(models.Model):
 
     def __str__(self):
         return f"Исходное положение: {self.character}"
+
+
+class CharacterNote(models.Model):
+    """A private plain-text thought carried by the durable Character identity."""
+
+    MAX_MEMO_LENGTH = 120
+    MAX_BODY_LENGTH = 32 * 1024
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    character = models.ForeignKey(
+        Character,
+        on_delete=models.CASCADE,
+        related_name="personal_notes",
+    )
+    memo = models.CharField(max_length=MAX_MEMO_LENGTH, blank=True)
+    body = models.TextField(
+        max_length=MAX_BODY_LENGTH,
+        validators=[MaxLengthValidator(MAX_BODY_LENGTH)],
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-updated_at", "-created_at", "-id")
+        indexes = [
+            models.Index(
+                fields=("character", "updated_at"),
+                name="char_note_character_time_idx",
+            ),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(body=""),
+                name="character_note_body_not_empty",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        self.memo = str(self.memo or "").strip()
+        self.body = str(self.body or "").strip()
+        if not self.body:
+            raise ValidationError({"body": "Мысль не может быть пустой."})
+
+    def __str__(self):
+        return f"Удержанная мысль персонажа {self.character_id}"

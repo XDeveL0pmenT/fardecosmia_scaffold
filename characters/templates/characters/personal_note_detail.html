@@ -1,0 +1,16 @@
+{% extends "characters/personal_notes_base.html" %}
+{% block thought_content %}
+<main class="held-thought-focus" aria-label="Открытая мысль">
+    <article class="held-thought held-thought--focused">
+        <span class="held-thought__spark" aria-hidden="true">✦</span>
+        {% if note.memo %}<h2 class="held-thought__memo">{{ note.memo }}</h2>{% endif %}
+        <div class="held-thought__body held-thought__body--full">{{ note.body|linebreaksbr }}</div>
+    </article>
+    <div class="held-thought-focus__actions">
+        <a class="button" href="{% url 'characters:personal_note_return' campaign.id note.id %}">Вернуться к мысли</a>
+        <a class="button button--danger" href="{% url 'characters:personal_note_release' campaign.id note.id %}">Отпустить</a>
+        <a class="button button--ghost" href="{% url 'characters:personal_note_list' campaign.id %}">К остальным мыслям</a>
+    </div>
+</main>
+{% endblock %}
+

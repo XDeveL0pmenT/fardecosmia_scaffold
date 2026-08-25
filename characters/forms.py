@@ -2,7 +2,7 @@ from django import forms
 from decimal import Decimal
 
 from campaigns.models import CampaignMembership
-from characters.models import Character
+from characters.models import Character, CharacterNote
 
 
 class CharacterIdentityForm(forms.ModelForm):
@@ -77,3 +77,36 @@ class CharacterInitialPlacementForm(forms.Form):
         label="Я проверил выбранную точку и подтверждаю исходное положение.",
         required=True,
     )
+
+
+class CharacterNoteForm(forms.ModelForm):
+    """Plain-text validation for the conversational held-thought experience."""
+
+    class Meta:
+        model = CharacterNote
+        fields = ("memo", "body")
+        widgets = {
+            "memo": forms.TextInput(
+                attrs={
+                    "autocomplete": "off",
+                    "aria-label": "Памятка",
+                    "placeholder": "Короткий след, если он нужен",
+                }
+            ),
+            "body": forms.Textarea(
+                attrs={
+                    "rows": 12,
+                    "aria-label": "Что вы хотите сохранить в памяти?",
+                    "placeholder": "Позвольте мысли обрести слова…",
+                }
+            ),
+        }
+
+    def clean_memo(self):
+        return self.cleaned_data.get("memo", "").strip()
+
+    def clean_body(self):
+        body = self.cleaned_data.get("body", "").strip()
+        if not body:
+            raise forms.ValidationError("Мысль не может быть пустой.")
+        return body

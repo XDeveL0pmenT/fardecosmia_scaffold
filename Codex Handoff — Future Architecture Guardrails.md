@@ -9,9 +9,10 @@
 
 # 1. Ближайшая задача
 
-C1–C4.2, R1, M1, Core Platform through P5.6, PW1, L1 and PW2 are completed.
+C1–C4.2, R1, M1, Core Platform through P5.6, PW1, L1, PW2 and N1 Personal
+Character Notes are completed.
 No later phase is implicitly authorized by this document. After every requested
-phase, stop and wait for a separate GM instruction; do not auto-start Notes,
+phase, stop and wait for a separate GM instruction; do not auto-start Party Notes,
 Party, geography/visibility, Player Map, Travel, Roll20, economy or C5.
 
 ---
@@ -406,6 +407,34 @@ PW2 is a read-only presentation integration, not Character weather storage:
 
 PW2 does not authorize Player Map, Visibility/Discovery, Travel, Party, Notes,
 XP, Inventory, economy, Roll20, Apotheosis or C5.
+
+---
+
+# 10.8 Personal Character Notes / Held Thoughts
+
+N1 defines one narrow private Character-state exception to objective Campaign
+mutation/audit rules:
+
+- `CharacterNote` belongs to Character, never User or CampaignMembership;
+- ordinary access follows the current active PLAYER controller and is always
+  Campaign/Character/note scoped; GM/superuser/other Players get no content or
+  existence browser;
+- reassignment transfers access with Character; unassignment, archive and User
+  deletion preserve rows without granting fallback access;
+- create/edit/release does not enter Campaign AuditLog because even the fact of
+  note activity is private inner Character state;
+- notes are escaped plain text only, with no rich text, attachments, tags,
+  visibility enum or links to objective world entities;
+- Player UI exposes no technical dates/IDs/authors and uses the Held Thoughts
+  conversational flow rather than generic CRUD;
+- active Character is always resolved server-side; create never trusts a posted
+  Character ID and no cache may be keyed only by User/Campaign;
+- ordinary Django admin does not register CharacterNote content;
+- Party Notes remain separate future Party-domain state and must not reuse the
+  personal ownership/privacy model by adding a flag.
+
+N1 does not authorize Party/P6, Visibility/Discovery, geography/map, Travel,
+Quests, XP/HUD, Inventory/economy, Roll20, Apotheosis or C5.
 
 ---
 

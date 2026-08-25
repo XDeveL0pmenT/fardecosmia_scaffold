@@ -127,11 +127,12 @@ Recommended Codex reasoning: **HIGH**.
 # 7. N1 — Character & Party Notes
 
 ## Personal
-- [ ] Belong to Character.
-- [ ] Current controller only.
-- [ ] GM has no ordinary read access.
-- [ ] Persist across reassignment.
-- [ ] Human notebook UI.
+- [x] Belong to Character.
+- [x] Current active controller only.
+- [x] GM has no ordinary read access.
+- [x] Persist across reassignment/unassignment/archive/controller deletion.
+- [x] Held Thoughts conversational/airy UI without Player-facing dates.
+- [x] Plain-text escaping, opaque scoped routes and no Campaign AuditLog leak.
 
 ## Party
 - [ ] Belong to Party.
@@ -428,7 +429,7 @@ Player does NOT inherit this queue/dashboard model.
 [x] PW1 — Character Workspace Shell
 [x] L1 — Character Location / Initial Placement
 [x] PW2 — Live Character Ambience at Effective Location
-[ ] N1 — Personal Notes Foundation
+[x] N1 — Personal Notes Foundation
 [ ] P6 — Party Foundation
 [ ] M2 + V1 — Geography + Visibility/Discovery foundations
 [ ] M4 — Player Map / Exploration / current visibility

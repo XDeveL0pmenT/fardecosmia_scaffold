@@ -104,8 +104,20 @@
                 </article>
                 <article class="panel workspace-module workspace-module--notes">
                     <div class="workspace-module__sigil" aria-hidden="true">✎</div>
-                    <p class="panel-kicker">След памяти</p><h2>Заметки</h2>
-                    <p>Чистая страница ждёт первых строк.</p>
+                    <p class="panel-kicker">Заметки</p><h2>Удержанные мысли</h2>
+                    {% if held_thoughts_preview %}
+                        <div class="workspace-thought-preview">
+                            {% for note in held_thoughts_preview %}
+                                <a href="{% url 'characters:personal_note_detail' campaign.id note.id %}">«{% if note.memo %}{{ note.memo }}{% else %}{{ note.body|truncatechars:72 }}{% endif %}»</a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p>Ни одна мысль пока не удержана.</p>
+                    {% endif %}
+                    <div class="workspace-thought-actions">
+                        <a class="button button--ghost" href="{% url 'characters:personal_note_list' campaign.id %}">Все мысли</a>
+                        <a class="button" href="{% url 'characters:personal_note_hold' campaign.id %}">Удержать мысль</a>
+                    </div>
                 </article>
                 <article class="panel workspace-module workspace-module--apotheosis">
                     <div class="workspace-module__sigil" aria-hidden="true">△</div>

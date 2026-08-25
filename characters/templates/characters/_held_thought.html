@@ -1,0 +1,6 @@
+<a class="held-thought" href="{% url 'characters:personal_note_detail' campaign.id note.id %}" aria-label="Открыть удержанную мысль">
+    <span class="held-thought__spark" aria-hidden="true">✦</span>
+    {% if note.memo %}<strong class="held-thought__memo">{{ note.memo }}</strong>{% endif %}
+    <span class="held-thought__body">{{ note.body|truncatechars:320|linebreaksbr }}</span>
+</a>
+

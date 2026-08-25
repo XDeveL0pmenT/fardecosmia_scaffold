@@ -11,23 +11,31 @@ from characters.forms import (
     CharacterAssignmentForm,
     CharacterIdentityForm,
     CharacterInitialPlacementForm,
+    CharacterNoteForm,
 )
-from characters.models import Character
+from characters.models import Character, CharacterNote
+from characters.notes import (
+    CharacterNotesUnavailable,
+    get_active_note_character,
+    get_personal_note,
+    hold_personal_note,
+    personal_notes_for,
+    release_personal_note,
+    return_to_personal_note,
+)
 from characters.services import (
     CharacterConflict,
     CharacterLocationConflict,
     assign_character,
-    controlled_characters,
     create_character,
     get_effective_character_location,
-    get_active_character,
     initialize_character_location,
     set_active_character,
     set_character_archived,
     update_character,
 )
+from characters.workspace import build_character_workspace_context
 from world.services.access import require_campaign_gm, require_campaign_member
-from world.services.ambience import build_character_ambience
 from world.services.atlas import build_atlas_config
 
 
@@ -270,20 +278,13 @@ def player_character_list(request, campaign_id):
     membership = require_campaign_member(request.user, campaign)
     if membership is None or membership.role != CampaignMembership.Role.PLAYER:
         raise PermissionDenied("Для рабочего пространства персонажа нужно участие в кампании.")
-    characters = list(controlled_characters(membership=membership))
-    active_character = get_active_character(request.user, campaign)
-    character_ambience = build_character_ambience(active_character, campaign)
     return render(
         request,
         "characters/character_workspace.html",
-        {
-            "campaign": campaign,
-            "membership": membership,
-            "characters": characters,
-            "active_character": active_character,
-            "character_location_available": character_ambience.location_available,
-            "character_ambience": character_ambience,
-        },
+        build_character_workspace_context(
+            campaign=campaign,
+            membership=membership,
+        ),
     )
 
 
@@ -302,3 +303,151 @@ def player_character_switch(request, campaign_id):
         raise PermissionDenied("Нельзя выбрать этого персонажа.")
     messages.success(request, f"Теперь активный персонаж — {character.name}.")
     return redirect("campaigns:campaign_detail", campaign_id=campaign.pk)
+
+
+def _thought_context(*, campaign, character, **extra):
+    from world.services.ambience import build_character_ambience
+
+    return {
+        "campaign": campaign,
+        "active_character": character,
+        "character_ambience": build_character_ambience(character, campaign),
+        **extra,
+    }
+
+
+@login_required
+def personal_note_list(request, campaign_id):
+    from django.core.paginator import Paginator
+
+    campaign = _campaign(campaign_id)
+    character, notes = personal_notes_for(
+        actor=request.user,
+        campaign=campaign,
+    )
+    page = Paginator(notes, 24).get_page(request.GET.get("page"))
+    return render(
+        request,
+        "characters/personal_note_list.html",
+        _thought_context(campaign=campaign, character=character, page=page),
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def personal_note_hold(request, campaign_id):
+    campaign = _campaign(campaign_id)
+    _membership, character = get_active_note_character(
+        actor=request.user,
+        campaign=campaign,
+    )
+    form = CharacterNoteForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            note = hold_personal_note(
+                actor=request.user,
+                campaign=campaign,
+                memo=form.cleaned_data["memo"],
+                body=form.cleaned_data["body"],
+            )
+        except CharacterNotesUnavailable:
+            raise PermissionDenied("Активный персонаж изменился.")
+        messages.success(request, "Мысль удержана.")
+        return redirect("characters:personal_note_detail", campaign.pk, note.pk)
+    return render(
+        request,
+        "characters/personal_note_form.html",
+        _thought_context(
+            campaign=campaign,
+            character=character,
+            form=form,
+            editing=False,
+        ),
+    )
+
+
+@login_required
+def personal_note_detail(request, campaign_id, note_id):
+    campaign = _campaign(campaign_id)
+    try:
+        character, note = get_personal_note(
+            actor=request.user,
+            campaign=campaign,
+            note_id=note_id,
+        )
+    except CharacterNote.DoesNotExist as error:
+        raise Http404("Мысль не найдена.") from error
+    return render(
+        request,
+        "characters/personal_note_detail.html",
+        _thought_context(campaign=campaign, character=character, note=note),
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def personal_note_return(request, campaign_id, note_id):
+    campaign = _campaign(campaign_id)
+    try:
+        character, note = get_personal_note(
+            actor=request.user,
+            campaign=campaign,
+            note_id=note_id,
+        )
+    except CharacterNote.DoesNotExist as error:
+        raise Http404("Мысль не найдена.") from error
+    form = CharacterNoteForm(request.POST or None, instance=note)
+    if request.method == "POST" and form.is_valid():
+        try:
+            note = return_to_personal_note(
+                actor=request.user,
+                campaign=campaign,
+                note_id=note.pk,
+                memo=form.cleaned_data["memo"],
+                body=form.cleaned_data["body"],
+            )
+        except CharacterNote.DoesNotExist as error:
+            raise Http404("Мысль не найдена.") from error
+        messages.success(request, "Мысль вновь обрела форму.")
+        return redirect("characters:personal_note_detail", campaign.pk, note.pk)
+    return render(
+        request,
+        "characters/personal_note_form.html",
+        _thought_context(
+            campaign=campaign,
+            character=character,
+            form=form,
+            editing=True,
+            note=note,
+        ),
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def personal_note_release(request, campaign_id, note_id):
+    campaign = _campaign(campaign_id)
+    try:
+        character, note = get_personal_note(
+            actor=request.user,
+            campaign=campaign,
+            note_id=note_id,
+        )
+    except CharacterNote.DoesNotExist as error:
+        raise Http404("Мысль не найдена.") from error
+    if request.method == "POST":
+        try:
+            release_personal_note(
+                actor=request.user,
+                campaign=campaign,
+                note_id=note.pk,
+            )
+        except CharacterNote.DoesNotExist as error:
+            raise Http404("Мысль не найдена.") from error
+        messages.success(request, "Мысль отпущена.")
+        return redirect("characters:personal_note_list", campaign.pk)
+    return render(
+        request,
+        "characters/personal_note_release.html",
+        _thought_context(campaign=campaign, character=character, note=note),
+    )
