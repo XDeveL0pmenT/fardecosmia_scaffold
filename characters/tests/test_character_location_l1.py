@@ -290,7 +290,7 @@ class CharacterLocationViewTests(CharacterLocationL1Mixin, TestCase):
         response = self.client.get(
             reverse("campaigns:campaign_detail", args=[self.campaign.pk])
         )
-        self.assertContains(response, "Ваше положение отражено.")
+        self.assertContains(response, "Точка пути различима.")
         for hidden in (
             "17.123456",
             "-88.654321",

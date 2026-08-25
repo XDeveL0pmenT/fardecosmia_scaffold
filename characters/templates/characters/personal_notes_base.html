@@ -2,13 +2,18 @@
 {% load static %}
 {% block title %}Удержанные мысли — {{ active_character.name }} — Фардекосмия{% endblock %}
 {% block content %}
-{% include "world/_ambient_layers.html" with ambience=character_ambience ambient_scope="character" %}
+<div class="memory-space-ambience" aria-hidden="true" data-memory-space>
+    <span class="memory-space-ambience__depth"></span>
+    <span class="memory-space-ambience__mote memory-space-ambience__mote--one"></span>
+    <span class="memory-space-ambience__mote memory-space-ambience__mote--two"></span>
+    <span class="memory-space-ambience__mote memory-space-ambience__mote--three"></span>
+</div>
 <div class="character-worldspace held-thought-space">
     <header class="held-thought-space__header">
         <a class="held-thought-space__return" href="{% url 'campaigns:campaign_detail' campaign.id %}">← Вернуться к отражению</a>
         <p class="panel-kicker">Следы памяти</p>
         <h1>Удержанные мысли</h1>
-        <p>Здесь остаётся то, что {{ active_character.name }} не желает потерять.</p>
+        <p>Здесь остаётся то, что не должно исчезнуть.</p>
     </header>
     {% block thought_content %}{% endblock %}
 </div>
@@ -17,4 +22,3 @@
 {{ block.super }}
 <script src="{% static 'js/held-thoughts.js' %}?v=n1-1"></script>
 {% endblock %}
-

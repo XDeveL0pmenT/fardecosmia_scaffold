@@ -430,7 +430,7 @@ class PersonalNotePresentationTests(PersonalNotesN1Mixin, TestCase):
         response = self.client.get(self.hold_url())
         self.assertContains(response, "Желаете дать памятку этой мысли?")
         self.assertContains(response, "Что вы хотите сохранить в памяти?")
-        self.assertContains(response, "Оставить без памятки")
+        self.assertContains(response, "оставить без памятки")
         self.assertContains(response, ">Удержать<", html=False)
         for forbidden in ("Создать заметку", "Title", "Content", "Save", "Author", "Created at"):
             self.assertNotContains(response, forbidden)
@@ -443,10 +443,13 @@ class PersonalNotePresentationTests(PersonalNotesN1Mixin, TestCase):
         self.assertIn("@media (prefers-reduced-motion: reduce)", css)
         self.assertIn(".held-thought", css)
         self.assertIn("animation: none !important", css)
+        self.assertIn("memory-writing-manifest", css)
+        self.assertIn("prefers-reduced-motion", script)
+        self.assertIn("compositionend", script)
         self.assertIn("data-thought-step", script)
         self.assertNotIn("innerHTML", script)
 
-    def test_pw2_ambience_remains_on_workspace_and_notes_pages(self):
+    def test_workspace_keeps_pw2_but_notes_use_neutral_memory_space(self):
         self.client.force_login(self.player_a)
         workspace = self.client.get(
             reverse("campaigns:campaign_detail", args=[self.campaign.pk])
@@ -455,7 +458,36 @@ class PersonalNotePresentationTests(PersonalNotesN1Mixin, TestCase):
         self.assertIn("character_ambience", workspace.context)
         self.assertIn("character_ambience", notes.context)
         self.assertContains(workspace, 'class="ambient-scene ambient-scene--neutral character-ambience"', html=False)
-        self.assertContains(notes, 'class="ambient-scene ambient-scene--neutral character-ambience"', html=False)
+        self.assertNotContains(notes, 'class="ambient-scene', html=False)
+        self.assertContains(notes, 'data-memory-space', html=False)
+        self.assertNotContains(notes, 'data-condition=', html=False)
+
+    def test_ux11_character_facing_copy_avoids_meta_character_wording(self):
+        self.client.force_login(self.player_a)
+        workspace = self.client.get(
+            reverse("campaigns:campaign_detail", args=[self.campaign.pk])
+        )
+        notes = self.client.get(self.list_url())
+        hold = self.client.get(self.hold_url())
+        for response in (workspace, notes, hold):
+            for forbidden in (
+                "ваш персонаж",
+                "персонаж знает",
+                "данные отсутствуют",
+                "список пуст",
+            ):
+                self.assertNotContains(response, forbidden)
+        self.assertNotContains(hold, "Она может остаться без памятки")
+        self.assertNotContains(hold, "Слова останутся только")
+
+    def test_ux11_workspace_modules_are_reflection_nodes_not_generic_panels(self):
+        self.client.force_login(self.player_a)
+        workspace = self.client.get(
+            reverse("campaigns:campaign_detail", args=[self.campaign.pk])
+        )
+        self.assertContains(workspace, 'class="workspace-module workspace-module--tiamana"', html=False)
+        self.assertNotContains(workspace, 'class="panel workspace-module', html=False)
+        self.assertContains(workspace, 'class="reflection-action reflection-action--manifest"', html=False)
 
 
 class CharacterNoteMigrationTests(TransactionTestCase):

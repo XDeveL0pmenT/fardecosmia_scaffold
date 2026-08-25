@@ -8,10 +8,9 @@
         {% if note.memo %}<strong>{{ note.memo }}</strong>{% endif %}
         <form method="post">
             {% csrf_token %}
-            <a class="button button--ghost" href="{% url 'characters:personal_note_detail' campaign.id note.id %}">Оставить</a>
-            <button class="button button--danger" type="submit">Отпустить</button>
+            <a class="memory-action memory-action--quiet" href="{% url 'characters:personal_note_detail' campaign.id note.id %}">Оставить</a>
+            <button class="memory-action memory-action--release" type="submit">Отпустить</button>
         </form>
     </section>
 </main>
 {% endblock %}
-

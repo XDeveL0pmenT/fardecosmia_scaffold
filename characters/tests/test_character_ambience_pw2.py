@@ -243,7 +243,7 @@ class CharacterAmbiencePW2Tests(TestCase):
         ambience = response.context["character_ambience"]
         self.assertFalse(ambience.has_environment)
         self.assertTrue(ambience.location_available)
-        self.assertContains(response, "Ваше положение отражено.")
+        self.assertContains(response, "Точка пути различима.")
         self.assertContains(response, 'data-ambience="neutral"')
 
     @patch("world.services.ambience.sample_campaign_environment_state_at")

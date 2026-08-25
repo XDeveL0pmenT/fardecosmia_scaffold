@@ -168,7 +168,7 @@ class CampaignLifecycleTests(TestCase):
         CampaignMembership.objects.create(campaign=campaign, user=player)
         self.client.force_login(player)
         detail = self.client.get(reverse("campaigns:campaign_detail", args=[campaign.pk]))
-        self.assertContains(detail, "Персонаж ещё не назначен")
+        self.assertContains(detail, "Отражение ещё не обрело облик")
         self.assertNotContains(detail, "Мои запросы")
         self.assertNotContains(detail, "Управлять участниками")
 
@@ -458,7 +458,7 @@ class InvitationTests(TestCase):
             reverse("campaigns:invitation_resume_accept"),
             follow=True,
         )
-        self.assertContains(accepted, "Персонаж ещё не назначен")
+        self.assertContains(accepted, "Отражение ещё не обрело облик")
         self.assertNotContains(accepted, "Мои запросы")
         user = User.objects.get(username="new-person")
         self.assertTrue(user.has_verified_email)

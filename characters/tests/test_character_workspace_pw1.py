@@ -103,7 +103,7 @@ class CharacterWorkspacePW1Tests(TestCase):
     def test_no_character_is_human_empty_state_without_placeholder_row(self):
         before = Character.objects.count()
         response = self.open_campaign()
-        self.assertContains(response, "Персонаж ещё не назначен")
+        self.assertContains(response, "Отражение ещё не обрело облик")
         self.assertContains(response, "Вернуться ко всем кампаниям")
         self.assertEqual(Character.objects.count(), before)
 
@@ -111,9 +111,12 @@ class CharacterWorkspacePW1Tests(TestCase):
         first = self.character(name="Аэрион", owner=self.player_membership)
         second = self.character(name="Торвин", owner=self.player_membership)
         response = self.open_campaign()
-        self.assertContains(response, "Выберите активного персонажа")
-        self.assertContains(response, "Играть за Аэрион")
-        self.assertContains(response, "Играть за Торвин")
+        self.assertContains(response, "Какое отражение отзовётся?")
+        self.assertContains(response, "Откликнуться: Аэрион")
+        self.assertContains(response, "Откликнуться: Торвин")
+        self.assertNotContains(response, 'class="panel character-choice', html=False)
+        self.assertNotContains(response, 'class="button" type="submit">Откликнуться', html=False)
+        self.assertContains(response, 'class="reflection-action reflection-action--manifest"', html=False)
         self.assertIsNone(response.context["active_character"])
 
         switch = self.client.post(
@@ -285,4 +288,3 @@ class CharacterWorkspacePW1Tests(TestCase):
             )
         self.assertEqual(response.status_code, 200)
         self.assertLessEqual(len(queries), 12)
-

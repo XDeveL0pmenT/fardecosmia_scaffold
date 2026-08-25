@@ -1,8 +1,8 @@
 {% extends "characters/personal_notes_base.html" %}
 {% block thought_content %}
-<main class="held-thought-index" aria-label="Мысли персонажа {{ active_character.name }}">
+<main class="held-thought-index" aria-label="Удержанные мысли">
     <div class="held-thought-index__actions">
-        <a class="button" href="{% url 'characters:personal_note_hold' campaign.id %}">Удержать мысль</a>
+        <a class="memory-action memory-action--manifest" href="{% url 'characters:personal_note_hold' campaign.id %}"><span aria-hidden="true">✦</span> Удержать мысль</a>
     </div>
     {% if page.object_list %}
         <section class="held-thought-grid" aria-label="Удержанные мысли">
@@ -12,8 +12,8 @@
         </section>
         {% if page.has_other_pages %}
             <nav class="held-thought-pagination" aria-label="Переход между мыслями">
-                {% if page.has_previous %}<a class="button button--ghost" href="?page={{ page.previous_page_number }}">Более близкие мысли</a>{% endif %}
-                {% if page.has_next %}<a class="button button--ghost" href="?page={{ page.next_page_number }}">Более далёкие мысли</a>{% endif %}
+                {% if page.has_previous %}<a class="memory-action memory-action--quiet" href="?page={{ page.previous_page_number }}">Более близкие мысли</a>{% endif %}
+                {% if page.has_next %}<a class="memory-action memory-action--quiet" href="?page={{ page.next_page_number }}">Более далёкие мысли</a>{% endif %}
             </nav>
         {% endif %}
     {% else %}
@@ -25,4 +25,3 @@
     {% endif %}
 </main>
 {% endblock %}
-

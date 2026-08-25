@@ -15,23 +15,23 @@
                     {% endif %}
                 </div>
                 <div class="character-identity__copy">
-                    <p class="eyebrow">Ваш взгляд устремлен на ваше отражение дорогой Vermin.</p>
+                    <p class="eyebrow">Взгляд обращён внутрь, к отражению, Vermin.</p>
                     <h1>{{ active_character.name }}</h1>
-                    <p class="lead">{{ active_character.biography|default:"История этого персонажа ещё не обрела слов."|linebreaksbr }}</p>
+                    <p class="lead">{{ active_character.biography|default:"История ещё не обрела слов."|linebreaksbr }}</p>
                 </div>
             </div>
 
             {% if characters|length > 1 %}
                 <form class="character-switcher" method="post" action="{% url 'characters:switch_active' campaign.id %}">
                     {% csrf_token %}
-                    <label for="active-character-choice">Сменить персонажа</label>
+                    <label for="active-character-choice">Сменить отражение</label>
                     <div class="character-switcher__controls">
                         <select id="active-character-choice" name="character">
                             {% for character in characters %}
                                 <option value="{{ character.id }}"{% if character == active_character %} selected{% endif %}>{{ character.name }}</option>
                             {% endfor %}
                         </select>
-                        <button class="button button--ghost" type="submit">Выбрать</button>
+                        <button class="reflection-action reflection-action--quiet" type="submit">Продолжить</button>
                     </div>
                 </form>
             {% endif %}
@@ -40,20 +40,20 @@
                 <span aria-hidden="true">✧</span>
                 <div>
                     <p class="eyebrow">Кампания «{{ campaign.name }}»</p>
-                    <h1>Выберите активного персонажа</h1>
-                    <p class="lead">Несколько судеб откликаются вам. Выберите, чьим взглядом продолжить путь.</p>
+                    <h1>Какое отражение отзовётся?</h1>
+                    <p class="lead">Несколько судеб проступают рядом. Чей взгляд продолжит путь?</p>
                 </div>
             </div>
-            <div class="character-choice-grid" aria-label="Доступные персонажи">
+            <div class="character-choice-grid" aria-label="Доступные отражения">
                 {% for character in characters %}
-                    <form class="panel character-choice" method="post" action="{% url 'characters:switch_active' campaign.id %}">
+                    <form class="character-choice reflection-choice" method="post" action="{% url 'characters:switch_active' campaign.id %}">
                         {% csrf_token %}
                         <input type="hidden" name="character" value="{{ character.id }}">
                         <div class="character-choice__portrait" aria-hidden="true">
                             {% if character.portrait %}<img src="{{ character.portrait.url }}" alt="">{% else %}<span>✦</span>{% endif %}
                         </div>
                         <div><h2>{{ character.name }}</h2><p>{{ character.biography|default:"Краткое описание пока не добавлено."|truncatechars:150 }}</p></div>
-                        <button class="button" type="submit">Играть за {{ character.name }}</button>
+                        <button class="reflection-action reflection-action--manifest" type="submit">Откликнуться: {{ character.name }}</button>
                     </form>
                 {% endfor %}
             </div>
@@ -62,8 +62,8 @@
                 <span aria-hidden="true">✧</span>
                 <div>
                     <p class="eyebrow">Кампания «{{ campaign.name }}»</p>
-                    <h1>Персонаж ещё не назначен</h1>
-                    <p class="lead">Game Master пока не связал вас с персонажем этой истории.</p>
+                    <h1>Отражение ещё не обрело облик</h1>
+                    <p class="lead">Ни одна судьба этой истории пока не отозвалась.</p>
                     <a class="button button--ghost" href="{% url 'campaigns:list' %}">Вернуться ко всем кампаниям</a>
                 </div>
             </div>
@@ -71,38 +71,38 @@
     </header>
 
     {% if active_character %}
-        <main class="character-workspace" aria-label="Пространство персонажа {{ active_character.name }}">
+        <main class="character-workspace" aria-label="Отражение {{ active_character.name }}">
             <section class="character-workspace__grid">
-                <article class="panel workspace-module workspace-module--tiamana">
+                <article class="workspace-module workspace-module--tiamana">
                     <div class="workspace-module__sigil" aria-hidden="true">◇</div>
                     <p class="panel-kicker">Внутренний путь</p><h2>Тиамана</h2>
-                    <p>Её линии пока остаются спокойны.</p>
+                    <p>Внутренние линии остаются недвижимы.</p>
                 </article>
-                <article class="panel workspace-module workspace-module--quests">
+                <article class="workspace-module workspace-module--quests">
                     <div class="workspace-module__sigil" aria-hidden="true">↟</div>
                     <p class="panel-kicker">Нити пути</p><h2>Активные квесты</h2>
-                    <p>Здесь пока нет открытых записей.</p>
+                    <p>Нити пути ещё не проступили.</p>
                 </article>
-                <article class="panel workspace-module workspace-module--map">
+                <article class="workspace-module workspace-module--map">
                     <div class="workspace-module__sigil" aria-hidden="true">⌖</div>
                     <p class="panel-kicker">Окружающий мир</p><h2>Карта</h2>
                     {% if character_location_available %}
-                        <p>Ваше положение отражено.</p>
+                        <p>Точка пути различима.</p>
                     {% else %}
-                        <p>Положение персонажа пока не отражено.</p>
+                        <p>Путь ещё не обрёл точки.</p>
                     {% endif %}
                 </article>
-                <article class="panel workspace-module workspace-module--life">
+                <article class="workspace-module workspace-module--life">
                     <div class="workspace-module__sigil" aria-hidden="true">⌂</div>
                     <p class="panel-kicker">Повседневность</p><h2>Быт / Обязательства</h2>
-                    <p>Сведения о быте пока не отражены.</p>
+                    <p>Очертания повседневности пока молчат.</p>
                 </article>
-                <article class="panel workspace-module workspace-module--party">
+                <article class="workspace-module workspace-module--party">
                     <div class="workspace-module__sigil" aria-hidden="true">✦</div>
                     <p class="panel-kicker">Те, кто рядом</p><h2>Команда</h2>
-                    <p>Связи команды пока не проявлены.</p>
+                    <p>Связи ещё не проявились.</p>
                 </article>
-                <article class="panel workspace-module workspace-module--notes">
+                <article class="workspace-module workspace-module--notes">
                     <div class="workspace-module__sigil" aria-hidden="true">✎</div>
                     <p class="panel-kicker">Заметки</p><h2>Удержанные мысли</h2>
                     {% if held_thoughts_preview %}
@@ -112,31 +112,31 @@
                             {% endfor %}
                         </div>
                     {% else %}
-                        <p>Ни одна мысль пока не удержана.</p>
+                        <p>Память пока безмолвна.</p>
                     {% endif %}
                     <div class="workspace-thought-actions">
-                        <a class="button button--ghost" href="{% url 'characters:personal_note_list' campaign.id %}">Все мысли</a>
-                        <a class="button" href="{% url 'characters:personal_note_hold' campaign.id %}">Удержать мысль</a>
+                        <a class="reflection-action reflection-action--quiet" href="{% url 'characters:personal_note_list' campaign.id %}">Все мысли</a>
+                        <a class="reflection-action reflection-action--manifest" href="{% url 'characters:personal_note_hold' campaign.id %}"><span aria-hidden="true">✦</span> Удержать мысль</a>
                     </div>
                 </article>
-                <article class="panel workspace-module workspace-module--apotheosis">
+                <article class="workspace-module workspace-module--apotheosis">
                     <div class="workspace-module__sigil" aria-hidden="true">△</div>
                     <p class="panel-kicker">Сокрытый контур</p><h2>Apotheosis</h2>
-                    <p>Его очертания пока молчат.</p>
+                    <p>Сокрытый контур остаётся безмолвным.</p>
                 </article>
             </section>
 
-            <section class="panel workspace-inventory">
-                <div><p class="panel-kicker">При персонаже</p><h2>Инвентарь</h2></div>
-                <p>Список вещей пока не отражён.</p>
+            <section class="workspace-inventory">
+                <div><p class="panel-kicker">При себе</p><h2>Инвентарь</h2></div>
+                <p>Вещи ещё не проступили.</p>
             </section>
 
-            <aside class="workspace-hud" aria-label="Состояние персонажа">
+            <aside class="workspace-hud" aria-label="Состояние отражения">
                 <div class="workspace-hud__anchor workspace-hud__anchor--soul" data-xp-hud-anchor>
-                    <span aria-hidden="true">◇</span><div><small>Развитие</small><strong>Путь не отражён</strong></div>
+                    <span aria-hidden="true">◇</span><div><small>Развитие</small><strong>Путь ещё не проявлен</strong></div>
                 </div>
                 <div class="workspace-hud__anchor workspace-hud__anchor--money" data-money-hud-anchor>
-                    <span aria-hidden="true">◈</span><div><small>Кошель</small><strong>Баланс не отражён</strong></div>
+                    <span aria-hidden="true">◈</span><div><small>Кошель</small><strong>Вес монет ещё не различим</strong></div>
                 </div>
             </aside>
         </main>

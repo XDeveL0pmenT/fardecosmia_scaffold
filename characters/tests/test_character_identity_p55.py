@@ -409,14 +409,14 @@ class CharacterPermissionAndUITests(CharacterP55Mixin, TestCase):
     def test_player_empty_state_and_multiple_selector(self):
         self.client.force_login(self.player)
         response = self.client.get(reverse("characters:player_list", args=[self.campaign_a.pk]))
-        self.assertContains(response, "Персонаж ещё не назначен")
+        self.assertContains(response, "Отражение ещё не обрело облик")
         self.character(owner=self.player_membership, name="Один")
         self.character(owner=self.player_membership, name="Два")
         response = self.client.get(reverse("campaigns:campaign_detail", args=[self.campaign_a.pk]))
-        self.assertContains(response, "Выберите активного персонажа")
+        self.assertContains(response, "Какое отражение отзовётся?")
         response = self.client.get(reverse("characters:player_list", args=[self.campaign_a.pk]))
-        self.assertContains(response, "Играть за Один")
-        self.assertContains(response, "Играть за Два")
+        self.assertContains(response, "Откликнуться: Один")
+        self.assertContains(response, "Откликнуться: Два")
 
     def test_player_only_sees_controlled_character_and_no_technical_payload(self):
         own = self.character(owner=self.player_membership, name="Свой")
