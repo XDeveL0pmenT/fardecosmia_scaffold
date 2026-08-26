@@ -6538,6 +6538,151 @@ html.memory-field-is-settling .held-thought:not(.is-newly-held-in-field) {
     box-shadow: 0 0 64px rgba(17, 7, 34, 0.42);
 }
 
+/* UX1.3 focused polish — keep focused Memory surfaces inside shard geometry. */
+.held-thought {
+    isolation: isolate;
+    overflow: clip;
+    box-shadow: inset 0 0 42px rgba(225, 216, 251, 0.024);
+    filter: drop-shadow(0 18px 24px rgba(3, 3, 17, 0.12));
+}
+
+.held-thought:first-child {
+    --thought-shape: 0 12%, 18% 1%, 91% 5%, 100% 32%, 93% 94%, 16% 100%, 2% 72%;
+}
+
+.held-thought:hover,
+.held-thought:focus-visible {
+    box-shadow: inset 0 0 48px rgba(229, 221, 253, 0.042);
+    filter: drop-shadow(0 22px 30px rgba(8, 5, 28, 0.24));
+}
+
+.held-thought:focus-visible,
+.held-thought:has(:focus-visible) {
+    box-shadow:
+        inset 0 0 0 1px rgba(237, 233, 255, 0.58),
+        inset 0 0 48px rgba(229, 221, 253, 0.05);
+}
+
+.held-thought.is-focus-target {
+    box-shadow: inset 0 0 56px rgba(231, 223, 255, 0.055);
+    filter:
+        saturate(1.035)
+        brightness(1.035)
+        drop-shadow(0 25px 34px rgba(6, 4, 25, 0.3));
+}
+
+.held-thought-focus--release {
+    position: relative;
+    isolation: isolate;
+    grid-template-areas: "release-stage";
+    align-items: center;
+    width: min(920px, 100%);
+    min-height: min(72vh, 780px);
+    margin: clamp(-210px, -16vw, -145px) auto 0;
+    padding: clamp(34px, 6vw, 72px) clamp(8px, 3vw, 30px);
+}
+
+.held-thought-focus--release::before {
+    position: fixed;
+    z-index: -1;
+    inset: 0;
+    content: "";
+    background:
+        radial-gradient(ellipse at 50% 49%, rgba(42, 27, 58, 0.38), transparent 56%),
+        rgba(3, 3, 14, 0.58);
+    backdrop-filter: blur(6px) saturate(72%);
+}
+
+.held-thought-focus--release .held-thought--release-focus {
+    grid-area: release-stage;
+    align-self: stretch;
+    width: min(820px, 96%);
+    opacity: 0.27;
+    box-shadow: inset 0 0 64px rgba(226, 217, 249, 0.035);
+    filter:
+        saturate(0.62)
+        brightness(0.58)
+        blur(0.5px)
+        drop-shadow(0 22px 34px rgba(4, 3, 17, 0.22));
+    transform: scale(0.965);
+}
+
+.held-thought-focus--release .held-thought-release {
+    --release-shape: 2% 17%, 10% 3%, 90% 1%, 98% 16%, 96% 86%, 87% 98%, 9% 96%, 1% 75%;
+    position: relative;
+    isolation: isolate;
+    grid-area: release-stage;
+    align-self: center;
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+    overflow: clip;
+    width: min(560px, calc(100% - 44px));
+    margin: 0;
+    padding: clamp(34px, 5vw, 54px) clamp(30px, 6vw, 62px);
+    border: 0;
+    clip-path: polygon(var(--release-shape));
+    background:
+        radial-gradient(ellipse at 50% 18%, rgba(101, 69, 120, 0.18), transparent 56%),
+        linear-gradient(146deg, rgba(32, 22, 46, 0.96), rgba(8, 8, 22, 0.92));
+    box-shadow:
+        inset 0 0 0 1px rgba(228, 214, 247, 0.12),
+        inset 0 0 54px rgba(189, 158, 220, 0.04);
+    filter: drop-shadow(0 26px 42px rgba(8, 3, 19, 0.46));
+}
+
+.held-thought-focus--release .held-thought-release::before {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    pointer-events: none;
+    content: "";
+    background:
+        linear-gradient(118deg, transparent 0 31%, rgba(182, 157, 210, 0.06) 31.3% 48%, transparent 48.4%),
+        linear-gradient(14deg, transparent 0 70%, rgba(163, 201, 216, 0.055) 70.3%, transparent 71%);
+    box-shadow: inset 0 1px 0 rgba(238, 229, 250, 0.14);
+}
+
+.held-thought-focus--release .held-thought-release > * {
+    position: relative;
+    z-index: 1;
+}
+
+.held-thought-focus--release .held-thought-release > span {
+    margin-bottom: 2px;
+}
+
+.held-thought-focus--release .held-thought-release h2 {
+    margin: 8px 0 2px;
+}
+
+.held-thought-focus--release .held-thought-release p {
+    max-width: 30rem;
+    margin: 0;
+}
+
+.held-thought-focus--release .held-thought-release form {
+    align-items: center;
+    gap: clamp(16px, 3vw, 28px);
+    margin-top: 12px;
+}
+
+.held-thought-focus--release .held-thought-release form .memory-action {
+    min-width: 8.5rem;
+}
+
+@media (max-width: 760px) {
+    .held-thought-focus--release {
+        min-height: min(68vh, 700px);
+        margin-top: clamp(-120px, -20vw, -72px);
+        padding-inline: 0;
+    }
+
+    .held-thought-focus--release .held-thought-release {
+        width: min(100%, calc(100% - 18px));
+    }
+}
+
 /* Short fade/depth continuity without large slides or spring overshoot. */
 html.character-surface-is-leaving [data-character-surface] {
     opacity: 0;

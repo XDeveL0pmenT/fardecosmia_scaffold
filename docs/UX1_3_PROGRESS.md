@@ -187,11 +187,30 @@ immediately after this checkpoint.
 - No accepted UX1.3 visual, interaction or security defect remains after the
   Notes-label correction and targeted desktop/mobile recheck.
 
+## Focused Memory polish patch — completed
+
+- Scope remained frontend-only; no backend, model, permission, route, schema or
+  business-logic contract changed.
+- Root cause of the first-thought rectangle: the newly created/first thought can
+  retain programmatic keyboard focus, while the shared `.reflection-node`
+  focus rule supplied a rectangular outer `box-shadow`. Its original first-card
+  silhouette also had the least pronounced corners, which amplified the defect.
+- `held-thought` focus/hover ownership now uses clipped inset light plus
+  shape-aware `drop-shadow`; the card, `::before` and `::after` share the same
+  polygon and the container clips/isolate its glass layers.
+- The first thought now has an explicit angular shard silhouette, without a
+  rectangular highlight or mask.
+- Release confirmation was changed from a rectangular overlapping panel into a
+  centered glass shard in the same Memory Space stage. The scene dim/blur is a
+  single fixed layer; the selected thought remains a clipped shard behind it.
+- Targeted browser acceptance passed for first-thought hover/focus and the
+  open/release confirmation scene. The confirmation fits a 1280×720 viewport,
+  has no horizontal overflow, and retains POST + CSRF semantics.
+- Focused presentation regression: 14 tests — OK.
+- Full suite was intentionally not repeated for this narrow CSS-only patch.
+- Patch files: `static/css/app.css`, `templates/base.html`, and this checkpoint.
+
 ## Exact next step
 
-On an explicit future resume, create the standalone UX1.3 final report from
-this checkpoint and the existing 14 screenshots. Do not repeat implementation,
-browser acceptance, the 48-test related regression, the 491-test full suite or
-final checks. If strict OS-level evidence is still required, only the unresolved
-real tab-switch/window-blur observation remains; otherwise report and STOP.
+Focused UX1.3 Memory polish is complete. Report the targeted result and STOP.
 Do not begin P6 or any other gameplay phase.
