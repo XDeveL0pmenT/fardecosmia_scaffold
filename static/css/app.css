@@ -5926,3 +5926,785 @@ html.memory-field-is-settling .held-thought:not(.is-newly-held-in-field) {
         filter: none !important;
     }
 }
+
+/* UX1.3 — composed Dark Glass Shards and deterministic focus ownership. */
+.reflection-focus-field__glow {
+    display: none;
+}
+
+.reflection-focus-field {
+    transition: opacity 240ms ease, filter 240ms ease, transform 240ms ease;
+}
+
+.character-worldspace::before {
+    inset: -5%;
+    opacity: 0.24;
+    background:
+        radial-gradient(ellipse at 20% 18%, rgba(147, 126, 219, 0.055), transparent 29%),
+        radial-gradient(ellipse at 78% 70%, rgba(100, 178, 201, 0.035), transparent 35%);
+    transform: translate3d(var(--focus-bg-x), var(--focus-bg-y), 0) scale(1.018);
+}
+
+/* Identity is an anchor in the scene, not a hero card. */
+.character-worldspace__hero {
+    overflow: visible;
+    padding: clamp(28px, 5vw, 58px) clamp(8px, 2.5vw, 28px) clamp(22px, 4vw, 44px);
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+}
+
+.character-worldspace__hero::before {
+    inset: 8% auto auto 2%;
+    width: min(690px, 78vw);
+    height: 250px;
+    opacity: 0.26;
+    background:
+        linear-gradient(116deg, rgba(206, 198, 247, 0.11), transparent 1px) 0 22% / 82% 1px no-repeat,
+        linear-gradient(23deg, transparent 49.7%, rgba(151, 188, 218, 0.08) 50%, transparent 50.3%) 0 0 / 190px 100% repeat-x,
+        radial-gradient(ellipse at 26% 44%, rgba(162, 139, 226, 0.095), transparent 48%);
+    transform: translate3d(var(--focus-node-x), var(--focus-node-y), 0);
+}
+
+.character-worldspace__hero::after {
+    inset: 0;
+    opacity: 0.13;
+    mask-image: linear-gradient(90deg, #000, transparent 82%);
+}
+
+.character-identity {
+    position: relative;
+    grid-template-columns: 118px minmax(0, 1fr);
+    gap: clamp(22px, 3.4vw, 38px);
+    max-width: 860px;
+    padding: 14px 0 16px clamp(6px, 1.4vw, 16px);
+}
+
+.character-identity::after {
+    position: absolute;
+    right: 8%;
+    bottom: 0;
+    left: 3%;
+    height: 1px;
+    content: "";
+    opacity: 0.36;
+    background: linear-gradient(90deg, rgba(213, 204, 255, 0.48), rgba(133, 179, 206, 0.16) 46%, transparent 90%);
+}
+
+.character-identity__portrait {
+    width: 112px;
+    height: 126px;
+    border: 0;
+    border-radius: 0;
+    clip-path: polygon(8% 12%, 26% 0, 88% 5%, 100% 29%, 93% 91%, 68% 100%, 4% 86%, 0 31%);
+    background:
+        radial-gradient(circle at 48% 38%, rgba(121, 216, 220, 0.16), transparent 43%),
+        rgba(7, 8, 25, 0.74);
+    box-shadow: inset 0 0 0 1px rgba(205, 196, 255, 0.23), inset 0 0 34px rgba(120, 101, 202, 0.13);
+    filter: drop-shadow(0 13px 26px rgba(2, 3, 17, 0.34));
+}
+
+.character-identity__copy h1 {
+    margin: 5px 0 9px;
+    font-size: clamp(2.2rem, 5vw, 4.1rem);
+    letter-spacing: -0.035em;
+    text-shadow: 0 0 32px rgba(198, 184, 244, 0.12);
+}
+
+.character-identity__copy .lead {
+    max-width: 650px;
+    color: rgba(211, 205, 230, 0.78);
+    font-size: 0.98rem;
+    line-height: 1.65;
+}
+
+.character-identity__facet {
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.42;
+    border: solid rgba(197, 188, 240, 0.13);
+    transform: translate3d(var(--focus-node-x), var(--focus-node-y), 0);
+}
+
+.character-identity__facet--near {
+    top: 2px;
+    left: -12px;
+    width: 152px;
+    height: 146px;
+    border-width: 1px 0 0 1px;
+    clip-path: polygon(0 15%, 22% 0, 100% 7%, 88% 100%, 4% 84%);
+}
+
+.character-identity__facet--far {
+    top: 25px;
+    left: 78px;
+    width: 210px;
+    height: 108px;
+    border-width: 0 1px 1px 0;
+    opacity: 0.22;
+    transform: translate3d(var(--focus-node-x), var(--focus-node-y), 0);
+}
+
+.character-switcher {
+    max-width: 470px;
+    margin-top: 20px;
+    gap: 5px;
+    opacity: 0.72;
+    transition: opacity 180ms ease;
+}
+
+.character-switcher:focus-within,
+.character-switcher:hover { opacity: 1; }
+
+.character-switcher select {
+    min-height: 40px;
+    border-color: rgba(181, 166, 255, 0.14);
+    border-radius: 5px 13px 5px 11px;
+    background: rgba(7, 8, 24, 0.66);
+}
+
+/* One material language, six curated silhouettes. */
+.reflection-node {
+    --node-scale: 1;
+    --node-light-alpha: 0;
+    --node-edge-alpha: 0.16;
+    --shard-shape: 0 14%, 9% 2%, 89% 0, 100% 21%, 96% 88%, 84% 100%, 9% 96%, 0 77%;
+    transform: translate3d(var(--focus-node-x), var(--focus-node-y), 0) scale(var(--node-scale));
+    transform-origin: 50% 50%;
+    transition:
+        transform 230ms cubic-bezier(0.22, 0.7, 0.24, 1),
+        opacity 210ms ease,
+        filter 230ms ease,
+        box-shadow 210ms ease;
+}
+
+.reflection-node--shard-a {
+    --shard-shape: 0 14%, 9% 2%, 89% 0, 100% 21%, 96% 88%, 84% 100%, 9% 96%, 0 77%;
+}
+
+.reflection-node--shard-b {
+    --shard-shape: 3% 0, 94% 4%, 100% 28%, 97% 82%, 89% 100%, 7% 95%, 0 69%, 1% 19%;
+}
+
+.reflection-node--shard-c {
+    --shard-shape: 0 9%, 18% 1%, 90% 0, 100% 31%, 95% 96%, 17% 100%, 2% 78%;
+}
+
+.reflection-node--shard-soft {
+    --shard-shape: 2% 12%, 12% 3%, 91% 2%, 99% 18%, 97% 87%, 88% 97%, 8% 98%, 1% 76%;
+}
+
+.reflection-node--shard-wide {
+    --shard-shape: 0 17%, 5% 3%, 95% 1%, 100% 20%, 98% 84%, 90% 99%, 8% 97%, 0 79%;
+}
+
+.reflection-node--material {
+    --shard-shape: 0 20%, 4% 4%, 96% 2%, 100% 22%, 98% 82%, 93% 97%, 6% 100%, 0 78%;
+}
+
+.reflection-node:hover,
+.reflection-node:focus-within {
+    --node-scale: 1;
+}
+
+.reflection-node.is-focus-target {
+    --node-scale: 1.022;
+    --node-edge-alpha: 0.36;
+    z-index: 4;
+    opacity: 1;
+    filter: saturate(1.045) brightness(1.035);
+}
+
+.reflection-node.is-node-light-active {
+    --node-light-alpha: 0.105;
+}
+
+.reflection-node.is-focus-target:not(.is-node-light-active) {
+    --node-light-alpha: 0.055;
+}
+
+.reflection-node:focus-visible,
+.reflection-node:focus-within {
+    outline: none;
+}
+
+.reflection-node:focus-visible,
+.reflection-node:has(:focus-visible) {
+    box-shadow: 0 0 0 1px rgba(237, 233, 255, 0.6), 0 0 36px rgba(139, 117, 203, 0.16);
+}
+
+.reflection-focus-field.has-node-focus .reflection-node:not(.is-focus-target) {
+    --node-scale: 0.992;
+    opacity: 0.74;
+    filter: saturate(0.88) brightness(0.88);
+}
+
+.character-workspace {
+    gap: clamp(28px, 4.5vw, 52px);
+    padding-top: 0;
+}
+
+.character-workspace__grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: stretch;
+    gap: clamp(26px, 3.8vw, 48px) clamp(20px, 2.7vw, 32px);
+}
+
+.character-workspace__grid::before {
+    inset: 5% 10%;
+    opacity: 0.55;
+    background: radial-gradient(ellipse, rgba(118, 98, 188, 0.07), transparent 72%);
+    filter: blur(30px);
+    translate: var(--focus-node-x) var(--focus-node-y);
+}
+
+.workspace-module {
+    --node-shape: var(--shard-shape);
+    isolation: isolate;
+    grid-column: span 6;
+    min-height: 178px;
+    padding: clamp(30px, 3.9vw, 43px) clamp(29px, 4.1vw, 46px);
+    border: 0;
+    border-radius: 0;
+    clip-path: polygon(var(--shard-shape));
+    opacity: 0.9;
+    background:
+        radial-gradient(circle 190px at var(--node-focus-x) var(--node-focus-y), rgb(232 226 255 / var(--node-light-alpha)), transparent 70%),
+        linear-gradient(146deg, rgba(31, 31, 61, 0.79), rgba(12, 14, 35, 0.72) 58%, rgba(5, 7, 21, 0.52));
+    box-shadow: inset 0 0 54px rgba(187, 179, 231, 0.028), 0 17px 44px rgba(2, 3, 17, 0.14);
+    backdrop-filter: blur(11px) saturate(108%);
+}
+
+.workspace-module::before,
+.workspace-module:hover::before,
+.workspace-module:focus-visible::before,
+.workspace-module:focus-within::before {
+    z-index: -1;
+    inset: 0;
+    opacity: 0.64;
+    clip-path: polygon(var(--shard-shape));
+    background:
+        radial-gradient(ellipse at 30% 28%, rgba(115, 137, 188, 0.06), transparent 44%),
+        linear-gradient(122deg, transparent 0 30%, rgba(129, 115, 188, 0.045) 30.2% 48%, transparent 48.3%);
+    box-shadow: inset 0 -34px 62px rgba(1, 2, 12, 0.19);
+}
+
+.workspace-module::after {
+    inset: 0;
+    border-radius: 0;
+    opacity: 0.48;
+    clip-path: polygon(var(--shard-shape));
+    background:
+        linear-gradient(113deg, transparent 0 68%, rgba(155, 204, 226, 0.09) 68.3%, transparent 69%),
+        linear-gradient(17deg, transparent 0 31%, rgba(173, 147, 223, 0.07) 31.3%, transparent 32%);
+    box-shadow:
+        inset 0 1px 0 rgb(233 229 255 / var(--node-edge-alpha)),
+        inset 1px 0 0 rgba(154, 191, 220, 0.12),
+        inset -1px -1px 0 rgba(94, 71, 143, 0.08);
+    transition: opacity 150ms ease, box-shadow 180ms ease;
+}
+
+.workspace-module.is-focus-target::before { opacity: 0.78; }
+.workspace-module.is-focus-target::after { opacity: 0.76; }
+
+.workspace-module:hover,
+.workspace-module:focus-within {
+    border-color: transparent;
+    box-shadow: inset 0 0 54px rgba(187, 179, 231, 0.028), 0 17px 44px rgba(2, 3, 17, 0.14);
+}
+
+.workspace-module.is-focus-target {
+    box-shadow: inset 0 0 58px rgba(206, 198, 244, 0.05), 0 22px 55px rgba(2, 3, 19, 0.25);
+}
+
+/* Controlled asymmetry: three balanced pairs and one calm material band. */
+.workspace-module--tiamana,
+.workspace-module--map,
+.workspace-module--notes {
+    grid-column: 1 / span 6;
+    margin: 0;
+}
+
+.workspace-module--quests,
+.workspace-module--life,
+.workspace-module--apotheosis {
+    grid-column: 7 / span 6;
+    margin: 0;
+}
+
+.workspace-module--party {
+    grid-column: 2 / span 10;
+    min-height: 150px;
+    margin: clamp(3px, 1vw, 10px) 0;
+}
+
+.workspace-module--tiamana {
+    background:
+        radial-gradient(circle 190px at var(--node-focus-x) var(--node-focus-y), rgb(232 226 255 / var(--node-light-alpha)), transparent 70%),
+        linear-gradient(146deg, rgba(33, 28, 66, 0.8), rgba(11, 13, 35, 0.62));
+}
+
+.workspace-module--map {
+    background:
+        radial-gradient(circle 190px at var(--node-focus-x) var(--node-focus-y), rgb(217 235 245 / var(--node-light-alpha)), transparent 70%),
+        linear-gradient(146deg, rgba(20, 38, 58, 0.77), rgba(8, 13, 31, 0.62));
+}
+
+.workspace-module--life {
+    background:
+        radial-gradient(circle 190px at var(--node-focus-x) var(--node-focus-y), rgb(240 226 205 / var(--node-light-alpha)), transparent 70%),
+        linear-gradient(146deg, rgba(43, 34, 51, 0.76), rgba(12, 12, 30, 0.64));
+}
+
+.workspace-module--apotheosis { opacity: 0.72; }
+
+.workspace-module__sigil {
+    color: rgba(207, 199, 245, 0.64);
+    filter: drop-shadow(0 0 7px rgba(179, 158, 255, 0.12));
+    transition: color 170ms ease, filter 170ms ease;
+}
+
+.workspace-module.is-focus-target .workspace-module__sigil {
+    color: rgba(235, 230, 255, 0.91);
+    filter: drop-shadow(0 0 10px rgba(191, 178, 242, 0.34));
+}
+
+.workspace-inventory {
+    --node-shape: var(--shard-shape);
+    position: relative;
+    isolation: isolate;
+    padding: clamp(26px, 3.6vw, 38px) clamp(34px, 5vw, 62px);
+    border: 0;
+    clip-path: polygon(var(--shard-shape));
+    background:
+        radial-gradient(circle 230px at var(--node-focus-x) var(--node-focus-y), rgb(232 219 199 / var(--node-light-alpha)), transparent 74%),
+        linear-gradient(100deg, rgba(29, 27, 43, 0.72), rgba(11, 12, 29, 0.48));
+    box-shadow: inset 0 0 0 1px rgba(223, 207, 187, 0.1), inset 0 0 44px rgba(223, 207, 187, 0.025);
+}
+
+.workspace-inventory::before,
+.workspace-inventory::after {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    content: "";
+    clip-path: polygon(var(--shard-shape));
+}
+
+.workspace-inventory::before {
+    opacity: 0.6;
+    background: linear-gradient(106deg, transparent 22%, rgba(218, 198, 169, 0.035) 22.3% 43%, transparent 43.3%);
+}
+
+.workspace-inventory::after {
+    opacity: 0.44;
+    box-shadow: inset 0 1px 0 rgb(232 219 199 / var(--node-edge-alpha));
+}
+
+/* The Notes body is one semantic destination; Hold remains a separate action. */
+.workspace-module--notes > :not(.workspace-module__primary-link):not(.workspace-thought-actions) {
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.workspace-module__primary-link {
+    position: absolute;
+    z-index: 3;
+    inset: 0;
+    color: inherit;
+    text-decoration: none;
+}
+
+.workspace-module__primary-link > span {
+    position: absolute;
+    right: clamp(28px, 4vw, 45px);
+    top: 50%;
+    bottom: auto;
+    transform: translateY(-50%);
+    color: rgba(205, 198, 228, 0.64);
+    font-size: 0.8rem;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    transition: color 160ms ease, text-shadow 160ms ease;
+}
+
+.workspace-module__primary-link:focus-visible {
+    outline: none;
+}
+
+.workspace-module__primary-link:focus-visible > span,
+.workspace-module__primary-link:hover > span {
+    color: #f4f0ff;
+    text-shadow: 0 0 15px rgba(215, 203, 251, 0.32);
+}
+
+.workspace-thought-preview {
+    margin-bottom: 42px;
+}
+
+.workspace-thought-preview span {
+    width: fit-content;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    color: rgba(232, 226, 250, 0.78);
+}
+
+.workspace-thought-actions {
+    position: relative;
+    z-index: 5;
+    align-self: flex-start;
+    margin-top: auto;
+    padding-top: 4px;
+    pointer-events: auto;
+}
+
+/* Memory stays one calm inner space with a controlled alternating rhythm. */
+.memory-space-ambience__focus {
+    display: none;
+}
+
+.memory-space-ambience__depth {
+    opacity: 0.54;
+    transform: translate3d(var(--focus-bg-x), var(--focus-bg-y), 0) scale(1.02);
+    filter: blur(52px);
+}
+
+.memory-space-ambience__mote {
+    opacity: 0.36;
+    animation-duration: 14s;
+}
+
+.held-thought-space__header {
+    padding-bottom: clamp(30px, 5vw, 48px);
+    background: radial-gradient(ellipse at 12% 38%, rgba(197, 184, 235, 0.052), transparent 48%);
+}
+
+.held-thought-index {
+    gap: clamp(38px, 6vw, 72px);
+}
+
+.held-thought-index__actions {
+    justify-content: flex-end;
+    margin: 0 clamp(6px, 3vw, 26px) -12px 0;
+}
+
+.held-thought-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-auto-flow: row;
+    gap: clamp(58px, 8vw, 104px) clamp(30px, 5vw, 64px);
+    padding: clamp(32px, 6vw, 70px) clamp(4px, 2vw, 22px);
+}
+
+.held-thought,
+.held-thought:nth-child(3n + 2),
+.held-thought:nth-child(3n),
+.held-thought:nth-child(4n) {
+    --thought-shape: 0 16%, 12% 2%, 89% 0, 100% 24%, 95% 88%, 80% 100%, 8% 94%, 1% 67%;
+    --node-light-alpha: 0;
+    grid-column: 1 / span 5;
+    min-height: 180px;
+    margin: 0;
+    padding: clamp(30px, 4.3vw, 46px);
+    border: 0;
+    border-radius: 0;
+    clip-path: polygon(var(--thought-shape));
+    opacity: 0.78;
+    background:
+        radial-gradient(circle 185px at var(--node-focus-x) var(--node-focus-y), rgb(239 233 255 / var(--node-light-alpha)), transparent 72%),
+        linear-gradient(145deg, rgba(45, 39, 71, 0.66), rgba(17, 16, 39, 0.46) 63%, rgba(8, 9, 25, 0.2));
+    box-shadow: inset 0 0 42px rgba(225, 216, 251, 0.024), 0 20px 50px rgba(3, 3, 17, 0.12);
+    backdrop-filter: blur(8px) saturate(92%);
+}
+
+.held-thought:nth-child(even) {
+    --thought-shape: 3% 2%, 91% 0, 100% 25%, 96% 91%, 84% 100%, 5% 94%, 0 69%, 1% 17%;
+    grid-column: 7 / span 5;
+    margin-top: clamp(36px, 5vw, 64px);
+}
+
+.held-thought:nth-child(4n + 3) {
+    --thought-shape: 0 9%, 20% 1%, 91% 4%, 100% 32%, 94% 96%, 14% 100%, 2% 75%;
+}
+
+.held-thought:nth-child(4n) {
+    --thought-shape: 2% 14%, 9% 3%, 94% 1%, 100% 21%, 97% 85%, 88% 98%, 7% 96%, 0 72%;
+}
+
+.held-thought::before,
+.held-thought:hover::before,
+.held-thought:focus-visible::before,
+.held-thought.is-focus-target::before {
+    z-index: 0;
+    inset: 0;
+    border-radius: 0;
+    opacity: 0.62;
+    clip-path: polygon(var(--thought-shape));
+    background:
+        radial-gradient(ellipse at 28% 28%, rgba(196, 207, 235, 0.05), transparent 46%),
+        linear-gradient(124deg, transparent 0 39%, rgba(163, 144, 205, 0.045) 39.3% 55%, transparent 55.3%);
+    box-shadow: inset 0 -36px 58px rgba(3, 3, 18, 0.15);
+    filter: none;
+}
+
+.held-thought::after {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    pointer-events: none;
+    content: "";
+    opacity: 0.43;
+    clip-path: polygon(var(--thought-shape));
+    background: linear-gradient(112deg, transparent 67%, rgba(172, 207, 224, 0.075) 67.3%, transparent 68%);
+    box-shadow: inset 0 1px 0 rgb(234 229 255 / var(--node-edge-alpha));
+    transition: opacity 160ms ease;
+}
+
+.held-thought > * { position: relative; z-index: 1; }
+
+.held-thought:hover,
+.held-thought:focus-visible {
+    --node-scale: 1;
+    opacity: 0.78;
+    filter: none;
+    box-shadow: inset 0 0 42px rgba(225, 216, 251, 0.024), 0 20px 50px rgba(3, 3, 17, 0.12);
+}
+
+.held-thought.is-focus-target {
+    --node-scale: 1.024;
+    opacity: 1;
+    filter: saturate(1.035) brightness(1.035);
+    box-shadow: inset 0 0 56px rgba(231, 223, 255, 0.055), 0 26px 68px rgba(3, 3, 19, 0.26);
+}
+
+.held-thought.is-focus-target::after { opacity: 0.72; }
+
+.held-thought__spark {
+    animation-duration: 9s;
+    opacity: 0.62;
+}
+
+.held-thought-focus {
+    min-height: min(70vh, 780px);
+    margin-top: clamp(-18px, -2vw, -6px);
+}
+
+.held-thought-focus--detail::before {
+    inset: -25vh -11vw;
+    background:
+        radial-gradient(ellipse at center, rgba(205, 194, 235, 0.09), rgba(8, 7, 21, 0.56) 51%, transparent 79%);
+    transform: translate3d(var(--focus-node-x), var(--focus-node-y), 0);
+}
+
+.held-thought--focused,
+.held-thought--focused:hover {
+    --thought-shape: 1% 12%, 10% 2%, 90% 0, 100% 18%, 96% 88%, 86% 100%, 8% 96%, 0 71%;
+    width: min(850px, 100%);
+    min-height: 0;
+    margin: 0;
+    padding: clamp(46px, 7vw, 80px);
+    opacity: 1;
+    background:
+        radial-gradient(circle 300px at var(--node-focus-x) var(--node-focus-y), rgb(239 233 255 / var(--node-light-alpha)), transparent 73%),
+        linear-gradient(145deg, rgba(39, 33, 66, 0.78), rgba(13, 13, 32, 0.42) 76%, rgba(6, 7, 19, 0.14));
+    box-shadow: inset 0 0 70px rgba(229, 222, 252, 0.038), 0 0 88px rgba(112, 91, 165, 0.1);
+    transform: none;
+}
+
+.held-thought-focus__actions {
+    opacity: 0.68;
+    transition: opacity 180ms ease;
+}
+
+.held-thought-form {
+    background:
+        linear-gradient(116deg, transparent 17%, rgba(163, 143, 210, 0.045) 17.2% 17.5%, transparent 17.7%),
+        radial-gradient(ellipse at 50% 26%, rgba(210, 199, 239, 0.075), transparent 66%);
+    transition: opacity 180ms ease, filter 200ms ease, transform 220ms cubic-bezier(0.22, 0.7, 0.24, 1);
+}
+
+.held-thought-form.is-transitioning {
+    opacity: 0.28;
+    filter: blur(2px);
+    transform: scale(0.992);
+}
+
+.held-thought-release {
+    border: 1px solid rgba(222, 207, 244, 0.075);
+    background: linear-gradient(145deg, rgba(30, 20, 42, 0.84), rgba(8, 7, 20, 0.76));
+    box-shadow: 0 0 64px rgba(17, 7, 34, 0.42);
+}
+
+/* Short fade/depth continuity without large slides or spring overshoot. */
+html.character-surface-is-leaving [data-character-surface] {
+    opacity: 0;
+    filter: blur(3px);
+    transform: scale(0.992);
+}
+
+@keyframes character-surface-arrive {
+    from { opacity: 0; filter: blur(3px); transform: scale(0.992); }
+    to { opacity: 1; filter: blur(0); transform: scale(1); }
+}
+
+@keyframes memory-thought-settle {
+    0% { opacity: 0.18; filter: blur(5px) brightness(1.2); transform: scale(0.88); }
+    100% { opacity: 1; filter: blur(0) brightness(1); transform: scale(1); }
+}
+
+@keyframes memory-thought-return {
+    from { opacity: 0.44; filter: blur(2px); transform: scale(0.985); }
+    to { opacity: 1; filter: blur(0); transform: scale(1); }
+}
+
+@keyframes memory-thought-join-field {
+    0% { opacity: 0.16; filter: blur(5px) brightness(1.2); transform: scale(0.86); }
+    100% { opacity: 1; filter: blur(0) brightness(1); transform: scale(1); }
+}
+
+@media (max-width: 760px) {
+    .character-worldspace__hero {
+        padding: 22px 2px 28px;
+        border-radius: 0;
+    }
+
+    .character-worldspace__hero::before {
+        width: 100%;
+        height: 170px;
+        transform: none;
+    }
+
+    .character-identity {
+        grid-template-columns: 76px minmax(0, 1fr);
+        gap: 16px;
+        padding-inline: 3px;
+    }
+
+    .character-identity__portrait {
+        width: 72px;
+        height: 82px;
+        border-radius: 0;
+    }
+
+    .character-identity__facet--near { width: 96px; height: 100px; }
+    .character-identity__facet--far { display: none; }
+    .character-identity__copy h1 { font-size: clamp(1.9rem, 10vw, 2.8rem); }
+    .character-identity__copy .lead { font-size: 0.88rem; }
+    .character-switcher { margin-top: 14px; }
+
+    .character-workspace__grid {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .workspace-module,
+    .workspace-module--tiamana,
+    .workspace-module--quests,
+    .workspace-module--map,
+    .workspace-module--life,
+    .workspace-module--party,
+    .workspace-module--notes,
+    .workspace-module--apotheosis {
+        --shard-shape: 0 9%, 6% 2%, 95% 1%, 100% 14%, 98% 91%, 91% 99%, 5% 97%, 0 85%;
+        grid-column: auto;
+        min-height: 0;
+        margin: 0;
+        padding: 27px 24px;
+        backdrop-filter: blur(8px);
+    }
+
+    .workspace-module__primary-link > span {
+        right: 24px;
+        top: 50%;
+        bottom: auto;
+    }
+
+    .workspace-thought-preview { margin-bottom: 44px; }
+
+    .reflection-node,
+    .reflection-node.is-focus-target,
+    .reflection-node.is-node-light-active {
+        --node-scale: 1;
+        --node-light-alpha: 0;
+        transform: none;
+        will-change: auto;
+    }
+
+    .reflection-focus-field.has-node-focus .reflection-node:not(.is-focus-target) {
+        opacity: 0.9;
+        filter: none;
+    }
+
+    .character-worldspace::before,
+    .memory-space-ambience__depth,
+    .memory-space-ambience__mote { transform: none; translate: none; }
+
+    .held-thought-grid {
+        grid-template-columns: 1fr;
+        gap: 34px;
+        padding-inline: 0;
+    }
+
+    .held-thought,
+    .held-thought:nth-child(even),
+    .held-thought:nth-child(3n + 2),
+    .held-thought:nth-child(3n),
+    .held-thought:nth-child(4n),
+    .held-thought:nth-child(4n + 3) {
+        --thought-shape: 0 8%, 7% 1%, 94% 2%, 100% 15%, 97% 92%, 89% 99%, 5% 96%, 0 83%;
+        grid-column: auto;
+        min-height: 0;
+        margin: 0;
+        padding: 29px 25px;
+    }
+
+    .held-thought--focused,
+    .held-thought--focused:hover {
+        padding: 40px 27px;
+    }
+
+    .held-thought-index__actions {
+        justify-content: stretch;
+        margin-right: 0;
+    }
+}
+
+@media (hover: none), (pointer: coarse) {
+    .workspace-module::after,
+    .held-thought::after { opacity: 0.46; }
+
+    .reflection-node.is-node-light-active { --node-light-alpha: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .reflection-focus-field,
+    .reflection-node,
+    .character-identity__facet,
+    .character-worldspace::before,
+    .character-worldspace__hero::before,
+    .character-workspace__grid::before,
+    .memory-space-ambience__depth,
+    .memory-space-ambience__mote,
+    .held-thought-form,
+    .held-thought--focused,
+    .held-thought--release-focus,
+    .held-thought.is-newly-held-in-field,
+    [data-character-surface] {
+        animation: none !important;
+        translate: none !important;
+        transform: none !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    .reflection-node,
+    .reflection-node.is-node-light-active { --node-light-alpha: 0; }
+
+    .reflection-node:focus-visible,
+    .reflection-node:has(:focus-visible) {
+        outline: 1px solid rgba(239, 235, 255, 0.72);
+        outline-offset: 4px;
+    }
+}

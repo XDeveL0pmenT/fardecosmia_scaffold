@@ -487,7 +487,7 @@ class PersonalNotePresentationTests(PersonalNotesN1Mixin, TestCase):
         )
         self.assertContains(
             workspace,
-            'class="workspace-module workspace-module--tiamana reflection-node"',
+            'class="workspace-module workspace-module--tiamana reflection-node ',
             html=False,
         )
         self.assertNotContains(workspace, 'class="panel workspace-module', html=False)
@@ -505,7 +505,7 @@ class PersonalNotePresentationTests(PersonalNotesN1Mixin, TestCase):
         self.assertContains(
             workspace,
             "data-reflection-node tabindex",
-            count=8,
+            count=7,
             html=False,
         )
         self.assertContains(workspace, "static/js/reflection-focus.js", html=False)
@@ -562,7 +562,7 @@ class PersonalNotePresentationTests(PersonalNotesN1Mixin, TestCase):
         css = (root / "static" / "css" / "app.css").read_text(encoding="utf-8")
 
         self.assertIn("requestAnimationFrame", focus_script)
-        self.assertIn("frame = null", focus_script)
+        self.assertIn("motionFrame = null", focus_script)
         self.assertIn("(hover: hover) and (pointer: fine)", focus_script)
         self.assertIn("visibilitychange", focus_script)
         self.assertIn("--focus-x", focus_script)
@@ -582,6 +582,77 @@ class PersonalNotePresentationTests(PersonalNotesN1Mixin, TestCase):
         self.assertIn("@media (hover: none), (pointer: coarse)", css)
         self.assertIn("@media (prefers-reduced-motion: reduce)", css)
         self.assertIn("[data-character-surface]", css)
+
+    def test_ux13_notes_module_has_one_whole_surface_link_and_separate_hold_action(self):
+        self.note(memo="Тонкая нить", body="Удержать направление.")
+        self.client.force_login(self.player_a)
+        workspace = self.client.get(
+            reverse("campaigns:campaign_detail", args=[self.campaign.pk])
+        )
+        html = workspace.content.decode()
+        start = html.index(
+            'class="workspace-module workspace-module--notes reflection-node'
+        )
+        end = html.index("</article>", start)
+        notes_module = html[start:end]
+
+        self.assertIn('class="workspace-module__primary-link"', notes_module)
+        self.assertIn(self.list_url(), notes_module)
+        self.assertIn('class="reflection-action reflection-action--manifest"', notes_module)
+        self.assertIn(self.hold_url(), notes_module)
+        self.assertEqual(notes_module.count("<a "), 2)
+        self.assertLess(
+            notes_module.index("</a>"),
+            notes_module.index("Удержать мысль"),
+        )
+        self.assertNotIn('data-reflection-node tabindex="0"', notes_module)
+
+    def test_ux13_focus_state_machine_has_one_pointer_owner_and_all_reset_hooks(self):
+        root = Path(__file__).resolve().parents[2]
+        focus_script = (root / "static" / "js" / "reflection-focus.js").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("var activePointerNode = null", focus_script)
+        self.assertIn("activePointerNode = node", focus_script)
+        self.assertIn("if (activePointerNode !== node)", focus_script)
+        self.assertIn('field.addEventListener("pointercancel"', focus_script)
+        self.assertIn('field.addEventListener("pointerleave"', focus_script)
+        self.assertIn('window.addEventListener("blur"', focus_script)
+        self.assertIn('document.addEventListener("visibilitychange"', focus_script)
+        self.assertIn('document.addEventListener("pointerout"', focus_script)
+        self.assertIn('window.addEventListener("scroll"', focus_script)
+        self.assertIn("resetMotion(true)", focus_script)
+        self.assertIn("sceneFactor", focus_script)
+        self.assertIn("nodeFactor", focus_script)
+        self.assertIn("lightFactor", focus_script)
+        self.assertNotIn("fetch(", focus_script)
+        self.assertNotIn("setInterval", focus_script)
+
+    def test_ux13_material_and_accessibility_overrides_are_last_and_bounded(self):
+        root = Path(__file__).resolve().parents[2]
+        css = (root / "static" / "css" / "app.css").read_text(encoding="utf-8")
+        self.assertEqual(css.count("UX1.3 — composed Dark Glass Shards"), 1)
+        self.assertGreater(
+            css.index("UX1.3 — composed Dark Glass Shards"),
+            css.rindex("UX1.2 —"),
+        )
+        self.assertIn("--node-light-alpha: 0", css)
+        self.assertIn(".reflection-node--shard-a", css)
+        self.assertIn(".reflection-node--shard-wide", css)
+        self.assertIn(".workspace-module__primary-link", css)
+        self.assertIn("@media (hover: none), (pointer: coarse)", css)
+        self.assertIn("@media (prefers-reduced-motion: reduce)", css)
+
+        self.client.force_login(self.player_a)
+        workspace = self.client.get(
+            reverse("campaigns:campaign_detail", args=[self.campaign.pk])
+        )
+        memory = self.client.get(self.list_url())
+        for response in (workspace, memory):
+            self.assertNotContains(response, "reflection-focus-field__glow", html=False)
+        self.assertNotContains(workspace, 'class="panel workspace-module', html=False)
+        self.assertNotContains(memory, 'class="ambient-scene', html=False)
 
 
 class CharacterNoteMigrationTests(TransactionTestCase):
