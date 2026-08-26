@@ -187,30 +187,41 @@ immediately after this checkpoint.
 - No accepted UX1.3 visual, interaction or security defect remains after the
   Notes-label correction and targeted desktop/mobile recheck.
 
-## Focused Memory polish patch — completed
+## Focused Memory geometry patch — completed
 
 - Scope remained frontend-only; no backend, model, permission, route, schema or
   business-logic contract changed.
-- Root cause of the first-thought rectangle: the newly created/first thought can
-  retain programmatic keyboard focus, while the shared `.reflection-node`
-  focus rule supplied a rectangular outer `box-shadow`. Its original first-card
-  silhouette also had the least pronounced corners, which amplified the defect.
-- `held-thought` focus/hover ownership now uses clipped inset light plus
-  shape-aware `drop-shadow`; the card, `::before` and `::after` share the same
-  polygon and the container clips/isolate its glass layers.
-- The first thought now has an explicit angular shard silhouette, without a
-  rectangular highlight or mask.
-- Release confirmation was changed from a rectangular overlapping panel into a
-  centered glass shard in the same Memory Space stage. The scene dim/blur is a
-  single fixed layer; the selected thought remains a clipped shard behind it.
-- Targeted browser acceptance passed for first-thought hover/focus and the
-  open/release confirmation scene. The confirmation fits a 1280×720 viewport,
-  has no horizontal overflow, and retains POST + CSRF semantics.
+- Browser property isolation identified the remaining rectangular surface as
+  the `background` painted directly by the interactive
+  `.held-thought.reflection-node`. Disabling `::before`, `::after` or the node
+  `filter` did not remove it; disabling the node background did.
+- The interactive `<a>` previously combined hit-area, base background,
+  `backdrop-filter`, transform and focus compositing on one rectangular box.
+  Its polygon was computed, but the visible material could still be composed
+  from that bounding-box surface during focus/transition states.
+- The anchor is now a transparent geometry/container layer only. Base glass,
+  pointer light and depth are painted by its clipped `::before`; reflection and
+  focus edge are painted by its clipped `::after`.
+- `--thought-shape` now stores the complete `polygon(...)` value. The node,
+  `::before` and `::after` consume it directly through
+  `clip-path: var(--thought-shape)`.
+- Removed the late `.held-thought:first-child` special case. It was not only a
+  list exception: it could also override the focused background thought in the
+  release scene because that article is its container's first child.
+- The release background thought now uses the same canonical focused-thought
+  shape/material contract. The confirmation itself retains its separate,
+  canonical `--release-shape` polygon and unchanged POST + CSRF semantics.
+- Targeted browser acceptance covered idle, hover, focus-visible after create,
+  newly-created return, first/second/no-memo thoughts, rapid A -> B -> A,
+  click/back and release confirmation. All rendered thought nodes were
+  transparent and all three computed clips matched; no browser warnings/errors
+  were recorded.
 - Focused presentation regression: 14 tests — OK.
+- `git diff --check`: clean apart from line-ending conversion notices.
 - Full suite was intentionally not repeated for this narrow CSS-only patch.
 - Patch files: `static/css/app.css`, `templates/base.html`, and this checkpoint.
 
 ## Exact next step
 
-Focused UX1.3 Memory polish is complete. Report the targeted result and STOP.
+Focused UX1.3 Memory geometry polish is complete. Report the targeted result and STOP.
 Do not begin P6 or any other gameplay phase.
