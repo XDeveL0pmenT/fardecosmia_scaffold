@@ -3502,6 +3502,356 @@ button.region-placement-item {
     }
 }
 
+/* UX1.4 Turn 1 — Character-centred radial Reflection composition. */
+.reflection-radial-scene {
+    gap: clamp(18px, 2.4vw, 30px);
+    padding-top: clamp(10px, 1.8vw, 22px);
+}
+
+.reflection-radial-scene__field {
+    display: grid;
+    grid-template-columns:
+        minmax(190px, 1fr)
+        minmax(58px, 0.34fr)
+        minmax(158px, 0.72fr)
+        minmax(58px, 0.34fr)
+        minmax(190px, 1fr);
+    grid-template-rows:
+        minmax(112px, auto)
+        minmax(142px, auto)
+        minmax(142px, auto)
+        minmax(154px, auto);
+    grid-template-areas:
+        ". party party party ."
+        "map map core life life"
+        "tiamana tiamana core quests quests"
+        "notes notes inventory apotheosis apotheosis";
+    align-items: stretch;
+    gap: clamp(13px, 1.8vw, 24px) clamp(16px, 2vw, 28px);
+    width: min(100%, 1240px);
+    margin-inline: auto;
+    padding: 8px 0 clamp(16px, 2vw, 28px);
+}
+
+.reflection-radial-scene__field::before {
+    inset: 14% 22% 12%;
+    opacity: 0.76;
+    background:
+        radial-gradient(circle, rgba(169, 150, 226, 0.11), rgba(105, 90, 177, 0.045) 36%, transparent 72%);
+    filter: blur(34px);
+}
+
+.character-core {
+    --node-scale: 1;
+    position: relative;
+    isolation: isolate;
+    grid-area: core;
+    display: grid;
+    place-items: center;
+    align-self: center;
+    justify-self: center;
+    width: min(100%, 190px);
+    min-height: 270px;
+    padding: 42px 12px 54px;
+    outline: none;
+}
+
+.character-core::before {
+    position: absolute;
+    z-index: -2;
+    width: 170px;
+    aspect-ratio: 1;
+    border: 1px solid rgba(199, 189, 242, 0.11);
+    clip-path: polygon(50% 0, 90% 18%, 100% 61%, 72% 100%, 24% 92%, 0 54%, 13% 16%);
+    content: "";
+    opacity: 0.58;
+    background:
+        radial-gradient(circle at 49% 44%, rgba(147, 127, 215, 0.16), rgba(21, 22, 52, 0.14) 44%, transparent 70%);
+    box-shadow: inset 0 0 44px rgba(184, 173, 232, 0.035);
+    transform: rotate(-4deg) scale(0.96);
+    transition: opacity 220ms ease, transform 280ms cubic-bezier(0.22, 0.7, 0.24, 1), border-color 220ms ease;
+}
+
+.character-core::after {
+    position: absolute;
+    z-index: -3;
+    width: 216px;
+    aspect-ratio: 1;
+    border: 1px solid rgba(125, 173, 202, 0.07);
+    border-radius: 50%;
+    content: "";
+    opacity: 0.45;
+    box-shadow: 0 0 54px rgba(110, 90, 186, 0.08);
+    transform: scale(0.91);
+    transition: opacity 220ms ease, transform 300ms cubic-bezier(0.22, 0.7, 0.24, 1);
+}
+
+.character-core__portrait {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: clamp(108px, 10vw, 132px);
+    aspect-ratio: 0.92;
+    overflow: hidden;
+    color: rgba(232, 226, 255, 0.88);
+    font-size: 2.7rem;
+    border: 0;
+    clip-path: polygon(8% 12%, 26% 0, 88% 5%, 100% 29%, 93% 91%, 68% 100%, 4% 86%, 0 31%);
+    background:
+        radial-gradient(circle at 48% 38%, rgba(121, 216, 220, 0.16), transparent 43%),
+        rgba(7, 8, 25, 0.78);
+    box-shadow: inset 0 0 0 1px rgba(205, 196, 255, 0.25), inset 0 0 38px rgba(120, 101, 202, 0.15);
+    filter: drop-shadow(0 15px 28px rgba(2, 3, 17, 0.42));
+    transition: transform 260ms cubic-bezier(0.22, 0.7, 0.24, 1), filter 220ms ease;
+}
+
+.character-core__portrait img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.character-core__facet {
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.32;
+    border: solid rgba(197, 188, 240, 0.12);
+    transition: opacity 220ms ease, transform 300ms cubic-bezier(0.22, 0.7, 0.24, 1);
+}
+
+.character-core__facet--near {
+    width: 182px;
+    height: 184px;
+    border-width: 1px 0 0 1px;
+    clip-path: polygon(0 15%, 22% 0, 100% 7%, 88% 100%, 4% 84%);
+    transform: rotate(7deg) translate(-4px, -2px);
+}
+
+.character-core__facet--far {
+    width: 222px;
+    height: 152px;
+    border-width: 0 1px 1px 0;
+    opacity: 0.2;
+    transform: rotate(-8deg) translate(4px, 10px);
+}
+
+.character-core__identity {
+    position: absolute;
+    z-index: 3;
+    top: calc(50% + 74px);
+    left: 50%;
+    width: min(240px, 150%);
+    pointer-events: none;
+    text-align: center;
+    opacity: 0.045;
+    filter: blur(2px);
+    transform: translate(-50%, 9px);
+    transition: opacity 220ms ease, filter 220ms ease, transform 260ms cubic-bezier(0.22, 0.7, 0.24, 1);
+}
+
+.character-core__identity h1 {
+    margin: 3px 0 0;
+    color: rgba(244, 240, 255, 0.96);
+    font-size: clamp(1.2rem, 2.1vw, 1.65rem);
+    font-weight: 500;
+    letter-spacing: 0.025em;
+    line-height: 1.12;
+    text-shadow: 0 0 24px rgba(194, 177, 244, 0.28);
+}
+
+.character-core__whisper {
+    margin: 0;
+    color: rgba(184, 201, 221, 0.68);
+    font-size: 0.61rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.character-core:hover .character-core__identity,
+.character-core:focus-visible .character-core__identity,
+.character-core.is-focus-target .character-core__identity {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate(-50%, 0);
+}
+
+.character-core:hover .character-core__portrait,
+.character-core:focus-visible .character-core__portrait,
+.character-core.is-focus-target .character-core__portrait {
+    transform: scale(1.045);
+    filter: drop-shadow(0 18px 34px rgba(5, 5, 24, 0.48)) brightness(1.04);
+}
+
+.character-core:hover::before,
+.character-core:focus-visible::before,
+.character-core.is-focus-target::before {
+    opacity: 0.88;
+    border-color: rgba(210, 201, 249, 0.22);
+    transform: rotate(-1deg) scale(1.015);
+}
+
+.character-core:hover::after,
+.character-core:focus-visible::after,
+.character-core.is-focus-target::after {
+    opacity: 0.72;
+    transform: scale(1);
+}
+
+.reflection-radial-scene__field .workspace-module {
+    grid-column: auto;
+    min-height: 0;
+    margin: 0;
+    padding: clamp(22px, 2.3vw, 31px) clamp(23px, 2.5vw, 33px);
+}
+
+.reflection-radial-scene__field .workspace-module--party {
+    grid-area: party;
+    align-self: end;
+    justify-self: center;
+    width: min(100%, 590px);
+    min-height: 104px;
+}
+
+.reflection-radial-scene__field .workspace-module--map { grid-area: map; }
+.reflection-radial-scene__field .workspace-module--life { grid-area: life; }
+.reflection-radial-scene__field .workspace-module--tiamana { grid-area: tiamana; }
+.reflection-radial-scene__field .workspace-module--quests { grid-area: quests; }
+.reflection-radial-scene__field .workspace-module--notes { grid-area: notes; }
+.reflection-radial-scene__field .workspace-module--apotheosis { grid-area: apotheosis; }
+
+.reflection-radial-scene__field .workspace-module--map,
+.reflection-radial-scene__field .workspace-module--life {
+    align-self: end;
+}
+
+.reflection-radial-scene__field .workspace-module--tiamana,
+.reflection-radial-scene__field .workspace-module--quests {
+    align-self: start;
+}
+
+.reflection-radial-scene__field .workspace-inventory {
+    grid-area: inventory;
+    align-self: start;
+    justify-self: center;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 7px;
+    width: min(100%, 250px);
+    min-height: 132px;
+    padding: 26px 24px;
+}
+
+.character-switcher--radial {
+    justify-self: center;
+    width: min(100%, 440px);
+    margin: 0 auto;
+    opacity: 0.52;
+}
+
+@media (max-width: 980px) and (min-width: 761px) {
+    .reflection-radial-scene__field {
+        grid-template-columns: minmax(170px, 1fr) 44px minmax(142px, 0.68fr) 44px minmax(170px, 1fr);
+        gap: 12px 14px;
+    }
+
+    .reflection-radial-scene__field .workspace-module {
+        padding: 21px 22px;
+    }
+
+    .reflection-radial-scene__field .workspace-module h2 {
+        font-size: 1.08rem;
+    }
+}
+
+@media (max-width: 760px) {
+    .reflection-radial-scene {
+        gap: 24px;
+        padding-top: 12px;
+    }
+
+    .reflection-radial-scene__field {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: none;
+        grid-template-areas: none;
+        gap: 24px;
+        width: 100%;
+        padding: 0;
+    }
+
+    .reflection-radial-scene__field::before {
+        inset: 0 8% auto;
+        height: 300px;
+        transform: none;
+    }
+
+    .character-core {
+        grid-area: auto;
+        width: min(100%, 220px);
+        min-height: 225px;
+        padding: 28px 12px 58px;
+    }
+
+    .character-core::before { width: 154px; }
+    .character-core::after { width: 192px; }
+
+    .character-core__portrait {
+        width: 108px;
+    }
+
+    .character-core__identity {
+        top: calc(50% + 58px);
+        opacity: 0.92;
+        filter: none;
+        transform: translate(-50%, 0);
+    }
+
+    .character-core__identity h1 {
+        font-size: 1.3rem;
+    }
+
+    .reflection-radial-scene__field .workspace-module,
+    .reflection-radial-scene__field .workspace-module--party,
+    .reflection-radial-scene__field .workspace-module--map,
+    .reflection-radial-scene__field .workspace-module--life,
+    .reflection-radial-scene__field .workspace-module--tiamana,
+    .reflection-radial-scene__field .workspace-module--quests,
+    .reflection-radial-scene__field .workspace-module--notes,
+    .reflection-radial-scene__field .workspace-module--apotheosis,
+    .reflection-radial-scene__field .workspace-inventory {
+        grid-area: auto;
+        align-self: stretch;
+        justify-self: stretch;
+        width: 100%;
+        min-height: 0;
+        margin: 0;
+    }
+
+    .reflection-radial-scene__field .workspace-inventory {
+        min-height: 126px;
+        padding: 27px 24px;
+    }
+
+    .character-switcher--radial {
+        width: 100%;
+        margin-top: 2px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .character-core,
+    .character-core::before,
+    .character-core::after,
+    .character-core__portrait,
+    .character-core__facet,
+    .character-core__identity {
+        animation: none !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
 /* Readable canon document. */
 .canon-reading-shell {
     overflow: hidden;
@@ -6871,5 +7221,94 @@ html.character-surface-is-leaving [data-character-surface] {
     .reflection-node:has(:focus-visible) {
         outline: 1px solid rgba(239, 235, 255, 0.72);
         outline-offset: 4px;
+    }
+}
+
+/* UX1.4 Turn 1 final cascade boundary: keep radial layout after UX1.3 materials. */
+.character-workspace.reflection-radial-scene {
+    gap: clamp(18px, 2.4vw, 30px);
+    padding-top: clamp(10px, 1.8vw, 22px);
+}
+
+.character-workspace .reflection-radial-scene__field {
+    grid-template-columns:
+        minmax(190px, 1fr)
+        minmax(58px, 0.34fr)
+        minmax(158px, 0.72fr)
+        minmax(58px, 0.34fr)
+        minmax(190px, 1fr);
+    grid-template-rows:
+        minmax(112px, auto)
+        minmax(142px, auto)
+        minmax(142px, auto)
+        minmax(154px, auto);
+    grid-template-areas:
+        ". party party party ."
+        "map map core life life"
+        "tiamana tiamana core quests quests"
+        "notes notes inventory apotheosis apotheosis";
+    gap: clamp(13px, 1.8vw, 24px) clamp(16px, 2vw, 28px);
+}
+
+.character-workspace .reflection-radial-scene__field .workspace-module {
+    grid-column: auto;
+    min-height: 0;
+    margin: 0;
+    padding: clamp(22px, 2.3vw, 31px) clamp(23px, 2.5vw, 33px);
+}
+
+.character-workspace .reflection-radial-scene__field .workspace-module--party {
+    grid-area: party;
+    min-height: 104px;
+}
+
+.character-workspace .reflection-radial-scene__field .workspace-module--map { grid-area: map; }
+.character-workspace .reflection-radial-scene__field .workspace-module--life { grid-area: life; }
+.character-workspace .reflection-radial-scene__field .workspace-module--tiamana { grid-area: tiamana; }
+.character-workspace .reflection-radial-scene__field .workspace-module--quests { grid-area: quests; }
+.character-workspace .reflection-radial-scene__field .workspace-module--notes { grid-area: notes; }
+.character-workspace .reflection-radial-scene__field .workspace-module--apotheosis { grid-area: apotheosis; }
+
+.character-workspace .reflection-radial-scene__field .workspace-inventory {
+    grid-area: inventory;
+    grid-template-columns: 1fr;
+}
+
+@media (max-width: 980px) and (min-width: 761px) {
+    .character-workspace .reflection-radial-scene__field {
+        grid-template-columns: minmax(170px, 1fr) 44px minmax(142px, 0.68fr) 44px minmax(170px, 1fr);
+        gap: 12px 14px;
+    }
+}
+
+@media (max-width: 760px) {
+    .character-workspace .reflection-radial-scene__field {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: none;
+        grid-template-areas: none;
+        gap: 24px;
+    }
+
+    .character-workspace .reflection-radial-scene__field .workspace-module,
+    .character-workspace .reflection-radial-scene__field .workspace-module--party,
+    .character-workspace .reflection-radial-scene__field .workspace-module--map,
+    .character-workspace .reflection-radial-scene__field .workspace-module--life,
+    .character-workspace .reflection-radial-scene__field .workspace-module--tiamana,
+    .character-workspace .reflection-radial-scene__field .workspace-module--quests,
+    .character-workspace .reflection-radial-scene__field .workspace-module--notes,
+    .character-workspace .reflection-radial-scene__field .workspace-module--apotheosis,
+    .character-workspace .reflection-radial-scene__field .workspace-inventory,
+    .character-workspace .reflection-radial-scene__field .character-core {
+        grid-area: auto;
+        grid-column: auto;
+        align-self: stretch;
+        justify-self: stretch;
+        width: 100%;
+        margin: 0;
+    }
+
+    .character-workspace .reflection-radial-scene__field .character-core {
+        justify-self: center;
+        width: min(100%, 220px);
     }
 }

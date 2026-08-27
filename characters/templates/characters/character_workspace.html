@@ -4,41 +4,9 @@
 {% block content %}
 {% include "world/_ambient_layers.html" with ambience=character_ambience ambient_scope="character" %}
 <div class="character-worldspace reflection-focus-field" data-character-surface="workspace" data-reflection-focus-field>
-    <header class="character-worldspace__hero{% if not active_character %} character-worldspace__hero--quiet{% endif %}" data-focus-depth="background">
-
-        {% if active_character %}
-            <div class="character-identity" data-character-identity-anchor>
-                <span class="character-identity__facet character-identity__facet--near" aria-hidden="true"></span>
-                <span class="character-identity__facet character-identity__facet--far" aria-hidden="true"></span>
-                <div class="character-identity__portrait">
-                    {% if active_character.portrait %}
-                        <img src="{{ active_character.portrait.url }}" alt="Портрет {{ active_character.name }}">
-                    {% else %}
-                        <span aria-hidden="true">✦</span>
-                    {% endif %}
-                </div>
-                <div class="character-identity__copy">
-                    <p class="eyebrow">Взгляд обращён внутрь, к отражению, Vermin.</p>
-                    <h1>{{ active_character.name }}</h1>
-                    <p class="lead">{{ active_character.biography|default:"История ещё не обрела слов."|linebreaksbr }}</p>
-                </div>
-            </div>
-
-            {% if characters|length > 1 %}
-                <form class="character-switcher" method="post" action="{% url 'characters:switch_active' campaign.id %}">
-                    {% csrf_token %}
-                    <label for="active-character-choice">Сменить отражение</label>
-                    <div class="character-switcher__controls">
-                        <select id="active-character-choice" name="character">
-                            {% for character in characters %}
-                                <option value="{{ character.id }}"{% if character == active_character %} selected{% endif %}>{{ character.name }}</option>
-                            {% endfor %}
-                        </select>
-                        <button class="reflection-action reflection-action--quiet" type="submit">Продолжить</button>
-                    </div>
-                </form>
-            {% endif %}
-        {% elif characters %}
+    {% if not active_character %}
+        <header class="character-worldspace__hero character-worldspace__hero--quiet" data-focus-depth="background">
+        {% if characters %}
             <div class="character-workspace-empty">
                 <span aria-hidden="true">✧</span>
                 <div>
@@ -71,11 +39,29 @@
                 </div>
             </div>
         {% endif %}
-    </header>
+        </header>
+    {% endif %}
 
     {% if active_character %}
-        <main class="character-workspace" aria-label="Отражение {{ active_character.name }}">
-            <section class="character-workspace__grid reflection-node-field" data-reflection-node-field>
+        <main class="character-workspace reflection-radial-scene" aria-label="Отражение {{ active_character.name }}">
+            <section class="character-workspace__grid reflection-radial-scene__field reflection-node-field" data-reflection-node-field>
+                <section class="character-core reflection-node" data-reflection-node tabindex="0" data-character-identity-anchor aria-labelledby="character-core-name">
+                    <span class="character-core__facet character-core__facet--near" aria-hidden="true"></span>
+                    <span class="character-core__facet character-core__facet--far" aria-hidden="true"></span>
+                    <div class="character-core__portrait">
+                        {% if active_character.portrait %}
+                            <img src="{{ active_character.portrait.url }}" alt="Портрет {{ active_character.name }}">
+                        {% else %}
+                            <span aria-hidden="true">✦</span>
+                        {% endif %}
+                    </div>
+                    <div class="character-core__identity">
+                        <p class="character-core__whisper">Отражение откликается</p>
+                        <h1 id="character-core-name">{{ active_character.name }}</h1>
+                    </div>
+                    <p class="sr-only">{{ active_character.biography|default:"История ещё не обрела слов." }}</p>
+                </section>
+
                 <article class="workspace-module workspace-module--tiamana reflection-node reflection-node--shard-a" data-reflection-node tabindex="0" aria-labelledby="workspace-tiamana-title">
                     <div class="workspace-module__sigil" aria-hidden="true">◇</div>
                     <p class="panel-kicker">Внутренний путь</p><h2 id="workspace-tiamana-title">Тиамана</h2>
@@ -129,12 +115,27 @@
                     <p class="panel-kicker">Сокрытый контур</p><h2 id="workspace-apotheosis-title">Apotheosis</h2>
                     <p>Сокрытый контур остаётся безмолвным.</p>
                 </article>
+
+                <section class="workspace-inventory reflection-node reflection-node--material" data-reflection-node tabindex="0" aria-labelledby="workspace-inventory-title">
+                    <div><p class="panel-kicker">При себе</p><h2 id="workspace-inventory-title">Инвентарь</h2></div>
+                    <p>Вещи ещё не проступили.</p>
+                </section>
             </section>
 
-            <section class="workspace-inventory reflection-node reflection-node--material" data-reflection-node tabindex="0" aria-labelledby="workspace-inventory-title">
-                <div><p class="panel-kicker">При себе</p><h2 id="workspace-inventory-title">Инвентарь</h2></div>
-                <p>Вещи ещё не проступили.</p>
-            </section>
+            {% if characters|length > 1 %}
+                <form class="character-switcher character-switcher--radial" method="post" action="{% url 'characters:switch_active' campaign.id %}">
+                    {% csrf_token %}
+                    <label for="active-character-choice">Сменить отражение</label>
+                    <div class="character-switcher__controls">
+                        <select id="active-character-choice" name="character">
+                            {% for character in characters %}
+                                <option value="{{ character.id }}"{% if character == active_character %} selected{% endif %}>{{ character.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button class="reflection-action reflection-action--quiet" type="submit">Продолжить</button>
+                    </div>
+                </form>
+            {% endif %}
 
             <aside class="workspace-hud" aria-label="Состояние отражения">
                 <div class="workspace-hud__anchor workspace-hud__anchor--soul" data-xp-hud-anchor>

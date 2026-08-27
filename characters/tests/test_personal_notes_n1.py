@@ -505,7 +505,7 @@ class PersonalNotePresentationTests(PersonalNotesN1Mixin, TestCase):
         self.assertContains(
             workspace,
             "data-reflection-node tabindex",
-            count=7,
+            count=8,
             html=False,
         )
         self.assertContains(workspace, "static/js/reflection-focus.js", html=False)
@@ -519,6 +519,26 @@ class PersonalNotePresentationTests(PersonalNotesN1Mixin, TestCase):
         self.assertNotContains(memory, 'class="ambient-scene', html=False)
         self.assertNotContains(memory, 'class="panel held-thought', html=False)
         self.assertNotContains(memory, 'class="button memory-action', html=False)
+
+    def test_ux14_workspace_uses_character_core_and_radial_scene_without_active_hero(self):
+        self.client.force_login(self.player_a)
+        workspace = self.client.get(
+            reverse("campaigns:campaign_detail", args=[self.campaign.pk])
+        )
+
+        self.assertContains(
+            workspace,
+            'class="character-workspace reflection-radial-scene"',
+            html=False,
+        )
+        self.assertContains(
+            workspace,
+            'class="character-core reflection-node"',
+            html=False,
+        )
+        self.assertContains(workspace, 'id="character-core-name"', html=False)
+        self.assertNotContains(workspace, 'class="character-identity"', html=False)
+        self.assertNotContains(workspace, 'class="character-worldspace__hero"', html=False)
 
     def test_ux12_memory_focus_states_keep_native_secure_routes_and_quiet_copy(self):
         note = self.note(memo="Тихий берег", body="Не забыть дорогу к воде.")
