@@ -551,12 +551,78 @@ class PersonalNotePresentationTests(PersonalNotesN1Mixin, TestCase):
         self.assertIn("reflectiongeometrychange", radial_script)
         self.assertIn("--radial-radius-x", radial_script)
         self.assertIn("--radial-radius-y", radial_script)
-        self.assertIn("Math.cos", radial_script)
-        self.assertIn("Math.sin", radial_script)
         self.assertIn("--radial-node-left", radial_script)
-        self.assertIn('angle: -90', radial_script)
-        self.assertIn('angle: 225', radial_script)
+        self.assertIn('selector: ".workspace-module--party", x: 0.00, y: -0.90', radial_script)
+        self.assertIn('selector: ".workspace-module--quests", x: 1.4, y: 0.00', radial_script)
+        self.assertIn('selector: ".workspace-module--map", x: -0.92, y: -0.5', radial_script)
         self.assertNotIn("setInterval", radial_script)
+
+    def test_ux14_turn2a_aura_and_connectors_are_decorative_bounded_enhancements(self):
+        self.client.force_login(self.player_a)
+        workspace = self.client.get(
+            reverse("campaigns:campaign_detail", args=[self.campaign.pk])
+        )
+
+        self.assertContains(workspace, 'class="character-core__aura"', html=False)
+        self.assertContains(workspace, "gifs/giphy%20(3).gif", html=False)
+        self.assertContains(workspace, "data-reflection-connectors", html=False)
+        self.assertContains(
+            workspace,
+            "gifs/ezgif-22ce4fcd901dc090.gif",
+            html=False,
+        )
+        self.assertContains(workspace, 'aria-hidden="true"', html=False)
+        self.assertContains(workspace, "static/js/reflection-connectors.js", html=False)
+
+        root = Path(__file__).resolve().parents[2]
+        connectors = (
+            root / "static" / "js" / "reflection-connectors.js"
+        ).read_text(encoding="utf-8")
+        focus = (root / "static" / "js" / "reflection-focus.js").read_text(
+            encoding="utf-8"
+        )
+        css = (root / "static" / "css" / "app.css").read_text(encoding="utf-8")
+
+        self.assertIn("reflectiongeometrychange", connectors)
+        self.assertIn("reflectionfocuschange", connectors)
+        self.assertIn("requestAnimationFrame", connectors)
+        self.assertIn("projectedHalfExtent", connectors)
+        self.assertIn("Math.atan2", connectors)
+        self.assertIn("has-core-connector-focus", connectors)
+        self.assertNotIn("setInterval", connectors)
+        self.assertNotIn("fetch(", connectors)
+        self.assertIn('new CustomEvent("reflectionfocuschange"', focus)
+        self.assertIn(".character-core__aura", css)
+        self.assertIn(".reflection-connector.is-focus-linked", css)
+        self.assertIn("@media (max-width: 760px)", css)
+        self.assertIn("@media (prefers-reduced-motion: reduce)", css)
+
+    def test_ux14_turn2b_hud_is_persistent_outside_radial_scene_without_fake_state(self):
+        self.client.force_login(self.player_a)
+        workspace = self.client.get(
+            reverse("campaigns:campaign_detail", args=[self.campaign.pk])
+        )
+        html = workspace.content.decode()
+        radial_start = html.index(
+            'class="character-workspace reflection-radial-scene"'
+        )
+        radial_end = html.index("</main>", radial_start)
+        hud_start = html.index('class="character-persistent-hud"')
+        hud_end = html.index("</aside>", hud_start)
+        hud = html[hud_start:hud_end]
+
+        self.assertGreater(hud_start, radial_end)
+        self.assertIn("data-character-persistent-hud", hud)
+        self.assertIn("data-xp-hud-anchor", hud)
+        self.assertIn("data-money-hud-anchor", hud)
+        self.assertIn("gifs/giphy%20(2).gif", hud)
+        self.assertIn("character-soul-hud__sigil", hud)
+        self.assertIn("character-money-hud__value", hud)
+        self.assertIn("—", hud)
+        self.assertNotIn("data-reflection-node", hud)
+        self.assertNotIn("progress", hud.lower())
+        self.assertNotIn("level", hud.lower())
+        self.assertNotIn("XP", hud)
 
     def test_ux12_memory_focus_states_keep_native_secure_routes_and_quiet_copy(self):
         note = self.note(memo="Тихий берег", body="Не забыть дорогу к воде.")

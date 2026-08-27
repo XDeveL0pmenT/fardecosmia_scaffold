@@ -450,13 +450,18 @@ class CharacterAmbiencePW2Tests(TestCase):
         self.assertFalse(hasattr(self.character, "current_temperature"))
         self.assertFalse(hasattr(self.character, "is_raining"))
 
-    def test_shared_css_motion_is_reducible_and_has_no_animated_weather_gifs(self):
+    def test_shared_css_uses_authoritative_gifs_with_reduced_motion_fallbacks(self):
         css = (Path(django_settings.BASE_DIR) / "static" / "css" / "app.css").read_text(
             encoding="utf-8"
         )
 
         self.assertIn("@media (prefers-reduced-motion: reduce)", css)
-        self.assertIn("ambient-rain-fall", css)
-        self.assertIn("ambient-snow-fall", css)
-        self.assertNotIn('url("../gifs/rain.gif")', css)
-        self.assertNotIn('url("../gifs/placidplace-snow-16036.gif")', css)
+        self.assertIn('background-image: url("../gifs/rain.gif")', css)
+        self.assertIn(
+            'background-image: url("../gifs/placidplace-snow-16036.gif")',
+            css,
+        )
+        self.assertIn("Reduced motion keeps authoritative precipitation visible", css)
+        self.assertIn("animation: none", css)
+        self.assertIn("--ambient-rain-opacity", css)
+        self.assertIn("--ambient-snow-opacity", css)

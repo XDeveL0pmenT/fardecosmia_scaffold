@@ -153,6 +153,15 @@
         }
     }
 
+    function announceFocusChange(controller, node) {
+        if (!controller) {
+            return;
+        }
+        controller.field.dispatchEvent(new CustomEvent("reflectionfocuschange", {
+            detail: { node: node || null }
+        }));
+    }
+
     function removeActiveNode() {
         if (!activeNode) {
             return;
@@ -169,6 +178,7 @@
             controller.lightTarget.x = 0.5;
             controller.lightTarget.y = 0.5;
             controller.field.classList.remove("has-node-focus");
+            announceFocusChange(controller, null);
         }
     }
 
@@ -184,6 +194,7 @@
             var nextController = controllerFor(node);
             if (nextController) {
                 nextController.field.classList.add("has-node-focus");
+                announceFocusChange(nextController, node);
             }
         }
         node.classList.toggle("is-node-light-active", mode === "pointer");

@@ -45,7 +45,20 @@
     {% if active_character %}
         <main class="character-workspace reflection-radial-scene" aria-label="Отражение {{ active_character.name }}">
             <section class="character-workspace__grid reflection-radial-scene__field reflection-node-field" data-reflection-node-field data-radial-layout>
+                <div
+                    class="reflection-connectors"
+                    data-reflection-connectors
+                    data-connector-asset="{% static 'gifs/ezgif-22ce4fcd901dc090.gif' %}"
+                    aria-hidden="true"
+                ></div>
                 <section class="character-core reflection-node" data-reflection-node tabindex="0" data-character-identity-anchor aria-labelledby="character-core-name">
+                    <img
+                        class="character-core__aura"
+                        src="{% static 'gifs/giphy (3).gif' %}"
+                        alt=""
+                        aria-hidden="true"
+                        draggable="false"
+                    >
                     <span class="character-core__facet character-core__facet--near" aria-hidden="true"></span>
                     <span class="character-core__facet character-core__facet--far" aria-hidden="true"></span>
                     <div class="character-core__portrait">
@@ -139,20 +152,27 @@
                 </form>
             {% endif %}
 
-            <aside class="workspace-hud" aria-label="Состояние отражения">
-                <div class="workspace-hud__anchor workspace-hud__anchor--soul" data-xp-hud-anchor>
-                    <span aria-hidden="true">◇</span><div><small>Развитие</small><strong>Путь ещё не проявлен</strong></div>
-                </div>
-                <div class="workspace-hud__anchor workspace-hud__anchor--money" data-money-hud-anchor>
-                    <span aria-hidden="true">◈</span><div><small>Кошель</small><strong>Вес монет ещё не различим</strong></div>
-                </div>
-            </aside>
         </main>
+
+        <aside class="character-persistent-hud" aria-label="Постоянные знаки отражения" data-character-persistent-hud>
+            <div class="character-soul-hud" data-xp-hud-anchor>
+                <span class="character-soul-hud__visual" aria-hidden="true">
+                    <img class="character-soul-hud__burst" src="{% static 'gifs/giphy (2).gif' %}" alt="" draggable="false">
+                    <img class="character-soul-hud__sigil" src="{% static 'images/Soul.png' %}" alt="" draggable="false">
+                </span>
+                <span class="sr-only">Душа. Путь развития ещё не проявлен.</span>
+            </div>
+            <div class="character-money-hud" data-money-hud-anchor aria-label="Кошель: состояние пока не проявлено">
+                <span class="character-money-hud__sigil" aria-hidden="true">◇</span>
+                <span class="character-money-hud__value" aria-hidden="true">—</span>
+            </div>
+        </aside>
     {% endif %}
 </div>
 {% endblock %}
 {% block extra_scripts %}
 {{ block.super }}
 <script src="{% static 'js/reflection-radial-layout.js' %}?v=ux14-elastic-1"></script>
-<script src="{% static 'js/reflection-focus.js' %}?v=ux13-focus-5"></script>
+<script src="{% static 'js/reflection-connectors.js' %}?v=ux14-turn2a-1"></script>
+<script src="{% static 'js/reflection-focus.js' %}?v=ux14-turn2a-1"></script>
 {% endblock %}

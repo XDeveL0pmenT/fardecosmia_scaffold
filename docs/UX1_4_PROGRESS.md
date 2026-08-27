@@ -267,3 +267,246 @@ continuation.
 
 **STOP.** Await user visual acceptance. Do not start Turn 2, GIF integration,
 connectors, HUD work or any backend/gameplay phase.
+
+## Turn 2A — Character Core Aura & Reflection Connectors
+
+### Scope and accepted baseline
+
+- Turn 2A only is complete. Turn 2B was not started.
+- The user-accepted optical radial geometry is the visual baseline. Its anchors,
+  proportions, Character Core position and radial solver were not changed.
+- This milestone adds presentation only: a Core aura, decorative connector layer,
+  connector geometry and a small focus-state notification extension.
+- No models, migrations, permissions, routes, Character ownership, Notes privacy,
+  L1/PW2 semantics, atmospheric calculation or gameplay state changed.
+
+### Exact existing assets
+
+- White Character rupture/glitch aura used in Turn 2A:
+  `static/gifs/giphy (3).gif` (`434×434`, 48 frames).
+- Thin white connector texture used in Turn 2A:
+  `static/gifs/ezgif-22ce4fcd901dc090.gif` (`199×297`, 91 frames).
+- Chromatic circular Soul burst reserved for Turn 2B:
+  `static/gifs/giphy (2).gif` (`500×500`, 48 frames).
+- Existing white/transparent Soul-sigil candidate:
+  `static/images/ы.png`; its violet variant is `static/images/ы1.png`.
+  Neither was integrated in Turn 2A.
+- Authoritative precipitation assets confirmed but deliberately not integrated
+  before Turn 2B:
+  `static/gifs/rain.gif` and
+  `static/gifs/placidplace-snow-16036.gif`.
+- No asset was copied, renamed, converted, re-rendered, embedded or modified.
+
+### Character Core aura
+
+- The template renders the white glitch GIF as a decorative `img` behind the
+  portrait, with empty alt text, `aria-hidden`, `draggable=false` and no pointer
+  events.
+- Desktop idle opacity is `0.34`; Core hover/keyboard/single-owner focus raises
+  it to `0.43` with a small eased scale/clarity increase.
+- The existing Variant B identity behavior remains authoritative: portrait and
+  Character name still respond through the existing Core focus selectors.
+- Mobile uses a smaller `166px`, quieter `0.22` aura (`0.29` focused).
+- Reduced motion hides the animated aura; the existing static Core facet/ring
+  material remains as the non-animated identity fallback.
+
+### Connector implementation
+
+- `static/js/reflection-connectors.js` creates exactly eight decorative lines
+  for Party, Map, Lifestyle, Tiamana, Quests, Notes, Apotheosis and Inventory.
+- The layer has `aria-hidden` and `pointer-events:none`; it is not interactive,
+  navigation, a graph API, a skill tree or gameplay state.
+- Geometry is calculated from actual rendered Core/aura and target shard
+  rectangles:
+  - Core/target centers provide `dx`, `dy`, distance and `atan2` angle;
+  - projected half-extents trim the line past the aura edge and before the shard
+    body;
+  - CSS custom properties receive start point, length and rotation.
+- The connector GIF remains thin (`14px`) and is stretched predominantly along
+  its calculated length inside a rotated container.
+- The connector controller listens to the existing
+  `reflectiongeometrychange`, initial render, media-query changes and viewport
+  resize. Work is coalesced into one scheduled animation frame; there is no
+  permanent layout loop, `setInterval`, fetch or server request.
+- The accepted `reflection-radial-layout.js` and its manually tuned optical
+  anchors were not changed.
+
+### Focus integration
+
+- `reflection-focus.js` remains the sole owner of pointer/keyboard focus.
+- A small `reflectionfocuschange` notification is dispatched only when that
+  existing owner changes or clears. It does not create a second state machine.
+- `reflection-connectors.js` consumes the notification from the outer Focus
+  Field and maps the active node to the matching decorative thread.
+- Idle opacity is `0.09`; the one linked connector uses `0.27`.
+- When Character Core owns focus, no individual link is selected and all eight
+  connectors quietly rise to `0.16`.
+- Existing sibling recession, node local-light, reset hooks and single-owner
+  classes are unchanged.
+
+### Responsive and reduced-motion behavior
+
+- At `760px` and below connectors are hidden and the accepted normal-flow mobile
+  Workspace remains unchanged.
+- Reduced motion hides the animated connector texture but keeps a faint static
+  linear thread fallback. Presentation meaning does not depend on GIF motion.
+- The reduced-motion browser profile was not active on the development machine;
+  the fallback contract is covered by focused source/CSS assertions.
+
+### Changed files
+
+- `characters/templates/characters/character_workspace.html` — decorative aura,
+  connector layer/asset URL and connector script include.
+- `static/js/reflection-connectors.js` — bounded event-driven connector geometry
+  and focus presentation.
+- `static/js/reflection-focus.js` — small focus-owner change notification only.
+- `static/css/app.css` — aura/connector layers, tuning knobs, mobile and reduced-
+  motion behavior.
+- `templates/base.html` — Turn 2A CSS cache key.
+- `characters/tests/test_personal_notes_n1.py` — accepted optical-anchor baseline
+  assertions plus bounded Turn 2A presentation contract.
+- `docs/UX1_4_PROGRESS.md` — this checkpoint.
+
+### Verification
+
+- `manage.py check`: no issues.
+- Focused `PersonalNotePresentationTests` + `CharacterAmbiencePW2Tests`:
+  **31 tests, OK**.
+- After correcting the focus-event listener boundary discovered by browser
+  sanity, the final dedicated Turn 2A presentation test was rerun:
+  **1 test, OK**.
+- Quick browser sanity, with no screenshots:
+  - desktop `1280×720`: radial and connectors ready; eight of eight lines
+    visible; idle opacity `0.09`; aura opacity `0.34`; no horizontal overflow;
+  - Party pointer focus: exactly one Focus node and exactly one linked connector,
+    with key `party` and opacity `0.27`;
+  - Character Core keyboard-equivalent focus: exactly one focused node, no
+    individual connector, all eight connectors at `0.16`, aura at `0.43`;
+  - resize to `1000×720`: connector geometry key changed and all eight lines were
+    recalculated without horizontal overflow;
+  - mobile `390×844`: connector layer hidden, connector-ready state cleared,
+    zero absolutely positioned nodes and no horizontal overflow;
+  - browser console warnings/errors: none.
+- The isolated browser fixture was deleted by exact Campaign UUID and username.
+  The temporary local server is no longer listening.
+- No screenshots or full suite were run, as required by the quota guard.
+
+### Exact next step
+
+**STOP after Turn 2A.** Turn 2B may begin only after explicit user continuation.
+Turn 2B scope is Soul HUD, Money HUD and shared authoritative Region + Character
+rain/snow GIF restoration. Do not begin Turn 3 or any gameplay/backend phase.
+
+## Turn 2B — Persistent HUD & Authoritative Weather GIF Restoration
+
+### Scope and preserved baseline
+
+- Turn 2B is complete. Turn 3 was not started.
+- The accepted radial geometry, all eight node anchors, Character Core position
+  and size, Core aura, connector geometry/lengths, UX1.3 Focus Field, Dark Glass
+  shards, Inventory preview and Notes preview/navigation were not changed.
+- This milestone is frontend presentation only. It adds a viewport-persistent
+  Soul/Money HUD and restores the supplied rain/snow GIFs through the existing
+  shared ambience component.
+- No backend, model, migration, permission, route, weather solver, sampling,
+  gameplay or persistence semantics changed.
+
+### Persistent Character HUD
+
+- The HUD is rendered after the radial `<main>` and remains inside the existing
+  outer Focus Field only. It is not a radial node, is not observed by the radial
+  layout solver and cannot participate in connector or focus ownership.
+- Desktop placement is viewport-persistent:
+  - Soul: bottom-left, `116×116px`, `18px` safe inset;
+  - Money: top-right, minimum `104×52px`, below the platform top bar.
+- Mobile `390×844` placement remains compact and clear of the shell:
+  - Soul: `78×78px`, `8px` bottom/left inset;
+  - Money: minimum `76×40px`, `74px` from the top and `8px` from the right.
+- The Soul presentation layers the existing chromatic burst
+  `static/gifs/giphy (2).gif` behind the white sigil
+  `static/images/ы.png`. The burst is deliberately quiet (`0.34` desktop,
+  `0.27` mobile) and the static sigil remains primary.
+- Reduced motion hides the animated Soul burst and preserves the sigil plus a
+  static ring, so the HUD remains identifiable without motion.
+- Money uses a compact Dark Glass shard and deliberately renders `◇ —`: no fake
+  balance, currency, XP, level or progression was invented.
+- Both HUD elements are pointer-transparent presentation landmarks. Their
+  accessible text explicitly says that progression/balance is not yet
+  manifested.
+
+### Shared authoritative precipitation presentation
+
+- Region detail and Character Workspace still render the same
+  `world/_ambient_layers.html` component and use the same
+  `AmbientPresentation` opacity tokens.
+- Normal-motion rain now uses the supplied `static/gifs/rain.gif`.
+- Normal-motion snow now uses the supplied
+  `static/gifs/placidplace-snow-16036.gif`.
+- GIF visibility remains wholly controlled by authoritative
+  `--ambient-rain-opacity`, `--ambient-snow-opacity` and
+  `data-precipitation-kind`; no CSS class or JavaScript invents precipitation.
+- Dry scenes retain the shared DOM layers but both authoritative opacities are
+  zero, so no rain or snow is visible.
+- Reduced motion replaces both animated GIF surfaces with quiet CSS gradient
+  fallbacks while retaining the same authoritative opacity variables.
+- No second weather renderer, Player weather endpoint, sampler branch or
+  cumulative-precipitation interpretation was introduced.
+
+### Turn 2B changed files
+
+- `characters/templates/characters/character_workspace.html` — moved the HUD
+  outside the radial scene and added the persistent Soul/Money presentation.
+- `static/css/app.css` — persistent desktop/mobile/reduced-motion HUD styles and
+  shared rain/snow GIF surfaces with reduced-motion fallbacks.
+- `templates/base.html` — CSS cache key advanced to `ux14-turn2b-1`.
+- `characters/tests/test_character_ambience_pw2.py` — focused shared
+  precipitation asset/fallback contract.
+- `characters/tests/test_personal_notes_n1.py` — focused HUD placement and
+  no-fabricated-state contract.
+- `docs/UX1_4_PROGRESS.md` — this checkpoint.
+- The pre-existing modified `static/gifs/giphy (3).gif` remained untouched in
+  Turn 2B.
+
+### Verification
+
+- `python manage.py check`: no issues.
+- Focused `PersonalNotePresentationTests` + `CharacterAmbiencePW2Tests`:
+  **32 tests, OK**.
+- Quick targeted browser sanity, no screenshots:
+  - desktop `1280×720`: HUD computed `position: fixed`, is outside both
+    `.reflection-radial-scene` and `[data-radial-layout]`; Soul and Money occupy
+    the intended opposite viewport corners; no horizontal overflow;
+  - Character rain: `data-precipitation-kind=rain`, rain opacity `0.5851`, rain
+    GIF loaded, snow opacity `0`;
+  - Character snow: `data-precipitation-kind=snow`, snow opacity `0.6144`, snow
+    GIF loaded, rain opacity `0`;
+  - Character dry: kind `none`, both precipitation opacities `0`;
+  - Region rain/snow/dry produced the same respective kinds, GIF URLs and
+    authoritative opacities through the shared Region ambience component;
+  - mobile `390×844`: HUD remains fixed outside the radial scene, Soul and Money
+    use their compact positions, rain remains authoritative and there is no
+    horizontal overflow;
+  - browser console warnings/errors: none.
+- The development browser profile reports `prefers-reduced-motion: false`.
+  Reduced-motion behavior was therefore verified through focused source/CSS
+  assertions rather than claimed as an active runtime profile.
+- The temporary server was stopped. Exactly six isolated browser-test Campaigns
+  and the single exact temporary user were deleted; real development data was
+  not touched.
+- No full suite, screenshots or migration command were run, per Turn 2B scope.
+
+### Tuning knobs and known limits
+
+- Soul footprint, burst/sigil sizes and burst opacity are isolated under
+  `.character-soul-hud*`; Money footprint is isolated under
+  `.character-money-hud*`.
+- Rain tile size is `480×480px`; snow scales between `720px` and the source
+  `1176px` width. Authoritative intensity remains independent of these visual
+  sizing knobs.
+- HUD values remain intentionally unavailable placeholders until a dedicated
+  source-of-truth phase defines Soul progression and money.
+
+### Exact next step
+
+**STOP after Turn 2B.** Await explicit user acceptance. Do not begin Turn 3,
+Soul/XP gameplay, economy, backend work or any other gameplay phase.
