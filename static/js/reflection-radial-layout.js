@@ -39,7 +39,7 @@
 
         { selector: ".workspace-module--life", x: 0.92, y: -0.58 },
 
-        { selector: ".workspace-module--quests", x: 1.20, y: 0.00 },
+        { selector: ".workspace-module--quests", x: 1.3, y: 0.00 },
 
         { selector: ".workspace-module--apotheosis", x: 0.92, y: 0.58 },
 
@@ -47,7 +47,7 @@
 
         { selector: ".workspace-module--notes", x: -0.92, y: 0.58 },
 
-        { selector: ".workspace-module--tiamana", x: -1.20, y: 0.00 },
+        { selector: ".workspace-module--tiamana", x: -1.3, y: 0.00 },
 
         { selector: ".workspace-module--map", x: -0.92, y: -0.58 }
     ];
