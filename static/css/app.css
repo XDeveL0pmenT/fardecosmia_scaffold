@@ -7640,3 +7640,36 @@ html.character-surface-is-leaving [data-character-surface] {
         --radial-field-width: min(calc(100vw - 40px), 1540px);
     }
 }
+
+
+
+/* UX1.4 — Inventory content flows downward inside the bottom shard. */
+.character-workspace .reflection-radial-scene__field .workspace-inventory,
+.character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-inventory {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    align-content: center;
+    gap: 7px;
+}
+
+.workspace-inventory__heading {
+    display: grid;
+    gap: 0;
+}
+
+.workspace-inventory__heading .panel-kicker {
+    margin-bottom: 7px;
+}
+
+.workspace-inventory__heading h2 {
+    margin: 0;
+}
+
+.workspace-inventory__preview {
+    margin-top: 2px;
+}
+
+.workspace-inventory__preview > p {
+    margin: 0;
+}

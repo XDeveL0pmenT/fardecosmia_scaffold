@@ -9,14 +9,14 @@
     var desktopQuery = window.matchMedia("(min-width: 761px)");
     var pendingFields = new Set();
     var layoutFrame = null;
-    var EDGE_PADDING = 24;
-    var NODE_GAP = 20;
+    var EDGE_PADDING = 14;
+    var NODE_GAP = 10;
     var CORE_GAP = 46;
     var MAX_SOLVE_STEPS = 80;
-    var BASE_RADIUS_X_FACTOR = 0.34;
-    var TARGET_RADIUS_Y_RATIO = 1.05;
-    var X_GROWTH = 1.018;
-    var Y_GROWTH = 1.025;
+    var BASE_RADIUS_X_FACTOR = 0.55;
+    var TARGET_RADIUS_Y_RATIO = 0.66;
+    var X_GROWTH = 1.025;
+    var Y_GROWTH = 1.005;
 
     /*
      * Optical radial ring rather than a strict mathematical ellipse.
@@ -35,11 +35,11 @@
      * growth for future bounded content.
      */
     var ANCHORS = [
-        { selector: ".workspace-module--party", x: 0.00, y: -1.00 },
+        { selector: ".workspace-module--party", x: 0.00, y: -0.90 },
 
-        { selector: ".workspace-module--life", x: 0.92, y: -0.58 },
+        { selector: ".workspace-module--life", x: 0.92, y: -0.5 },
 
-        { selector: ".workspace-module--quests", x: 1.3, y: 0.00 },
+        { selector: ".workspace-module--quests", x: 1.4, y: 0.00 },
 
         { selector: ".workspace-module--apotheosis", x: 0.92, y: 0.58 },
 
@@ -47,9 +47,9 @@
 
         { selector: ".workspace-module--notes", x: -0.92, y: 0.58 },
 
-        { selector: ".workspace-module--tiamana", x: -1.3, y: 0.00 },
+        { selector: ".workspace-module--tiamana", x: -1.4, y: 0.00 },
 
-        { selector: ".workspace-module--map", x: -0.92, y: -0.58 }
+        { selector: ".workspace-module--map", x: -0.92, y: -0.5 }
     ];
 
     function bounded(value, minimum, maximum) {
