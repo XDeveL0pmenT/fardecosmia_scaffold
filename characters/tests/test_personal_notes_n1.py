@@ -537,8 +537,26 @@ class PersonalNotePresentationTests(PersonalNotesN1Mixin, TestCase):
             html=False,
         )
         self.assertContains(workspace, 'id="character-core-name"', html=False)
+        self.assertContains(workspace, "data-radial-layout", html=False)
+        self.assertContains(workspace, "static/js/reflection-radial-layout.js", html=False)
+        self.assertContains(workspace, 'data-preview-row-cap="4"', html=False)
         self.assertNotContains(workspace, 'class="character-identity"', html=False)
         self.assertNotContains(workspace, 'class="character-worldspace__hero"', html=False)
+
+        root = Path(__file__).resolve().parents[2]
+        radial_script = (
+            root / "static" / "js" / "reflection-radial-layout.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn("ResizeObserver", radial_script)
+        self.assertIn("reflectiongeometrychange", radial_script)
+        self.assertIn("--radial-radius-x", radial_script)
+        self.assertIn("--radial-radius-y", radial_script)
+        self.assertIn("Math.cos", radial_script)
+        self.assertIn("Math.sin", radial_script)
+        self.assertIn("--radial-node-left", radial_script)
+        self.assertIn('angle: -90', radial_script)
+        self.assertIn('angle: 225', radial_script)
+        self.assertNotIn("setInterval", radial_script)
 
     def test_ux12_memory_focus_states_keep_native_secure_routes_and_quiet_copy(self):
         note = self.note(memo="Тихий берег", body="Не забыть дорогу к воде.")

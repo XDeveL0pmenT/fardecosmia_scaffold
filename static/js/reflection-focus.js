@@ -301,6 +301,11 @@
             resetMotion(true);
         }, { passive: true });
 
+        field.addEventListener("reflectiongeometrychange", function () {
+            controller.bounds = null;
+            clearPointerFocus({ restoreKeyboard: true });
+        });
+
         field.querySelectorAll("[data-reflection-node]").forEach(function (node) {
             node.addEventListener("pointerenter", function (event) {
                 if (!pointerEventIsAllowed(event)) {
@@ -371,6 +376,7 @@
     document.addEventListener("wheel", resetPointerForViewportMotion, { passive: true, capture: true });
     document.addEventListener("scroll", resetPointerForViewportMotion, { passive: true, capture: true });
     window.addEventListener("scroll", resetPointerForViewportMotion, { passive: true });
+    window.addEventListener("resize", resetPointerForViewportMotion, { passive: true });
     document.addEventListener("visibilitychange", function () {
         if (document.hidden) {
             suppressPointerFor(180);

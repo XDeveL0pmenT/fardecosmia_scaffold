@@ -44,7 +44,7 @@
 
     {% if active_character %}
         <main class="character-workspace reflection-radial-scene" aria-label="Отражение {{ active_character.name }}">
-            <section class="character-workspace__grid reflection-radial-scene__field reflection-node-field" data-reflection-node-field>
+            <section class="character-workspace__grid reflection-radial-scene__field reflection-node-field" data-reflection-node-field data-radial-layout>
                 <section class="character-core reflection-node" data-reflection-node tabindex="0" data-character-identity-anchor aria-labelledby="character-core-name">
                     <span class="character-core__facet character-core__facet--near" aria-hidden="true"></span>
                     <span class="character-core__facet character-core__facet--far" aria-hidden="true"></span>
@@ -98,7 +98,7 @@
                     <div class="workspace-module__sigil" aria-hidden="true">✎</div>
                     <p class="panel-kicker">Заметки</p><h2 id="workspace-notes-title">Удержанные мысли</h2>
                     {% if held_thoughts_preview %}
-                        <div class="workspace-thought-preview">
+                        <div class="workspace-thought-preview workspace-bounded-preview" data-preview-row-cap="2">
                             {% for note in held_thoughts_preview %}
                                 <span>«{% if note.memo %}{{ note.memo }}{% else %}{{ note.body|truncatechars:72 }}{% endif %}»</span>
                             {% endfor %}
@@ -117,8 +117,10 @@
                 </article>
 
                 <section class="workspace-inventory reflection-node reflection-node--material" data-reflection-node tabindex="0" aria-labelledby="workspace-inventory-title">
-                    <div><p class="panel-kicker">При себе</p><h2 id="workspace-inventory-title">Инвентарь</h2></div>
-                    <p>Вещи ещё не проступили.</p>
+                    <div class="workspace-inventory__heading"><p class="panel-kicker">При себе</p><h2 id="workspace-inventory-title">Инвентарь</h2></div>
+                    <div class="workspace-inventory__preview workspace-bounded-preview" data-preview-row-cap="4">
+                        <p>Вещи ещё не проступили.</p>
+                    </div>
                 </section>
             </section>
 
@@ -151,5 +153,6 @@
 {% endblock %}
 {% block extra_scripts %}
 {{ block.super }}
+<script src="{% static 'js/reflection-radial-layout.js' %}?v=ux14-elastic-1"></script>
 <script src="{% static 'js/reflection-focus.js' %}?v=ux13-focus-5"></script>
 {% endblock %}

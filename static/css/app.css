@@ -7312,3 +7312,331 @@ html.character-surface-is-leaving [data-character-surface] {
         width: min(100%, 220px);
     }
 }
+
+/* UX1.4 Turn 1.1 — elastic ring geometry and readable shard safe-zones. */
+.character-workspace .reflection-radial-scene__field {
+    --radial-radius-x: clamp(18px, 2.4vw, 38px);
+    --radial-radius-y: clamp(16px, 2vw, 34px);
+    --radial-core-column: clamp(170px, 16vw, 208px);
+    grid-template-columns:
+        minmax(0, 1fr)
+        minmax(42px, 0.24fr)
+        minmax(var(--radial-core-column), 0.68fr)
+        minmax(42px, 0.24fr)
+        minmax(0, 1fr);
+    grid-template-rows:
+        minmax(108px, auto)
+        minmax(138px, auto)
+        minmax(138px, auto)
+        minmax(150px, auto)
+        minmax(126px, auto);
+    grid-template-areas:
+        ". party party party ."
+        "map map core life life"
+        "tiamana tiamana core quests quests"
+        "notes notes . apotheosis apotheosis"
+        ". inventory inventory inventory .";
+    column-gap: var(--radial-radius-x);
+    row-gap: var(--radial-radius-y);
+}
+
+.character-workspace .reflection-radial-scene__field .workspace-module {
+    --node-safe-inline: max(clamp(29px, 3.2vw, 42px), 7.5%);
+    padding-inline: var(--node-safe-inline);
+}
+
+.character-workspace .reflection-radial-scene__field .workspace-module__sigil {
+    position: absolute;
+    top: clamp(23px, 2.5vw, 31px);
+    right: var(--node-safe-inline);
+    display: grid;
+    place-items: center;
+    width: 30px;
+    min-height: 30px;
+    margin: 0;
+    float: none;
+}
+
+.character-workspace .reflection-radial-scene__field .workspace-module h2 {
+    max-width: calc(100% - 36px);
+    overflow-wrap: anywhere;
+}
+
+.character-workspace .reflection-radial-scene__field .workspace-module > p:last-child {
+    max-width: min(100%, 38rem);
+    overflow-wrap: anywhere;
+}
+
+.character-workspace .reflection-radial-scene__field .workspace-module--apotheosis {
+    --node-safe-inline: max(clamp(38px, 4vw, 54px), 10%);
+    opacity: 0.76;
+}
+
+.character-workspace .reflection-radial-scene__field .workspace-module--apotheosis h2,
+.character-workspace .reflection-radial-scene__field .workspace-module--apotheosis > p:last-child {
+    width: min(100%, 31rem);
+    max-width: calc(100% - 38px);
+}
+
+.character-workspace .reflection-radial-scene__field .workspace-inventory {
+    grid-area: inventory;
+    grid-template-columns: minmax(150px, 0.54fr) minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(22px, 3vw, 42px);
+    width: min(100%, 680px);
+    min-height: 126px;
+    padding: clamp(27px, 3.2vw, 38px) max(clamp(34px, 4vw, 52px), 8%);
+}
+
+.workspace-inventory__heading,
+.workspace-inventory__preview {
+    position: relative;
+    z-index: 2;
+    min-width: 0;
+}
+
+.workspace-inventory__preview > p {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.6;
+}
+
+.workspace-bounded-preview {
+    --preview-row-height: 2rem;
+    --preview-row-count: 4;
+    max-block-size: calc(var(--preview-row-height) * var(--preview-row-count));
+    overflow: hidden;
+}
+
+.workspace-bounded-preview[data-preview-row-cap="2"] { --preview-row-count: 2; }
+.workspace-bounded-preview[data-preview-row-cap="4"] { --preview-row-count: 4; }
+
+@media (max-width: 980px) and (min-width: 761px) {
+    .character-workspace .reflection-radial-scene__field {
+        --radial-core-column: 170px;
+        grid-template-columns:
+            minmax(0, 1fr)
+            34px
+            minmax(var(--radial-core-column), 0.62fr)
+            34px
+            minmax(0, 1fr);
+    }
+
+    .character-workspace .reflection-radial-scene__field .workspace-module {
+        --node-safe-inline: max(25px, 7%);
+    }
+
+    .character-workspace .reflection-radial-scene__field .workspace-module--apotheosis {
+        --node-safe-inline: max(32px, 9%);
+    }
+}
+
+@media (max-width: 760px) {
+    .character-workspace .reflection-radial-scene__field {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: none;
+        grid-template-areas: none;
+        gap: 24px;
+    }
+
+    .character-workspace .reflection-radial-scene__field .workspace-module {
+        --node-safe-inline: 25px;
+    }
+
+    .character-workspace .reflection-radial-scene__field .workspace-module--apotheosis {
+        --node-safe-inline: 30px;
+    }
+
+    .character-workspace .reflection-radial-scene__field .workspace-inventory {
+        grid-area: auto;
+        grid-column: auto;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+        width: 100%;
+    }
+}
+
+/* UX1.4 Turn 1.1 acceptance revision — true deterministic ellipse on desktop. */
+@media (min-width: 761px) {
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] {
+        position: relative;
+        display: block;
+        height: var(--radial-field-height);
+        min-height: 0;
+        padding: 0;
+    }
+
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"]::before {
+        inset: auto;
+        top: var(--radial-center-y);
+        left: var(--radial-center-x);
+        width: calc(var(--radial-radius-x) * 2.05);
+        height: calc(var(--radial-radius-y) * 2.05);
+        border-radius: 50%;
+        opacity: 0.62;
+        background: radial-gradient(ellipse, rgba(135, 112, 205, 0.085), rgba(95, 82, 159, 0.025) 48%, transparent 73%);
+        filter: blur(32px);
+        transform: translate(-50%, -50%);
+    }
+
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .reflection-node {
+        position: absolute;
+        top: var(--radial-node-top);
+        left: var(--radial-node-left);
+        grid-area: auto;
+        grid-column: auto;
+        align-self: auto;
+        justify-self: auto;
+        margin: 0;
+    }
+
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .character-core {
+        width: 190px;
+        min-height: 270px;
+    }
+
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-module--party {
+        width: clamp(300px, 34vw, 500px);
+    }
+
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-module--map,
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-module--life {
+        width: clamp(220px, 29vw, 390px);
+    }
+
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-module--tiamana,
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-module--quests,
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-module--notes,
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-module--apotheosis {
+        width: clamp(240px, 31vw, 420px);
+    }
+
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-inventory {
+        width: clamp(320px, 42vw, 620px);
+    }
+}
+
+/* UX1.4 Turn 1.2 — widen the Reflection field and let the ellipse breathe.
+   This is intentionally the final radial-layout override layer. */
+@media (min-width: 761px) {
+    .character-workspace .reflection-radial-scene__field {
+        --radial-field-width: min(calc(100vw - 16px), 1680px);
+        width: var(--radial-field-width);
+        max-width: none;
+        margin-left: calc((100% - var(--radial-field-width)) / 2);
+        margin-right: 0;
+    }
+
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-module--party {
+        width: clamp(300px, 30vw, 470px);
+    }
+
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-module--map,
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-module--life {
+        width: clamp(220px, 24vw, 350px);
+    }
+
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-module--tiamana,
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-module--quests {
+        width: clamp(240px, 26vw, 370px);
+    }
+
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-module--notes,
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-module--apotheosis {
+        width: clamp(260px, 28vw, 390px);
+    }
+
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-inventory {
+        width: clamp(340px, 38vw, 560px);
+    }
+}
+
+@media (max-width: 760px) {
+    .character-workspace .reflection-radial-scene__field {
+        --radial-field-width: auto;
+        width: 100%;
+        margin-inline: 0;
+    }
+}
+
+/* UX1.4 Turn 1.3 — corrected radial proportions after visual QA. */
+@media (min-width: 761px) {
+    .character-workspace .reflection-radial-scene__field {
+        --radial-field-width: min(calc(100vw - 28px), 1600px);
+        width: var(--radial-field-width);
+        max-width: none;
+        margin-left: calc((100% - var(--radial-field-width)) / 2);
+        margin-right: 0;
+    }
+
+    /* Keep the readable centre of every shard wide enough for real content.
+       The old percentage-heavy safe zones made 220px shards collapse to
+       ~100px text columns and created the very tall cards seen in Turn 1.2. */
+    .character-workspace .reflection-radial-scene__field .workspace-module {
+        --node-safe-inline: clamp(28px, 2.2vw, 38px);
+        padding-inline: var(--node-safe-inline);
+    }
+
+    .character-workspace .reflection-radial-scene__field .workspace-module--apotheosis {
+        --node-safe-inline: clamp(34px, 2.6vw, 44px);
+    }
+
+    .character-workspace .reflection-radial-scene__field .workspace-module h2 {
+        width: auto;
+        max-width: calc(100% - 42px);
+        overflow-wrap: normal;
+        word-break: normal;
+        hyphens: none;
+    }
+
+    .character-workspace .reflection-radial-scene__field .workspace-module > p:last-child,
+    .character-workspace .reflection-radial-scene__field .workspace-module--apotheosis > p:last-child {
+        width: auto;
+        max-width: calc(100% - 18px);
+        overflow-wrap: break-word;
+        word-break: normal;
+    }
+
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-module--party {
+        width: clamp(360px, 31%, 520px);
+    }
+
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-module--map,
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-module--life {
+        width: clamp(300px, 24%, 420px);
+    }
+
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-module--tiamana,
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-module--quests {
+        width: clamp(310px, 25%, 440px);
+    }
+
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-module--notes,
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-module--apotheosis {
+        width: clamp(330px, 27%, 470px);
+    }
+
+    .character-workspace .reflection-radial-scene__field[data-radial-layout-ready="true"] > .workspace-inventory {
+        width: clamp(440px, 38%, 640px);
+        grid-template-columns: minmax(170px, 0.5fr) minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 760px) {
+    .character-workspace .reflection-radial-scene__field {
+        --radial-field-width: auto;
+        width: 100%;
+        margin-inline: 0;
+    }
+}
+
+
+/* UX1.4 Turn 1.4 — visual proportion correction.
+   Turn 1.3 fixed wrapping/geometry, but the resulting ring still read as a
+   horizontally squashed ellipse. Keep the wide workspace, while reducing the
+   visual spread slightly so the 45-degree anchors read as one coherent ring. */
+@media (min-width: 761px) {
+    .character-workspace .reflection-radial-scene__field {
+        --radial-field-width: min(calc(100vw - 40px), 1540px);
+    }
+}
