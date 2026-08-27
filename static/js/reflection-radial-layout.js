@@ -12,34 +12,48 @@
     var EDGE_PADDING = 24;
     var NODE_GAP = 20;
     var CORE_GAP = 46;
-    var MAX_SOLVE_STEPS = 60;
-    var BASE_RADIUS_X_FACTOR = 0.29;
-    var TARGET_RADIUS_Y_RATIO = 0.88;
-    var ELLIPSE_GROWTH = 1.028;
+    var MAX_SOLVE_STEPS = 80;
+    var BASE_RADIUS_X_FACTOR = 0.34;
+    var TARGET_RADIUS_Y_RATIO = 1.05;
+    var X_GROWTH = 1.018;
+    var Y_GROWTH = 1.025;
 
     /*
-     * Eight stable 45-degree anchors form a real ring.  Node dimensions are
-     * allowed to change, but only the ellipse radii expand; semantic angles do
-     * not drift.  This makes future bounded Inventory/Party/Quest previews
-     * enlarge the Reflection without turning it back into rows or a tall tree.
+     * Optical radial ring rather than a strict mathematical ellipse.
+     *
+     * The Reflection nodes have very different widths. With a strict 45°
+     * ellipse, the wide Party/Inventory shards collide with the diagonal
+     * shards while Quests/Tiamana already cap the global X radius at the
+     * viewport edge. The old solver then had no choice but to grow Y, which
+     * produced a tall/narrow ring (for example 554 x 817 at 1540px field
+     * width).
+     *
+     * Stable semantic sectors remain, but diagonal nodes are allowed to sit
+     * farther outward horizontally than a cos(45°) projection would permit.
+     * This matches the visual mass of wide Dark Glass shards and keeps the
+     * composition ring-like while preserving elastic ResizeObserver-driven
+     * growth for future bounded content.
      */
     var ANCHORS = [
-        { selector: ".workspace-module--party", angle: -90 },
-        { selector: ".workspace-module--life", angle: -45 },
-        { selector: ".workspace-module--quests", angle: 0 },
-        { selector: ".workspace-module--apotheosis", angle: 45 },
-        { selector: ".workspace-inventory", angle: 90 },
-        { selector: ".workspace-module--notes", angle: 135 },
-        { selector: ".workspace-module--tiamana", angle: 180 },
-        { selector: ".workspace-module--map", angle: 225 }
+        { selector: ".workspace-module--party", x: 0.00, y: -1.00 },
+
+        { selector: ".workspace-module--life", x: 0.92, y: -0.58 },
+
+        { selector: ".workspace-module--quests", x: 1.20, y: 0.00 },
+
+        { selector: ".workspace-module--apotheosis", x: 0.92, y: 0.58 },
+
+        { selector: ".workspace-inventory", x: 0.00, y: 1.00 },
+
+        { selector: ".workspace-module--notes", x: -0.92, y: 0.58 },
+
+        { selector: ".workspace-module--tiamana", x: -1.20, y: 0.00 },
+
+        { selector: ".workspace-module--map", x: -0.92, y: -0.58 }
     ];
 
     function bounded(value, minimum, maximum) {
         return Math.max(minimum, Math.min(maximum, value));
-    }
-
-    function radians(degrees) {
-        return degrees * Math.PI / 180;
     }
 
     function clearPosition(element) {
@@ -71,13 +85,11 @@
             if (!element) {
                 return null;
             }
-            var angle = radians(anchor.angle);
             var size = dimensions(element);
             return {
                 element: element,
-                angle: anchor.angle,
-                cos: Math.cos(angle),
-                sin: Math.sin(angle),
+                x: anchor.x,
+                y: anchor.y,
                 width: size.width,
                 height: size.height
             };
@@ -87,7 +99,7 @@
     function maximumHorizontalRadius(nodes, fieldWidth, edgePadding) {
         var centerX = fieldWidth / 2;
         return nodes.reduce(function (limit, node) {
-            var direction = Math.abs(node.cos);
+            var direction = Math.abs(node.x);
             if (direction < 0.001) {
                 return limit;
             }
@@ -98,8 +110,8 @@
 
     function rectangleFor(node, radiusX, radiusY) {
         return {
-            x: radiusX * node.cos,
-            y: radiusY * node.sin,
+            x: radiusX * node.x,
+            y: radiusY * node.y,
             halfWidth: node.width / 2,
             halfHeight: node.height / 2
         };
@@ -112,7 +124,8 @@
         );
     }
 
-    function hasOverlap(nodes, radiusX, radiusY) {
+    function overlappingPairs(nodes, radiusX, radiusY) {
+        var result = [];
         for (var first = 0; first < nodes.length; first += 1) {
             for (var second = first + 1; second < nodes.length; second += 1) {
                 var gap = first === 0 ? CORE_GAP : NODE_GAP;
@@ -121,24 +134,24 @@
                     rectangleFor(nodes[second], radiusX, radiusY),
                     gap
                 )) {
-                    return true;
+                    result.push([first, second]);
                 }
             }
         }
-        return false;
+        return result;
     }
 
-    function solveEllipse(nodes, coreSize, fieldWidth) {
+    function solveRing(nodes, coreSize, fieldWidth) {
         var edgePadding = bounded(fieldWidth * 0.018, 18, EDGE_PADDING);
         var maxRadiusX = maximumHorizontalRadius(nodes, fieldWidth, edgePadding);
         var horizontalHalfWidth = nodes.reduce(function (value, node) {
-            if (Math.abs(node.cos) < 0.7) {
+            if (Math.abs(node.x) < 0.9) {
                 return value;
             }
             return Math.max(value, node.width / 2);
         }, 0);
         var verticalHalfHeight = nodes.reduce(function (value, node) {
-            if (Math.abs(node.sin) < 0.7) {
+            if (Math.abs(node.y) < 0.9) {
                 return value;
             }
             return Math.max(value, node.height / 2);
@@ -146,41 +159,41 @@
 
         var radiusX = Math.min(
             maxRadiusX,
-            Math.max(fieldWidth * BASE_RADIUS_X_FACTOR, coreSize.width / 2 + horizontalHalfWidth + CORE_GAP)
+            Math.max(
+                fieldWidth * BASE_RADIUS_X_FACTOR,
+                coreSize.width / 2 + horizontalHalfWidth + CORE_GAP
+            )
         );
         var radiusY = Math.max(
             radiusX * TARGET_RADIUS_Y_RATIO,
             coreSize.height / 2 + verticalHalfHeight + CORE_GAP
         );
         var coreNode = {
-            cos: 0,
-            sin: 0,
+            x: 0,
+            y: 0,
             width: coreSize.width,
             height: coreSize.height
         };
         var solveNodes = [coreNode].concat(nodes);
 
         /*
-         * Grow the ellipse as one shape instead of choosing a single axis per
-         * collision.  The previous solver could feed a tall wrapped shard back
-         * into radiusY repeatedly and create the giant vertical layout seen in
-         * visual QA.  Horizontal growth stops only at the real viewport edge;
-         * after that, Y alone may grow as a last resort.
+         * Prefer horizontal breathing while there is actual viewport room.
+         * This is the key difference from the previous global ellipse: the
+         * diagonal anchors already use x=±0.96, so a small X increase rapidly
+         * clears Party/Inventory without forcing the whole scene taller.
+         * Only after X reaches the real edge may Y grow independently.
          */
         for (var step = 0; step < MAX_SOLVE_STEPS; step += 1) {
-            if (!hasOverlap(solveNodes, radiusX, radiusY)) {
+            var overlaps = overlappingPairs(solveNodes, radiusX, radiusY);
+            if (!overlaps.length) {
                 break;
             }
-            if (radiusX < maxRadiusX - 1) {
-                var grownRadiusX = Math.min(maxRadiusX, radiusX * ELLIPSE_GROWTH + 3);
-                var growthRatio = grownRadiusX / Math.max(radiusX, 1);
-                radiusX = grownRadiusX;
-                radiusY = Math.max(
-                    radiusY * growthRatio,
-                    radiusX * TARGET_RADIUS_Y_RATIO
-                );
+
+            if (radiusX < maxRadiusX - 0.5) {
+                radiusX = Math.min(maxRadiusX, radiusX * X_GROWTH + 2);
+                radiusY = Math.max(radiusY, radiusX * TARGET_RADIUS_Y_RATIO);
             } else {
-                radiusY = radiusY * ELLIPSE_GROWTH + 3;
+                radiusY = radiusY * Y_GROWTH + 2;
             }
         }
 
@@ -205,10 +218,10 @@
         }
 
         var coreSize = dimensions(core);
-        var ellipse = solveEllipse(nodes, coreSize, fieldWidth);
+        var ring = solveRing(nodes, coreSize, fieldWidth);
         var relativeBounds = nodes.map(function (node) {
-            var centerX = ellipse.radiusX * node.cos;
-            var centerY = ellipse.radiusY * node.sin;
+            var centerX = ring.radiusX * node.x;
+            var centerY = ring.radiusY * node.y;
             return {
                 node: node,
                 centerX: centerX,
@@ -238,8 +251,8 @@
         var coreTop = centerY - coreSize.height / 2;
         var geometryKey = [
             Math.round(fieldWidth),
-            ellipse.radiusX,
-            ellipse.radiusY,
+            ring.radiusX,
+            ring.radiusY,
             Math.round(centerY),
             Math.round(fieldHeight)
         ].concat(nodes.map(function (node) {
@@ -254,8 +267,8 @@
         field.style.setProperty("--radial-field-height", Math.ceil(fieldHeight) + "px");
         field.style.setProperty("--radial-center-x", Math.round(centerX) + "px");
         field.style.setProperty("--radial-center-y", Math.round(centerY) + "px");
-        field.style.setProperty("--radial-radius-x", ellipse.radiusX + "px");
-        field.style.setProperty("--radial-radius-y", ellipse.radiusY + "px");
+        field.style.setProperty("--radial-radius-x", ring.radiusX + "px");
+        field.style.setProperty("--radial-radius-y", ring.radiusY + "px");
         core.style.setProperty("--radial-node-left", Math.round(coreLeft) + "px");
         core.style.setProperty("--radial-node-top", Math.round(coreTop) + "px");
         positions.forEach(function (position) {
