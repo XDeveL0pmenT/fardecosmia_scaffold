@@ -607,11 +607,16 @@ class PersonalNotePresentationTests(PersonalNotesN1Mixin, TestCase):
             'class="character-workspace reflection-radial-scene"'
         )
         radial_end = html.index("</main>", radial_start)
+        transition_surface_end = html.index(
+            '<aside class="character-persistent-hud"'
+        )
         hud_start = html.index('class="character-persistent-hud"')
         hud_end = html.index("</aside>", hud_start)
         hud = html[hud_start:hud_end]
 
         self.assertGreater(hud_start, radial_end)
+        self.assertIn('data-character-workspace-page-shell', html)
+        self.assertIn('</div>', html[radial_end:transition_surface_end])
         self.assertIn("data-character-persistent-hud", hud)
         self.assertIn("data-xp-hud-anchor", hud)
         self.assertIn("data-money-hud-anchor", hud)
@@ -623,6 +628,74 @@ class PersonalNotePresentationTests(PersonalNotesN1Mixin, TestCase):
         self.assertNotIn("progress", hud.lower())
         self.assertNotIn("level", hud.lower())
         self.assertNotIn("XP", hud)
+
+        root = Path(__file__).resolve().parents[2]
+        template = (
+            root / "characters" / "templates" / "characters" / "character_workspace.html"
+        ).read_text(encoding="utf-8")
+        css = (root / "static" / "css" / "app.css").read_text(encoding="utf-8")
+        surface_close = template.index("</div>", template.index("</main>"))
+        template_hud = template.index('<aside class="character-persistent-hud"')
+
+        self.assertLess(surface_close, template_hud)
+        self.assertIn(
+            ".character-workspace-page-shell > .character-persistent-hud",
+            css,
+        )
+        self.assertNotIn(
+            ".reflection-focus-field > .character-persistent-hud",
+            css,
+        )
+
+    def test_ux14_turn3_motion_is_bounded_route_safe_and_separately_owned(self):
+        self.note(memo="Порог", body="Сохранить движение света.")
+        self.client.force_login(self.player_a)
+        workspace = self.client.get(
+            reverse("campaigns:campaign_detail", args=[self.campaign.pk])
+        )
+        memory = self.client.get(self.list_url())
+
+        for response in (workspace, memory):
+            self.assertContains(
+                response,
+                "static/js/reflection-transitions.js",
+                html=False,
+            )
+
+        root = Path(__file__).resolve().parents[2]
+        transitions = (
+            root / "static" / "js" / "reflection-transitions.js"
+        ).read_text(encoding="utf-8")
+        focus = (root / "static" / "js" / "reflection-focus.js").read_text(
+            encoding="utf-8"
+        )
+        css = (root / "static" / "css" / "app.css").read_text(encoding="utf-8")
+
+        self.assertIn('querySelectorAll("a[data-character-transition]")', transitions)
+        self.assertIn("EXIT_DELAY_MS = 180", transitions)
+        self.assertIn('link.hasAttribute("download")', transitions)
+        self.assertIn('link.target === "_blank"', transitions)
+        self.assertIn("destination.origin !== window.location.origin", transitions)
+        self.assertIn("event.metaKey", transitions)
+        self.assertIn("event.persisted", transitions)
+        self.assertIn("EXIT_SAFETY_MS", transitions)
+        self.assertIn('event.key !== "Escape"', transitions)
+        self.assertIn('surface.querySelector("a[data-memory-close]")', transitions)
+        self.assertIn("reflectiongeometrychange", transitions)
+        self.assertIn("prefers-reduced-motion", transitions)
+        self.assertNotIn("setInterval", transitions)
+        self.assertNotIn("fetch(", transitions)
+        self.assertNotIn("window.location.assign", focus)
+
+        self.assertIn("@keyframes reflection-core-manifest", css)
+        self.assertIn("@keyframes reflection-node-manifest", css)
+        self.assertIn("@keyframes reflection-connectors-manifest", css)
+        self.assertIn("@keyframes memory-space-thought-manifest", css)
+        self.assertIn("@keyframes reflection-hud-sigil-manifest", css)
+        self.assertIn("html.character-surface-is-leaving", css)
+        self.assertIn(".is-transition-source", css)
+        self.assertIn("@media (prefers-reduced-motion: reduce)", css)
+        self.assertNotIn(".ambient-scene {\n    animation: reflection", css)
 
     def test_ux12_memory_focus_states_keep_native_secure_routes_and_quiet_copy(self):
         note = self.note(memo="Тихий берег", body="Не забыть дорогу к воде.")

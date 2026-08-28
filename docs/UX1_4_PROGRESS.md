@@ -510,3 +510,229 @@ rain/snow GIF restoration. Do not begin Turn 3 or any gameplay/backend phase.
 
 **STOP after Turn 2B.** Await explicit user acceptance. Do not begin Turn 3,
 Soul/XP gameplay, economy, backend work or any other gameplay phase.
+
+## Turn 3 — Motion & Transition Polish
+
+### Start checkpoint
+
+- Status: implementation not started; Turn 2B is the accepted source of truth.
+- Scope is presentation-only: short Workspace/Memory manifestation, route-safe
+  native-link exits, coherent Focus/connector timing, HUD manifestation and
+  mobile/reduced-motion stabilization.
+- Accepted radial anchors/solver, Core size and position, aura size, connector
+  geometry and trimming, Dark Glass shapes, Inventory placement, HUD placement,
+  PW2 authority and N1 semantics are frozen unless a direct technical defect is
+  proven.
+- Required files and the complete Turn 3 specification have been read; current
+  Workspace, Memory templates and frontend controllers are being audited before
+  implementation.
+- No backend, models, permissions, routing, migrations, gameplay values or
+  weather calculation may change.
+
+### Files changed in Turn 3 so far
+
+- `docs/UX1_4_PROGRESS.md` — start checkpoint only.
+
+### Verification so far
+
+- No Turn 3 tests or browser checks have run yet.
+- The prior Turn 2B focused baseline remains **32 tests, OK** with
+  `manage.py check` clean.
+
+### Exact next step
+
+Audit the current Workspace/Memory DOM and existing frontend motion ownership,
+then implement a small dedicated progressive-enhancement transition controller
+without changing the accepted geometry or backend contracts.
+
+### Implementation milestone
+
+- Added `static/js/reflection-transitions.js` as the sole owner of Character-
+  facing entrance/exit presentation. Native links remain authoritative and the
+  controller intercepts only eligible same-origin GET anchors marked with
+  `data-character-transition`.
+- The previous route-delay block was removed from `reflection-focus.js`; its
+  single-owner attention state machine, pointer batching and reset hooks remain
+  otherwise unchanged.
+- Workspace manifestation waits for the accepted desktop radial solver's
+  `reflectiongeometrychange` readiness signal. It does not read node geometry,
+  alter anchors or add a permanent animation loop.
+- Timing is bounded: Core first, connectors next, 40–45ms spatial node wave,
+  HUD last; the scene settles within about 855ms. Route exit is 180ms with a
+  1200ms failed-navigation cleanup.
+- PW2 ambience is outside the animated Character surface, so rain/snow/fog do
+  not restart, fade out or gain duplicate layers during manifestation.
+- Memory receives a short neutral header/thought/focus manifestation. Existing
+  thought open, conversational Hold/Edit and secure POST/Release flows remain
+  native; newly held thought motion was softened and shortened to 620ms.
+- Mobile keeps normal vertical geometry and uses a compact 10–40ms wave with
+  all modules available within about 580ms. Connectors remain hidden.
+- Reduced motion bypasses link delay and entrance orchestration entirely; the
+  existing static aura/connector/Soul/weather fallbacks remain authoritative.
+
+### Turn 3 files changed at this milestone
+
+- `static/js/reflection-transitions.js` — new bounded transition controller.
+- `static/js/reflection-focus.js` — navigation ownership removed; Focus remains.
+- `static/js/held-thoughts.js` — gentler 620–680ms new-thought settling constants.
+- `static/css/app.css` — manifestation, coherent focus timing, route continuity,
+  Memory/HUD motion, mobile and reduced-motion boundary.
+- `characters/templates/characters/character_workspace.html` — transition
+  controller include only.
+- `characters/templates/characters/personal_notes_base.html` — same controller
+  include for the existing unified Memory Space.
+- `templates/base.html` — CSS cache key `ux14-turn3-1`.
+- `characters/tests/test_personal_notes_n1.py` — focused ownership, timing,
+  native-route and reduced-motion assertions.
+- `docs/UX1_4_PROGRESS.md` — milestone checkpoint.
+
+### Current verification state
+
+- Implementation complete.
+- `python manage.py check`: no issues.
+- Focused `CharacterWorkspacePW1Tests` + `CharacterAmbiencePW2Tests` +
+  `PersonalNotePresentationTests`: **47 tests, OK**.
+- `git diff --check`: clean (only informational LF/CRLF warnings).
+- Browser verification has not run yet.
+- Exact next step: create isolated browser fixtures and perform only the Turn 3
+  desktop/mobile/rain/dry/navigation/Memory/keyboard sanity required by the
+  specification; create no screenshots and run no full suite.
+
+### Browser verification milestone
+
+- Desktop Workspace cold load: Core, connectors, nodes and HUD manifest in the
+  intended short sequence; all root entrance classes are removed after 920ms.
+- Rain continuity: authoritative rain opacity stayed exactly `0.5851` at the
+  beginning, middle and end of Workspace manifestation. The shared PW2 layer is
+  outside the animated surface and never flashed off/on.
+- Dry Character: precipitation kind remained `none`; rain and snow opacities
+  remained `0` throughout entrance.
+- Rapid Map → Lifestyle → Map pointer handoff retained exactly one Focus owner
+  and one correctly matched connector on every sample. Core focus retained one
+  owner, zero individually linked connectors, the all-thread Core state, aura
+  and Variant B name manifestation.
+- Keyboard `:focus-visible` presentation remains available. A real gap was found
+  for Escape in Memory focus scenes; the dedicated transition controller now
+  routes Escape through the existing `a[data-memory-close]`. Release Escape was
+  retested and returned to the same thought detail without submitting the POST.
+- Workspace → Memory, Memory → Workspace, thought opening and browser Back all
+  used native URLs. Back restored a fully visible Workspace with no stuck exit,
+  opening or Focus classes.
+- Memory has zero PW2/weather layers. Header and thought shards manifest softly;
+  thought opening preserves one selected source while surrounding thoughts
+  recede.
+- Hold Thought step 1/step 2, Russian typing manifestation and secure create POST
+  passed. The created thought reached the existing detail and returned to the
+  same field.
+- Browser QA exposed a CSS specificity conflict where the generic Memory entrance
+  could mask `memory-thought-join-field`. The final cascade now preserves the
+  dedicated 620ms new-thought animation while other thoughts remain at opacity
+  `0.5`; the special class clears afterward.
+- Release confirmation remained a CSRF-protected POST scene with the selected
+  canonical thought shape and no horizontal overflow; it was not submitted.
+- Mobile `390×844`: connectors remain hidden, zero nodes are absolutely
+  positioned, vertical DOM order is preserved, compact HUD positions are
+  unchanged, rain stays at `0.5851` and horizontal overflow is zero. Memory list
+  and focused thought also fit without overflow.
+- Development browser reports `prefers-reduced-motion: false`; runtime emulation
+  is not available through the selected browser capability. Reduced-motion was
+  therefore verified through the existing CSS contract, transition-controller
+  bypass and focused source tests, not claimed as an active visual profile.
+- Browser console warnings/errors: zero.
+- No screenshots were created.
+
+### Exact next step after browser milestone
+
+Close the temporary browser tab, reset its viewport, stop the local server,
+delete only the exact isolated Turn 3 fixtures, then rerun the directly affected
+N1 presentation tests, `manage.py check`, `git diff --check`, update this
+checkpoint and STOP without a full suite.
+
+### Turn 3 final targeted verification
+
+- Browser tab closed and explicit viewport override reset.
+- Temporary Django server stopped; port `8765` is no longer part of the test
+  session.
+- Deleted only Campaigns
+  `c3140000-0000-4000-8000-000000000001` and
+  `c3140000-0000-4000-8000-000000000002` plus exact user
+  `ux14_turn3_browser`; verification returned zero remaining matching rows.
+- After browser-found fixes, final directly affected
+  `PersonalNotePresentationTests`: **18 tests, OK**.
+- Final `python manage.py check`: no issues.
+- Final `git diff --check`: clean (only informational LF/CRLF warnings).
+- Intended Turn 3 worktree:
+  - modified `characters/templates/characters/character_workspace.html`;
+  - modified `characters/templates/characters/personal_notes_base.html`;
+  - modified `characters/tests/test_personal_notes_n1.py`;
+  - modified `docs/UX1_4_PROGRESS.md`;
+  - modified `static/css/app.css`;
+  - modified `static/js/held-thoughts.js`;
+  - modified `static/js/reflection-focus.js`;
+  - modified `templates/base.html`;
+  - new `static/js/reflection-transitions.js`.
+- No screenshots, migrations or full suite were created/run.
+- No backend, models, permissions, routes, weather authority, N1 privacy or
+  gameplay state changed.
+
+### Exact next step / STOP
+
+**STOP after Turn 3 targeted verification.** Await user visual acceptance. Do
+not start the UX1.x full-suite closure or P6, M2/V1, XP1, Tiamana, Ledger,
+Inventory I1, Quests, Travel, Apotheosis mechanics or C5 automatically.
+
+## Turn 3 focused regression patch — Persistent HUD containing block
+
+### Root cause and fix
+
+- Confirmed the regression was structural rather than a Soul/Money styling
+  defect: `.character-persistent-hud` used `position: fixed` while remaining a
+  descendant of `[data-character-surface="workspace"]` / the outer Focus Field.
+- Turn 3 applies `transform: scale(0.996)` to that surface during the 180ms
+  native-route exit. A transformed ancestor therefore became the containing
+  block for the supposedly viewport-fixed HUD and made it visually shrink and
+  move with the Character scene.
+- Added a neutral `.character-workspace-page-shell`. The Focus/transition
+  surface now closes immediately after the Character Workspace `<main>`, while
+  `.character-persistent-hud` is its sibling inside the page shell.
+- Updated the viewport anchoring selector to
+  `.character-workspace-page-shell > .character-persistent-hud`. Soul/Money
+  sizes, offsets, assets and visuals were not changed. The HUD remains outside
+  radial layout, Focus ownership and route-transition transforms/filters.
+
+### Files changed by this patch
+
+- `characters/templates/characters/character_workspace.html` — non-transformed
+  page shell and HUD moved outside the Character transition/Focus surface.
+- `static/css/app.css` — direct-child viewport HUD contract moved from the
+  Focus Field to the page shell; no HUD dimensions or positions changed.
+- `characters/tests/test_personal_notes_n1.py` — affected presentation test now
+  asserts the structural boundary and the new CSS ownership selector.
+- `docs/UX1_4_PROGRESS.md` — this checkpoint.
+
+### Targeted verification
+
+- Affected presentation test
+  `test_ux14_turn2b_hud_is_persistent_outside_radial_scene_without_fake_state`:
+  **1 test, OK**.
+- Real-browser desktop telemetry sampled the actual Workspace → Memory exit at
+  roughly 10–12ms intervals from 0 through 170ms. Every sample retained:
+  - HUD: `position: fixed`, `transform: none`, viewport rect
+    `1265×720 @ (0,0)`;
+  - Soul: `116×116 @ (18,586)`;
+  - Money: `104×52 @ (1141,90)`;
+  - `hud.closest("[data-character-surface]") === null`.
+- Memory → Workspace entrance samples from 0 through 760ms retained the exact
+  same HUD/Soul/Money rects and transforms.
+- Workspace → Memory → browser Back restored the same viewport-fixed rects
+  with no stuck route classes and no browser console warnings/errors.
+- Temporary Campaign `c314f100-0000-4000-8000-000000000001` and user
+  `ux14_turn3_hud_browser` were deleted; both verification counts are zero.
+- The temporary local server is stopped and port `8765` is not listening.
+- Full suite was intentionally not run.
+
+### Exact next step / STOP
+
+**STOP after the requested Persistent HUD regression patch.** Do not change
+accepted radial geometry, connectors, weather, Soul/Money visuals or begin any
+new phase automatically.

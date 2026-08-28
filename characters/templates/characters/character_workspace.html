@@ -3,6 +3,7 @@
 {% block title %}{% if active_character %}{{ active_character.name }}{% else %}{{ campaign.name }}{% endif %} — Фардекосмия{% endblock %}
 {% block content %}
 {% include "world/_ambient_layers.html" with ambience=character_ambience ambient_scope="character" %}
+<div class="character-workspace-page-shell" data-character-workspace-page-shell>
 <div class="character-worldspace reflection-focus-field" data-character-surface="workspace" data-reflection-focus-field>
     {% if not active_character %}
         <header class="character-worldspace__hero character-worldspace__hero--quiet" data-focus-depth="background">
@@ -153,7 +154,10 @@
             {% endif %}
 
         </main>
+    {% endif %}
+</div>
 
+    {% if active_character %}
         <aside class="character-persistent-hud" aria-label="Постоянные знаки отражения" data-character-persistent-hud>
             <div class="character-soul-hud" data-xp-hud-anchor>
                 <span class="character-soul-hud__visual" aria-hidden="true">
@@ -175,4 +179,5 @@
 <script src="{% static 'js/reflection-radial-layout.js' %}?v=ux14-elastic-1"></script>
 <script src="{% static 'js/reflection-connectors.js' %}?v=ux14-turn2a-1"></script>
 <script src="{% static 'js/reflection-focus.js' %}?v=ux14-turn2a-1"></script>
+<script src="{% static 'js/reflection-transitions.js' %}?v=ux14-turn3-2"></script>
 {% endblock %}

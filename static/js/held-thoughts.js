@@ -5,6 +5,9 @@
     var reducedQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     var operationStorageKey = "fardecosmia-memory-operation";
     var newThoughtStorageKey = "fardecosmia-memory-new-thought";
+    var THOUGHT_SETTLE_MS = 620;
+    var THOUGHT_RETURN_MS = 170;
+    var FIELD_SETTLE_MS = 680;
 
     function rememberOperation(operation) {
         try {
@@ -136,7 +139,7 @@
                 window.setTimeout(function () {
                     focusedThought.classList.remove(stateClass);
                     root.classList.remove("memory-thought-has-settled");
-                }, 760);
+                }, THOUGHT_SETTLE_MS);
             }
 
             if (operation === "hold") {
@@ -151,8 +154,8 @@
                     } else {
                         window.setTimeout(function () {
                             root.classList.add("memory-thought-is-returning");
-                            window.setTimeout(returnToMemoryField, 180);
-                        }, 760);
+                            window.setTimeout(returnToMemoryField, THOUGHT_RETURN_MS);
+                        }, THOUGHT_SETTLE_MS);
                     }
                 }
             }
@@ -177,7 +180,7 @@
                     window.setTimeout(function () {
                         newThought.classList.remove("is-newly-held-in-field");
                         root.classList.remove("memory-field-is-settling");
-                    }, 1200);
+                    }, FIELD_SETTLE_MS);
                 }
             }
         }

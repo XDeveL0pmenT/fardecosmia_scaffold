@@ -7787,8 +7787,8 @@ html.character-surface-is-leaving [data-character-surface] {
     }
 }
 
-/* UX1.4 Turn 2B — viewport-persistent HUD, structurally outside the radial field. */
-.reflection-focus-field > .character-persistent-hud {
+/* UX1.4 Turn 2B/Turn 3 — viewport HUD stays outside every transformed surface. */
+.character-workspace-page-shell > .character-persistent-hud {
     position: fixed;
     z-index: 12;
     inset: 0;
@@ -7835,7 +7835,7 @@ html.character-surface-is-leaving [data-character-surface] {
     z-index: 1;
     width: 172px;
     height: 172px;
-    opacity: 0.14;
+    opacity: 0.04;
     mix-blend-mode: screen;
     filter: saturate(0.88) brightness(0.92) contrast(1.04);
 }
@@ -7997,5 +7997,265 @@ html.character-surface-is-leaving [data-character-surface] {
 
     .character-money-hud__value {
         font-size: max(1.15rem, 1.05vw);
+    }
+}
+
+/* UX1.4 Turn 3 — short manifestation and route-safe Reflection continuity. */
+:root {
+    --reflection-motion-duration: 260ms;
+    --reflection-motion-ease: cubic-bezier(0.22, 0.7, 0.24, 1);
+}
+
+.reflection-node {
+    transition:
+        transform var(--reflection-motion-duration) var(--reflection-motion-ease),
+        opacity 240ms ease,
+        filter var(--reflection-motion-duration) ease,
+        box-shadow 240ms ease;
+}
+
+.character-core::before,
+.character-core::after,
+.character-core__portrait,
+.character-core__identity,
+.character-core__aura,
+.reflection-connector {
+    transition-duration: var(--reflection-motion-duration);
+    transition-timing-function: var(--reflection-motion-ease);
+}
+
+html.has-reflection-motion.character-surface-is-entering [data-character-surface="workspace"] .character-core,
+html.has-reflection-motion.character-surface-is-entering [data-character-surface="workspace"] .reflection-radial-scene__field > .workspace-module,
+html.has-reflection-motion.character-surface-is-entering [data-character-surface="workspace"] .reflection-radial-scene__field > .workspace-inventory,
+html.has-reflection-motion.character-surface-is-entering [data-character-surface="memory"] .held-thought-space__header,
+html.has-reflection-motion.character-surface-is-entering [data-character-surface="memory"] .held-thought-index__actions,
+html.has-reflection-motion.character-surface-is-entering [data-character-surface="memory"] .held-thought-grid > .held-thought,
+html.has-reflection-motion.character-surface-is-entering [data-character-surface="memory"] .held-thought-focus {
+    opacity: 0;
+}
+
+.workspace-module--party { --manifest-x: 0; --manifest-y: 8px; }
+.workspace-module--life { --manifest-x: -6px; --manifest-y: 5px; }
+.workspace-module--quests { --manifest-x: -8px; --manifest-y: 0; }
+.workspace-module--apotheosis { --manifest-x: -6px; --manifest-y: -5px; --manifest-opacity: 0.72; }
+.workspace-inventory { --manifest-x: 0; --manifest-y: -8px; }
+.workspace-module--notes { --manifest-x: 6px; --manifest-y: -5px; }
+.workspace-module--tiamana { --manifest-x: 8px; --manifest-y: 0; }
+.workspace-module--map { --manifest-x: 6px; --manifest-y: 5px; }
+
+html.character-surface-has-entered [data-character-surface="workspace"] .character-core {
+    animation: reflection-core-manifest 460ms var(--reflection-motion-ease) 30ms both;
+}
+
+html.character-surface-has-entered [data-character-surface="workspace"] .character-core__aura {
+    animation: reflection-aura-manifest 520ms var(--reflection-motion-ease) 110ms both;
+}
+
+html.character-surface-has-entered [data-character-surface="workspace"] .reflection-connectors {
+    animation: reflection-connectors-manifest 440ms ease 190ms both;
+}
+
+html.character-surface-has-entered [data-character-surface="workspace"] .reflection-radial-scene__field > .workspace-module,
+html.character-surface-has-entered [data-character-surface="workspace"] .reflection-radial-scene__field > .workspace-inventory {
+    animation: reflection-node-manifest 500ms var(--reflection-motion-ease) var(--manifest-delay, 230ms) both;
+}
+
+.workspace-module--life,
+.workspace-module--map { --manifest-delay: 230ms; }
+.workspace-module--quests,
+.workspace-module--tiamana { --manifest-delay: 270ms; }
+.workspace-module--notes,
+.workspace-module--apotheosis { --manifest-delay: 315ms; }
+.workspace-module--party,
+.workspace-inventory { --manifest-delay: 355ms; }
+
+html.character-surface-has-entered [data-character-surface="workspace"] .character-soul-hud__sigil {
+    animation: reflection-hud-sigil-manifest 420ms ease 430ms both;
+}
+
+html.character-surface-has-entered [data-character-surface="workspace"] .character-soul-hud__visual::before,
+html.character-surface-has-entered [data-character-surface="workspace"] .character-soul-hud__burst {
+    animation: reflection-hud-burst-manifest 460ms ease 500ms both;
+}
+
+html.character-surface-has-entered [data-character-surface="workspace"] .character-money-hud {
+    animation: reflection-hud-money-manifest 400ms ease 470ms both;
+}
+
+html.character-surface-has-entered [data-character-surface="memory"] .held-thought-space__header {
+    animation: memory-space-header-manifest 360ms var(--reflection-motion-ease) 20ms both;
+}
+
+html.character-surface-has-entered [data-character-surface="memory"] .held-thought-index__actions {
+    animation: memory-space-action-manifest 340ms ease 100ms both;
+}
+
+html.character-surface-has-entered [data-character-surface="memory"] .held-thought-grid > .held-thought {
+    animation: memory-space-thought-manifest 430ms var(--reflection-motion-ease) var(--memory-delay, 130ms) both;
+}
+
+.held-thought-grid > .held-thought:nth-child(2) { --memory-delay: 170ms; }
+.held-thought-grid > .held-thought:nth-child(3) { --memory-delay: 210ms; }
+.held-thought-grid > .held-thought:nth-child(4) { --memory-delay: 250ms; }
+.held-thought-grid > .held-thought:nth-child(5) { --memory-delay: 290ms; }
+.held-thought-grid > .held-thought:nth-child(n + 6) { --memory-delay: 330ms; }
+
+html.character-surface-has-entered [data-character-surface="memory"] .held-thought-focus {
+    animation: memory-focus-manifest 430ms var(--reflection-motion-ease) 70ms both;
+}
+
+html.character-surface-has-entered [data-character-surface="memory"] .held-thought-focus__actions,
+html.character-surface-has-entered [data-character-surface="memory"] .held-thought-release form {
+    animation: memory-focus-actions-manifest 330ms ease 210ms both;
+}
+
+html.character-surface-is-leaving [data-character-surface] {
+    opacity: 0.72;
+    filter: none;
+    transform: scale(0.996);
+    transition: opacity 180ms ease, transform 180ms var(--reflection-motion-ease);
+}
+
+html.character-surface-is-leaving [data-character-surface] .reflection-node {
+    opacity: 0.42;
+}
+
+html.character-surface-is-leaving [data-character-surface] .reflection-node.is-transition-source {
+    --node-scale: 1.012;
+    opacity: 1;
+}
+
+html.memory-focus-is-opening .held-thought-grid .held-thought:not(.is-opening) {
+    --node-scale: 0.982;
+    opacity: 0.32;
+    filter: none;
+}
+
+.held-thought.is-opening {
+    --node-scale: 1.038;
+    opacity: 1;
+    filter: none;
+}
+
+.held-thought--focused.is-newly-held {
+    animation-duration: 620ms;
+}
+
+.held-thought.is-newly-held-in-field {
+    animation-duration: 620ms;
+}
+
+html.character-surface-has-entered.memory-field-is-settling [data-character-surface="memory"] .held-thought:not(.is-newly-held-in-field) {
+    animation: none;
+    opacity: 0.5;
+    filter: blur(0.7px) saturate(0.76);
+}
+
+html.character-surface-has-entered.memory-field-is-settling [data-character-surface="memory"] .held-thought.is-newly-held-in-field {
+    animation: memory-thought-join-field 620ms var(--reflection-motion-ease) both;
+}
+
+@keyframes reflection-core-manifest {
+    from { opacity: 0; scale: 0.975; }
+    to { opacity: 1; scale: 1; }
+}
+
+@keyframes reflection-aura-manifest {
+    from { opacity: 0; }
+    to { opacity: 0.4; }
+}
+
+@keyframes reflection-connectors-manifest {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes reflection-node-manifest {
+    from { opacity: 0; translate: var(--manifest-x, 0) var(--manifest-y, 0); }
+    to { opacity: var(--manifest-opacity, 0.9); translate: 0 0; }
+}
+
+@keyframes reflection-hud-sigil-manifest {
+    from { opacity: 0; scale: 0.97; }
+    to { opacity: 0.92; scale: 1; }
+}
+
+@keyframes reflection-hud-burst-manifest {
+    from { opacity: 0; }
+}
+
+@keyframes reflection-hud-money-manifest {
+    from { opacity: 0; translate: 4px 0; }
+    to { opacity: 1; translate: 0 0; }
+}
+
+@keyframes memory-space-header-manifest {
+    from { opacity: 0; translate: 0 6px; }
+    to { opacity: 1; translate: 0 0; }
+}
+
+@keyframes memory-space-action-manifest {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes memory-space-thought-manifest {
+    from { opacity: 0; translate: 0 5px; }
+    to { opacity: 0.78; translate: 0 0; }
+}
+
+@keyframes memory-focus-manifest {
+    from { opacity: 0; scale: 0.985; }
+    to { opacity: 1; scale: 1; }
+}
+
+@keyframes memory-focus-actions-manifest {
+    from { opacity: 0; translate: 0 4px; }
+}
+
+@keyframes memory-thought-settle {
+    0% { opacity: 0.28; filter: blur(3px) brightness(1.08); transform: scale(0.92); }
+    100% { opacity: 1; filter: blur(0) brightness(1); transform: scale(1); }
+}
+
+@keyframes memory-thought-return-to-field {
+    from { opacity: 1; filter: blur(0); transform: scale(1); }
+    to { opacity: 0.2; filter: blur(3px) brightness(1.08); transform: scale(0.92); }
+}
+
+@keyframes memory-thought-join-field {
+    0% { opacity: 0.24; filter: blur(3px) brightness(1.08); transform: scale(0.92); }
+    100% { opacity: 1; filter: blur(0) brightness(1); transform: scale(1); }
+}
+
+@media (max-width: 760px) {
+    html.character-surface-has-entered [data-character-surface="workspace"] .character-core {
+        animation-duration: 320ms;
+        animation-delay: 10ms;
+    }
+
+    html.character-surface-has-entered [data-character-surface="workspace"] .reflection-radial-scene__field > .workspace-module,
+    html.character-surface-has-entered [data-character-surface="workspace"] .reflection-radial-scene__field > .workspace-inventory {
+        --manifest-x: 0;
+        --manifest-y: 5px;
+        animation-duration: 330ms;
+        animation-delay: var(--mobile-manifest-delay, 90ms);
+    }
+
+    .workspace-module--map { --mobile-manifest-delay: 110ms; }
+    .workspace-module--life { --mobile-manifest-delay: 130ms; }
+    .workspace-module--party { --mobile-manifest-delay: 150ms; }
+    .workspace-module--notes { --mobile-manifest-delay: 170ms; }
+    .workspace-module--tiamana { --mobile-manifest-delay: 190ms; }
+    .workspace-module--quests { --mobile-manifest-delay: 210ms; }
+    .workspace-module--apotheosis { --mobile-manifest-delay: 230ms; }
+    .workspace-inventory { --mobile-manifest-delay: 250ms; }
+
+    html.character-surface-has-entered [data-character-surface="workspace"] .character-soul-hud__sigil,
+    html.character-surface-has-entered [data-character-surface="workspace"] .character-soul-hud__visual::before,
+    html.character-surface-has-entered [data-character-surface="workspace"] .character-soul-hud__burst,
+    html.character-surface-has-entered [data-character-surface="workspace"] .character-money-hud {
+        animation-delay: 240ms;
+        animation-duration: 280ms;
     }
 }

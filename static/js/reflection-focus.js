@@ -1,7 +1,6 @@
 (function () {
     "use strict";
 
-    var root = document.documentElement;
     var fields = Array.from(document.querySelectorAll("[data-reflection-focus-field]"));
     if (!fields.length) {
         return;
@@ -402,41 +401,9 @@
         resetMotion(true);
     });
 
-    document.querySelectorAll("[data-character-transition]").forEach(function (link) {
-        link.addEventListener("click", function (event) {
-            if (
-                reducedQuery.matches || event.defaultPrevented || event.button !== 0 ||
-                event.metaKey || event.ctrlKey || event.shiftKey || event.altKey ||
-                link.target === "_blank"
-            ) {
-                return;
-            }
-            var destination = new URL(link.href, window.location.href);
-            if (destination.origin !== window.location.origin || destination.href === window.location.href) {
-                return;
-            }
-            event.preventDefault();
-            resetMotion(true);
-            var thought = link.closest("[data-memory-thought]");
-            if (thought) {
-                thought.classList.add("is-opening");
-                root.classList.add("memory-focus-is-opening");
-            }
-            root.classList.add("character-surface-is-leaving");
-            window.setTimeout(function () {
-                window.location.assign(destination.href);
-            }, 210);
-        });
-    });
-
     window.addEventListener("pageshow", function () {
         suppressPointerFor(180);
         suppressPointerUntilMovement();
         resetMotion(true);
-        root.classList.remove("character-surface-is-leaving", "memory-focus-is-opening");
-        root.classList.add("character-surface-is-arriving");
-        window.setTimeout(function () {
-            root.classList.remove("character-surface-is-arriving");
-        }, 280);
     });
 }());
